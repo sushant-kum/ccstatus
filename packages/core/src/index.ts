@@ -14,3 +14,4 @@ export type {
   ToastRule, ToastSurface, Theme, Defaults, Config,
 } from './config/types.js'
 export type { WidgetContext, WidgetDef } from './widgets/types.js'
+export { builtinThemes } from './theme/themes.js'

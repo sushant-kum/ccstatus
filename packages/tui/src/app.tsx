@@ -6,6 +6,7 @@ import { Preview } from './preview.js'
 import { Menu } from './screens/menu.js'
 import { Defaults } from './screens/defaults.js'
 import { Items } from './screens/items.js'
+import { Themes } from './screens/themes.js'
 import type { Config } from '@ccstatus/core'
 
 export interface ScreenProps { config: Config; setConfig: (c: Config) => void; goHome: () => void }
@@ -19,6 +20,7 @@ function Placeholder({ id, goHome }: { id: string; goHome: () => void }){
 function PlaceholderOrScreen({ id, ...props }: ScreenProps & { id: string }){
   switch (id) {
     case 'defaults': return <Defaults {...props}/>
+    case 'themes': return <Themes {...props}/>
     case 'items': return <Items {...props}/>
     default: return <Placeholder id={id} goHome={props.goHome}/>
   }

@@ -7,3 +7,60 @@ export function resolveColors(item: Item, config: Config): { fg?: string; bg?: s
     bg: item.bg ?? themeEntry?.bg,
   }
 }
+
+import type { Theme } from '../config/types.js'
+
+type P = [fg: string, bg: string]
+// model, version, context-percentage, git-branch, git-changes, tokens-input, tokens-output, tokens-total
+const WIDGETS = [
+  'model', 'version', 'context-percentage', 'git-branch', 'git-changes',
+  'tokens-input', 'tokens-output', 'tokens-total',
+] as const
+const mk = (rows: P[]): Theme => {
+  const t: Theme = {}
+  WIDGETS.forEach((w, i) => { const [fg, bg] = rows[i]!; t[w] = { fg, bg } })
+  return t
+}
+
+// Named-terminal-color approximations of ccstatusline's built-in palettes.
+export const builtinThemes: Record<string, Theme> = {
+  default: {
+    model: { fg: 'black', bg: 'bgCyan' },
+    version: { fg: 'white', bg: 'bgBlue' },
+    'context-percentage': { fg: 'black', bg: 'bgBrightYellow' },
+    'git-branch': { fg: 'black', bg: 'bgCyan' },
+    'git-changes': { fg: 'white', bg: 'bgBrightBlack' },
+  },
+  classic: mk([
+    ['black', 'bgYellow'], ['black', 'bgWhite'], ['black', 'bgGreen'], ['white', 'bgBlue'],
+    ['black', 'bgMagenta'], ['black', 'bgCyan'], ['black', 'bgBrightYellow'], ['white', 'bgRed'],
+  ]),
+  nord: mk([
+    ['black', 'bgBrightCyan'], ['black', 'bgCyan'], ['black', 'bgBlue'], ['white', 'bgBrightBlack'],
+    ['black', 'bgBrightBlue'], ['black', 'bgGreen'], ['black', 'bgYellow'], ['white', 'bgBlack'],
+  ]),
+  dracula: mk([
+    ['black', 'bgMagenta'], ['black', 'bgBrightMagenta'], ['black', 'bgBrightGreen'], ['black', 'bgBrightCyan'],
+    ['black', 'bgBrightYellow'], ['black', 'bgBrightRed'], ['white', 'bgBrightBlack'], ['white', 'bgMagenta'],
+  ]),
+  gruvbox: mk([
+    ['black', 'bgYellow'], ['black', 'bgBrightYellow'], ['black', 'bgGreen'], ['black', 'bgCyan'],
+    ['black', 'bgRed'], ['black', 'bgMagenta'], ['white', 'bgBrightBlack'], ['white', 'bgBlack'],
+  ]),
+  monokai: mk([
+    ['black', 'bgBrightGreen'], ['black', 'bgBrightYellow'], ['black', 'bgBrightMagenta'], ['black', 'bgBrightCyan'],
+    ['black', 'bgBrightRed'], ['white', 'bgBrightBlack'], ['black', 'bgYellow'], ['white', 'bgBlack'],
+  ]),
+  'one-dark': mk([
+    ['black', 'bgBlue'], ['black', 'bgBrightBlue'], ['black', 'bgGreen'], ['black', 'bgMagenta'],
+    ['black', 'bgYellow'], ['black', 'bgCyan'], ['white', 'bgBrightBlack'], ['white', 'bgBlack'],
+  ]),
+  solarized: mk([
+    ['white', 'bgBlue'], ['black', 'bgCyan'], ['black', 'bgYellow'], ['white', 'bgGreen'],
+    ['white', 'bgMagenta'], ['white', 'bgRed'], ['white', 'bgBrightBlack'], ['white', 'bgBlack'],
+  ]),
+  'tokyo-night': mk([
+    ['black', 'bgBrightBlue'], ['black', 'bgBlue'], ['black', 'bgBrightGreen'], ['black', 'bgBrightMagenta'],
+    ['black', 'bgBrightYellow'], ['black', 'bgBrightCyan'], ['white', 'bgBrightBlack'], ['white', 'bgBlack'],
+  ]),
+}

@@ -1,17 +1,10 @@
 import type { Config } from './types.js'
+import { builtinThemes } from '../theme/themes.js'
 
 export const defaultConfig: Config = {
   version: 1,
   theme: 'default',
-  themes: {
-    default: {
-      model: { fg: 'black', bg: 'bgCyan' },
-      version: { fg: 'white', bg: 'bgBlue' },
-      'context-percentage': { fg: 'black', bg: 'bgBrightYellow' },
-      'git-branch': { fg: 'black', bg: 'bgCyan' },
-      'git-changes': { fg: 'white', bg: 'bgBrightBlack' },
-    },
-  },
+  themes: structuredClone(builtinThemes),
   defaults: { separator: 'powerline', padding: 1, align: 'left', glyph: '▒', invert: false },
   surfaces: {
     band: {
