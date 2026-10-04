@@ -18,8 +18,8 @@ test('once toast fires once while true, and again after re-crossing', async ($, 
     value: { context: { tokens: 1, percent: pct }, rateLimits: [], startedAt: 0 },
   } as any))
   on('turn.complete', async () => ({ text: '' }))
-  on('ui.status', async () => ({}) as any)
-  on('ui.toast', async (_$, e) => { toasts.push((e as any).text); return {} as any })
+  on('ui.status', async () => ({ value: undefined }) as any)
+  on('ui.toast', async (_$, e) => { toasts.push((e as any).text); return { value: undefined } as any })
   const turn = () => $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't', reason: 'answer' } as any)
   await $.session.start({ cwd: '', surface: 'terminal', isInteractive: true })
   await turn()

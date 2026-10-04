@@ -18,3 +18,7 @@ export function parseConfig(text: string | null): { config: Config; warnings: st
   }
   return loadConfig(parsed)
 }
+
+export function shouldReload(prevMtime: number | null, stat: { mtimeMs: number }): boolean {
+  return prevMtime === null || stat.mtimeMs !== prevMtime
+}

@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { Register, EngineInterface } from 'claude-code'
 import { render, toAnsi } from './core.js'
 import type { Config, Snapshot } from './core.js'
-import { configPath, parseConfig } from './config-io.js'
+import { configPath, parseConfig, shouldReload } from './config-io.js'
 import { dueToasts, evalWhen } from './toasts.js'
 import { parseGit } from './git-parse.js'
 import { buildSnapshot, type RawUsage } from './snapshot-build.js'
@@ -13,6 +13,7 @@ const snapshot = atom({ plugin: 'ccstatus', key: 'snapshot' } as const, null)
 const config = atom({ plugin: 'ccstatus', key: 'config' } as const, null)
 const paneOpen = atom({ plugin: 'ccstatus', key: 'paneOpen' } as const, false)
 const toastFired = atom({ plugin: 'ccstatus', key: 'toastFired' } as const, {} as Record<string, boolean>)
+const configMtime = atom({ plugin: 'ccstatus', key: 'configMtime' } as const, null as number | null)
 const effort = atom({ plugin: 'ccstatus', key: 'effort' } as const, null)
 
 const GIT = 'r=$(git rev-parse --show-toplevel 2>/dev/null)||{ printf NO;exit 0;};'
@@ -24,16 +25,47 @@ const GIT = 'r=$(git rev-parse --show-toplevel 2>/dev/null)||{ printf NO;exit 0;
   + 'd=$(printf "%s\\n" "$s"|grep -cE "^(D.|.D)");'
   + 'printf "YES\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s" "$(basename "$r")" "$b" "$w" "$a" "$m" "$d"'
 
+async function resolveConfigPath($: EngineInterface): Promise<string> {
+  const xdg = await $.env.get('XDG_CONFIG_HOME').catch(() => undefined)
+  const home = await $.env.get('HOME').catch(() => undefined)
+  return configPath({ XDG_CONFIG_HOME: xdg, HOME: home })
+}
+
 async function loadConfigFromDisk($: EngineInterface): Promise<Config> {
   try {
-    const xdg = await $.env.get('XDG_CONFIG_HOME').catch(() => undefined)
-    const home = await $.env.get('HOME').catch(() => undefined)
-    const path = configPath({ XDG_CONFIG_HOME: xdg, HOME: home })
-    const text = await $.fs.read(path).catch(() => null)
+    const text = await $.fs.read(await resolveConfigPath($)).catch(() => null)
     return parseConfig(typeof text === 'string' ? text : null).config
   } catch {
     return parseConfig(null).config
   }
+}
+
+// Re-read the config when its mtime changed (or always when forced).
+async function reloadConfig($: EngineInterface, force: boolean): Promise<boolean> {
+  try {
+    const path = await resolveConfigPath($)
+    const stat = await $.fs.stat(path).catch(() => null)
+    const prev = await read($, configMtime)
+    if (!force && (!stat || !shouldReload(prev, stat))) return false
+    const cfg = await loadConfigFromDisk($)
+    await update($, config, () => cfg)
+    await update($, configMtime, () => stat ? stat.mtimeMs : null)
+    return true
+  } catch { return false }
+}
+
+async function setTheme($: EngineInterface, name: string): Promise<string> {
+  const cfg = await read($, config) as Config | null
+  if (!cfg) return 'ccstatus: config not loaded yet.'
+  if (!name || !cfg.themes[name]) {
+    return `ccstatus: unknown theme "${name}". Available: ${Object.keys(cfg.themes).join(', ')}`
+  }
+  const next: Config = { ...cfg, theme: name }
+  await update($, config, () => next)
+  try {
+    await $.fs.write(await resolveConfigPath($), JSON.stringify(next, null, 2) + '\n')
+  } catch { return `ccstatus: theme set to ${name} (could not save the config file).` }
+  return `ccstatus: theme set to ${name}.`
 }
 
 async function measure($: EngineInterface, eff: string | null): Promise<Snapshot> {
@@ -91,7 +123,7 @@ async function applySurfaces($: EngineInterface, snap: Snapshot): Promise<void> 
     if (!cfg) return
     await fireToasts($, cfg, snap)
     if (cfg.surfaces.statusline.enabled) {
-      await $.ui.status(toAnsi(render(cfg, snap, { surface: 'statusline', width: 0 })))
+      await $.ui.status(toAnsi(render(cfg, snap, { surface: 'statusline', width: snap.terminalWidth || 200 })))
     } else {
       await $.ui.status(undefined)
     }
@@ -134,10 +166,9 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     try {
       await $.command.register({ name: 'ccstatus', description: 'Toggle the ccstatus band above the prompt' })
-      const cfg = await loadConfigFromDisk($)
-      await update($, config, () => cfg)
+      await reloadConfig($, true)
       await refresh($)
-      $.clock.every(2000, () => void refresh($))
+      $.clock.every(2000, () => void reloadConfig($, false).then(() => refresh($)))
     } catch { /* never block session start */ }
     return next(e)
   })
@@ -156,7 +187,15 @@ export const register: Register = on => {
   on('command.run', { command: 'ccstatus' }, async ($, e) => {
     try {
       const args = String((e as { args?: unknown })?.args ?? '').trim()
-      if (args === 'pane') return { text: await togglePane($) }
+      const [sub = '', ...rest] = args.split(/\s+/)
+      if (sub === 'pane') return { text: await togglePane($) }
+      if (sub === 'reload') {
+        await reloadConfig($, true)
+        await refresh($)
+        return { text: 'ccstatus config reloaded.' }
+      }
+      if (sub === 'theme') return { text: await setTheme($, rest[0] ?? '') }
+      if (sub === 'edit') return { text: 'Edit your layout with the ccstatus editor: run `npx ccstatus` in a terminal. Changes are picked up automatically.' }
       const now = !(await read($, visible))
       await update($, visible, () => now)
       return { text: now ? 'ccstatus band shown.' : 'ccstatus band hidden.' }
@@ -177,7 +216,7 @@ export const register: Register = on => {
       const cfg = await read($, config)
       const snap = await read($, snapshot)
       if (!cfg || !snap) return next(e)
-      const model = render(cfg, snap, { surface: 'pane', width: e.props.bodyColumns || 0 })
+      const model = render(cfg, snap, { surface: 'pane', width: e.props.bodyColumns || 80 })
       if (model.lines.length === 0) return next(e)
       return paintModel(model, $.ui.resolve(e) as any) as any
     } catch {

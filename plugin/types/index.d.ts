@@ -39,6 +39,7 @@ declare module 'claude-code' {
       config: { [key: string]: unknown } | null
       effort: string | null
       paneOpen: boolean
+      configMtime: number | null
       toastFired: Record<string, boolean>
     }
   }
