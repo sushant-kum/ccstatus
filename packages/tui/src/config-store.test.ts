@@ -1,0 +1,32 @@
+import { expect, test } from 'vitest'
+import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { configPath, snapshotPath, loadConfigFile, saveConfigFile } from './config-store.js'
+import { defaultConfig } from '@ccstatus/core'
+
+test('paths honor XDG then HOME', () => {
+  expect(configPath({ XDG_CONFIG_HOME: '/x', HOME: '/h' })).toBe('/x/ccstatus/config.json')
+  expect(configPath({ HOME: '/h' })).toBe('/h/.config/ccstatus/config.json')
+  expect(snapshotPath({ HOME: '/h' })).toBe('/h/.config/ccstatus/snapshot.json')
+})
+test('missing file loads defaults, no throw', () => {
+  const p = join(mkdtempSync(join(tmpdir(),'ccs-')),'config.json')
+  const { config } = loadConfigFile(p)
+  expect(config.version).toBe(1)
+})
+test('invalid JSON loads defaults with a warning', () => {
+  const d = mkdtempSync(join(tmpdir(),'ccs-')); const p = join(d,'config.json')
+  writeFileSync(p,'{not json')
+  const { config, warnings } = loadConfigFile(p)
+  expect(config.version).toBe(1)
+  expect(warnings.length).toBeGreaterThan(0)
+})
+test('save is atomic + backs up the prior file', () => {
+  const d = mkdtempSync(join(tmpdir(),'ccs-')); const p = join(d,'config.json')
+  writeFileSync(p, JSON.stringify({ old: true }))
+  saveConfigFile(p, defaultConfig)
+  expect(JSON.parse(readFileSync(p,'utf8')).version).toBe(1)
+  expect(existsSync(p+'.bak')).toBe(true)
+  expect(JSON.parse(readFileSync(p+'.bak','utf8')).old).toBe(true)
+})
