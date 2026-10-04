@@ -9,6 +9,7 @@ import { Items } from './screens/items.js'
 import { Themes } from './screens/themes.js'
 import { Powerline } from './screens/powerline.js'
 import { Surfaces } from './screens/surfaces.js'
+import { Import } from './screens/import.js'
 import type { Config } from '@ccstatus/core'
 
 export interface ScreenProps { config: Config; setConfig: (c: Config) => void; goHome: () => void }
@@ -26,6 +27,7 @@ function PlaceholderOrScreen({ id, ...props }: ScreenProps & { id: string }){
     case 'powerline': return <Powerline {...props}/>
     case 'items': return <Items {...props}/>
     case 'surfaces': return <Surfaces {...props}/>
+    case 'import': return <Import {...props}/>
     default: return <Placeholder id={id} goHome={props.goHome}/>
   }
 }
