@@ -10,6 +10,7 @@ import { paintModel } from './paint.js'
 const visible = atom({ plugin: 'ccstatus', key: 'visible' } as const, true)
 const snapshot = atom({ plugin: 'ccstatus', key: 'snapshot' } as const, null)
 const config = atom({ plugin: 'ccstatus', key: 'config' } as const, null)
+const paneOpen = atom({ plugin: 'ccstatus', key: 'paneOpen' } as const, false)
 const effort = atom({ plugin: 'ccstatus', key: 'effort' } as const, null)
 
 const GIT = 'r=$(git rev-parse --show-toplevel 2>/dev/null)||{ printf NO;exit 0;};'
@@ -92,6 +93,17 @@ async function refresh($: EngineInterface): Promise<void> {
   finally { refreshing = false }
 }
 
+async function togglePane($: EngineInterface): Promise<string> {
+  if (await read($, paneOpen)) {
+    await $.ui.close({ id: 'ccstatus' })
+    await update($, paneOpen, () => false)
+    return 'ccstatus pane closed.'
+  }
+  await $.ui.open({ id: 'ccstatus', title: 'ccstatus' })
+  await update($, paneOpen, () => true)
+  return 'ccstatus pane opened.'
+}
+
 function captureEffort($: EngineInterface, e: unknown): Promise<void> {
   const active = (e as { effort?: { active?: unknown } })?.effort?.active
   if (typeof active === 'string' && active) {
@@ -123,13 +135,35 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('command.run', { command: 'ccstatus' }, async $ => {
+  on('command.run', { command: 'ccstatus' }, async ($, e) => {
     try {
+      const args = String((e as { args?: unknown })?.args ?? '').trim()
+      if (args === 'pane') return { text: await togglePane($) }
       const now = !(await read($, visible))
       await update($, visible, () => now)
       return { text: now ? 'ccstatus band shown.' : 'ccstatus band hidden.' }
     } catch {
-      return { text: 'ccstatus: toggle failed.' }
+      return { text: 'ccstatus: command failed.' }
+    }
+  })
+
+  on('ui.close', async ($, e, next) => {
+    try {
+      if ((e as { id?: string }).id === 'ccstatus') await update($, paneOpen, () => false)
+    } catch { /* ignore */ }
+    return next(e)
+  })
+
+  on('ui.render', { component: 'Pane', requestId: 'ccstatus' }, async ($, e, next) => {
+    try {
+      const cfg = await read($, config)
+      const snap = await read($, snapshot)
+      if (!cfg || !snap) return next(e)
+      const model = render(cfg, snap, { surface: 'pane', width: e.props.bodyColumns || 0 })
+      if (model.lines.length === 0) return next(e)
+      return paintModel(model, $.ui.resolve(e) as any) as any
+    } catch {
+      return next(e)
     }
   })
 

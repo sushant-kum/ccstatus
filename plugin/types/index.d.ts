@@ -38,6 +38,7 @@ declare module 'claude-code' {
       snapshot: CcstatusSnapshot | null
       config: { [key: string]: unknown } | null
       effort: string | null
+      paneOpen: boolean
     }
   }
 }
