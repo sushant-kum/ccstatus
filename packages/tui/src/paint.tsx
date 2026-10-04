@@ -5,8 +5,8 @@ const toInk = (n?: string): string | undefined => {
   if (!n) return undefined
   return n.startsWith('bright') ? n[6]!.toLowerCase() + n.slice(7) + 'Bright' : n
 }
-const inkColor = (fg?: string) => toInk(fg)
-const inkBg = (bg?: string) => {
+export const inkColor = (fg?: string) => toInk(fg)
+export const inkBg = (bg?: string) => {
   if (!bg) return undefined
   return toInk(bg.startsWith('bg') ? bg[2]!.toLowerCase() + bg.slice(3) : bg)
 }
