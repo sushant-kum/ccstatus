@@ -230,7 +230,9 @@ export const register: Register = on => {
       const cfg = await read($, config)
       const snap = await read($, snapshot)
       if (!cfg || !snap) return next(e)
-      const model = render(cfg, snap, { surface: 'band', width: e.props.bodyColumns || 0 })
+      const width = e.props.bodyColumns
+      if (!width) return next(e) // not measured yet: let the engine draw
+      const model = render(cfg, snap, { surface: 'band', width })
       if (model.lines.length === 0) return next(e)
       return paintModel(model, $.ui.resolve(e) as any) as any
     } catch {
