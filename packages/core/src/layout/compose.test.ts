@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest'
 import type { Cell } from './cells.js'
+import { toAnsi } from '../ansi.js'
 import { composeLine } from './compose.js'
 
 const cell = (text: string, bg?: string, extra: Partial<Cell> = {}): Cell =>
@@ -10,7 +11,7 @@ test('powerline inserts separators colored prevBg/nextBg plus caps', () => {
   const segs = composeLine([cell(' a ', 'bgRed'), cell(' b ', 'bgBlue')], 'powerline', 100)
   expect(segs.map(s => s.kind)).toEqual(['cap', 'cell', 'separator', 'cell', 'cap'])
   const sep = segs[2]!
-  expect(sep).toMatchObject({ text: '▒', fg: 'bgRed', bg: 'bgBlue' })
+  expect(sep).toMatchObject({ text: '▒', fg: 'red', bg: 'bgBlue' })
 })
 
 test('space mode joins with single spaces, no caps', () => {
@@ -36,4 +37,10 @@ test('truncation keeps visible width within bounds and never throws', () => {
   const segs = composeLine([cell(' hello '), cell(' world ')], 'powerline', 6)
   expect(visible(segs)).toBeLessThanOrEqual(6)
   expect(() => composeLine([cell('x')], 'powerline', 0)).not.toThrow()
+})
+
+test('powerline separator reaches ANSI with both fg and bg SGR codes', () => {
+  const segs = composeLine([cell(' a ', 'bgRed'), cell(' b ', 'bgBlue')], 'powerline', 100)
+  const out = toAnsi({ lines: [{ segments: segs }] })
+  expect(out).toContain('\x1b[31m\x1b[44m▒')
 })

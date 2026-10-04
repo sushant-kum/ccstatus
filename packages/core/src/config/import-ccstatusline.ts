@@ -2,6 +2,8 @@ import type { Config, Item, WidgetType } from './types.js'
 import { loadConfig } from './validate.js'
 import { defaultConfig } from './defaults.js'
 
+const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
+
 const TYPE_MAP: Record<string, WidgetType> = {
   version: 'version', model: 'model', 'thinking-effort': 'model',
   'context-length': 'context-length', 'context-percentage': 'context-percentage',
@@ -16,7 +18,7 @@ export function importCcstatusline(raw: unknown): { config: Config; warnings: st
   const warnings: string[] = []
   if (!raw || typeof raw !== 'object' || !Array.isArray((raw as { lines?: unknown }).lines)) {
     warnings.push('input is not a ccstatusline config; using defaults')
-    return { config: structuredClone(defaultConfig), warnings }
+    return { config: clone(defaultConfig), warnings }
   }
   const lines = (raw as { lines: unknown[][] }).lines.map(line =>
     (Array.isArray(line) ? line : []).flatMap((item: unknown): Item[] => {

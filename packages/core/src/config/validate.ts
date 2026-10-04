@@ -3,6 +3,8 @@ import type { Config, Item, WidgetType } from './types.js'
 import { defaultConfig } from './defaults.js'
 import { configSchema } from './schema.js'
 
+const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
+
 const WIDGET_TYPES = new Set<WidgetType>([
   'model', 'version', 'context-length', 'context-percentage',
   'tokens-input', 'tokens-output', 'tokens-cached', 'tokens-total',
@@ -59,20 +61,20 @@ export function loadConfig(raw: unknown): { config: Config; warnings: string[] }
   const parsed = configSchema.safeParse(raw)
   if (!parsed.success) {
     if (raw !== undefined) warn(`config invalid (${parsed.error.issues[0]?.message ?? 'unknown'}); using defaults`)
-    return { config: structuredClone(defaultConfig), warnings }
+    return { config: clone(defaultConfig), warnings }
   }
   const p = parsed.data
 
   const surf = (name: 'band' | 'statusline' | 'pane') => {
     const s = p.surfaces[name]
-    if (!s) return structuredClone(defaultConfig.surfaces[name])
+    if (!s) return clone(defaultConfig.surfaces[name])
     return {
       enabled: s.enabled,
       lines: s.lines.map(line => line.map(it => cleanItem(it, warn)).filter((x): x is Item => x !== null)),
     }
   }
 
-  const themesToUse = Object.keys(p.themes).length ? p.themes : structuredClone(defaultConfig.themes)
+  const themesToUse = Object.keys(p.themes).length ? p.themes : clone(defaultConfig.themes)
 
   const config: Config = {
     version: 1,
@@ -83,7 +85,7 @@ export function loadConfig(raw: unknown): { config: Config; warnings: string[] }
       band: surf('band'),
       statusline: surf('statusline'),
       pane: surf('pane'),
-      toasts: p.surfaces.toasts ?? structuredClone(defaultConfig.surfaces.toasts),
+      toasts: p.surfaces.toasts ?? clone(defaultConfig.surfaces.toasts),
     },
   }
   return { config, warnings }

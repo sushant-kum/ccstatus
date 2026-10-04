@@ -2,6 +2,13 @@ import type { SeparatorMode } from '../config/types.js'
 import type { Segment } from '../render-model.js'
 import type { Cell } from './cells.js'
 
+function bgToFg(bg: string | undefined): string | undefined {
+  if (!bg) return undefined
+  if (!bg.startsWith('bg')) return bg
+  const rest = bg.slice(2)
+  return rest.charAt(0).toLowerCase() + rest.slice(1)
+}
+
 function mergeCells(cells: Cell[]): Cell[] {
   const out: Cell[] = []
   for (const c of cells) {
@@ -36,7 +43,7 @@ export function composeLine(cells: Cell[], mode: SeparatorMode, width: number, g
 
   const segs: Segment[] = []
   const emitStartCap = mode === 'powerline' && content.length > 0
-  if (emitStartCap) segs.push({ kind: 'cap', text: glyph, fg: content[0]!.bg })
+  if (emitStartCap) segs.push({ kind: 'cap', text: glyph, fg: bgToFg(content[0]!.bg) })
 
   let ci = 0
   for (const c of merged) {
@@ -45,12 +52,12 @@ export function composeLine(cells: Cell[], mode: SeparatorMode, width: number, g
     const isLast = ci === content.length - 1
     if (!isLast) {
       const next = content[ci + 1]!
-      if (mode === 'powerline') segs.push({ kind: 'separator', text: glyph, fg: c.bg, bg: next.bg })
+      if (mode === 'powerline') segs.push({ kind: 'separator', text: glyph, fg: bgToFg(c.bg), bg: next.bg })
       else if (mode === 'space') segs.push({ kind: 'separator', text: ' ' })
     }
     ci += 1
   }
-  if (emitStartCap) segs.push({ kind: 'cap', text: glyph, fg: content[content.length - 1]!.bg })
+  if (emitStartCap) segs.push({ kind: 'cap', text: glyph, fg: bgToFg(content[content.length - 1]!.bg) })
 
   return truncate(segs, width)
 }
