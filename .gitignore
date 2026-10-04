@@ -3,3 +3,4 @@ plugin/hooks/core/
 node_modules/
 dist/
 *.log
+.superpowers/
