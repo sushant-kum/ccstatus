@@ -31,3 +31,18 @@ test('rate-limit-week without reset', () => {
 test('block-timer missing', () => {
   expect(fmt('block-timer', base)).toBeNull()
 })
+test('rate-limit-5h with past reset', () => {
+  expect(fmt('rate-limit-5h', { ...base, fiveReset: new Date(now - 1000).toISOString() })).toBe('Session: █░░░░ 30%')
+})
+test('rate-limit-5h with invalid reset', () => {
+  expect(fmt('rate-limit-5h', { ...base, fiveReset: 'garbage' })).toBe('Session: █░░░░ 30%')
+})
+test('rate-limit-week null pct', () => {
+  expect(fmt('rate-limit-week', { ...base, weekPct: null })).toBe('Weekly: —')
+})
+test('block-timer positive', () => {
+  expect(fmt('block-timer', { ...base, blockReset: new Date(now + 3_720_000).toISOString() })).toBe('Block: 1h 2m')
+})
+test('block-timer past', () => {
+  expect(fmt('block-timer', { ...base, blockReset: new Date(now - 1000).toISOString() })).toBeNull()
+})
