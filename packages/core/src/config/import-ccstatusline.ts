@@ -21,8 +21,9 @@ export function importCcstatusline(raw: unknown): { config: Config; warnings: st
   const lines = (raw as { lines: unknown[][] }).lines.map(line =>
     (Array.isArray(line) ? line : []).flatMap((item: unknown): Item[] => {
       const raw = item as Record<string, unknown>
+      if (!item || typeof item !== 'object') { warnings.push('dropped non-object ccstatusline item'); return [] }
       const srcType = String(raw['type'])
-      const type = TYPE_MAP[srcType]
+      const type = Object.hasOwn(TYPE_MAP, srcType) ? TYPE_MAP[srcType] : undefined
       if (!type) { warnings.push(`dropped unmapped ccstatusline item "${srcType}"`); return [] }
       const mapped: Item = {
         id: String(raw['id'] ?? `${type}-${Math.random().toString(36).slice(2)}`),

@@ -26,3 +26,18 @@ test('garbage input yields a valid default config with a warning', () => {
   expect(config.version).toBe(1)
   expect(warnings.length).toBeGreaterThan(0)
 })
+
+test('no throw on bad items (null, primitives)', () => {
+  const { config, warnings } = importCcstatusline({ version: 1, lines: [[null, 5, { id: 'v', type: 'version' }]] })
+  const line = config.surfaces.band.lines[0]!
+  expect(line).toHaveLength(1)
+  expect(line[0]!.type).toBe('version')
+  expect(warnings.some(w => w.includes('non-object'))).toBe(true)
+})
+
+test('prototype keys are dropped', () => {
+  const { config, warnings } = importCcstatusline({ version: 1, lines: [[{ id: 'x', type: 'toString' }]] })
+  const line = config.surfaces.band.lines[0]!
+  expect(line).toHaveLength(0)
+  expect(warnings.some(w => w.includes('toString'))).toBe(true)
+})
