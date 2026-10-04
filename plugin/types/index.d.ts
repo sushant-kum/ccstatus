@@ -1,6 +1,5 @@
 // The types contract must be self-contained (no imports), so the shapes the
 // plugin keeps in state are restated here; they mirror hooks/core.d.ts.
-export type CcstatusPlaceholder = never
 
 export type CcstatusSnapshot = {
     version: string;
