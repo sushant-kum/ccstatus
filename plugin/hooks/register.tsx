@@ -3,6 +3,7 @@ import type { Register, EngineInterface } from 'claude-code'
 import { render, toAnsi } from './core.js'
 import type { Config, Snapshot } from './core.js'
 import { configPath, parseConfig } from './config-io.js'
+import { dueToasts, evalWhen } from './toasts.js'
 import { parseGit } from './git-parse.js'
 import { buildSnapshot, type RawUsage } from './snapshot-build.js'
 import { paintModel } from './paint.js'
@@ -11,6 +12,7 @@ const visible = atom({ plugin: 'ccstatus', key: 'visible' } as const, true)
 const snapshot = atom({ plugin: 'ccstatus', key: 'snapshot' } as const, null)
 const config = atom({ plugin: 'ccstatus', key: 'config' } as const, null)
 const paneOpen = atom({ plugin: 'ccstatus', key: 'paneOpen' } as const, false)
+const toastFired = atom({ plugin: 'ccstatus', key: 'toastFired' } as const, {} as Record<string, boolean>)
 const effort = atom({ plugin: 'ccstatus', key: 'effort' } as const, null)
 
 const GIT = 'r=$(git rev-parse --show-toplevel 2>/dev/null)||{ printf NO;exit 0;};'
@@ -68,10 +70,26 @@ async function measure($: EngineInterface, eff: string | null): Promise<Snapshot
   return buildSnapshot({ version, model, effort: eff, cwd, now: await $.clock.now(), git, usage })
 }
 
+async function fireToasts($: EngineInterface, cfg: Config, snap: Snapshot): Promise<void> {
+  try {
+    if (!cfg.surfaces.toasts.enabled) return
+    const rules = cfg.surfaces.toasts.rules
+    const fired = (await read($, toastFired)) ?? {}
+    const next: Record<string, boolean> = { ...fired }
+    for (const t of dueToasts(rules, snap, fired)) {
+      try { await $.ui.toast(t.text) } catch { /* guarded */ }
+      next[t.key] = true
+    }
+    for (const r of rules) if (!evalWhen(r.when, snap)) delete next[r.when]
+    if (JSON.stringify(next) !== JSON.stringify(fired)) await update($, toastFired, () => next)
+  } catch { /* never throw from a refresh */ }
+}
+
 async function applySurfaces($: EngineInterface, snap: Snapshot): Promise<void> {
   try {
     const cfg = await read($, config) as Config | null
     if (!cfg) return
+    await fireToasts($, cfg, snap)
     if (cfg.surfaces.statusline.enabled) {
       await $.ui.status(toAnsi(render(cfg, snap, { surface: 'statusline', width: 0 })))
     } else {
