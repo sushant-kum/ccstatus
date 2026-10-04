@@ -39,3 +39,30 @@ test('missing surfaces are filled from defaults', () => {
   expect(config.surfaces.statusline).toEqual(defaultConfig.surfaces.statusline)
   expect(config.surfaces.toasts).toEqual(defaultConfig.surfaces.toasts)
 })
+
+test('unknown theme color is stripped with a warning', () => {
+  const raw = {
+    version: 1,
+    themes: {
+      default: {
+        model: { fg: 'fuchsia', bg: 'bgCyan' },
+      },
+    },
+  }
+  const { config, warnings } = loadConfig(raw)
+  expect(config.themes.default!.model!.fg).toBeUndefined()
+  expect(config.themes.default!.model!.bg).toBe('bgCyan')
+  expect(warnings.some(w => w.includes('fuchsia'))).toBe(true)
+})
+
+test('empty input object yields valid config with no warnings', () => {
+  const { config, warnings } = loadConfig({})
+  expect(config.version).toBe(1)
+  expect(warnings).toEqual([])
+})
+
+test('older version config is migrated with warning', () => {
+  const { config, warnings } = loadConfig({ version: 0 })
+  expect(config.version).toBe(1)
+  expect(warnings.some(w => w.includes('migrated') && w.includes('version 0'))).toBe(true)
+})

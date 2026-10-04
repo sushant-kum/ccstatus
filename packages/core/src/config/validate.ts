@@ -27,9 +27,34 @@ function cleanItem(raw: { type: string; fg?: string; bg?: string } & Record<stri
   return item
 }
 
+function cleanThemes(themes: Record<string, Record<string, { fg?: string; bg?: string }>>, warn: (s: string) => void): Record<string, Record<string, { fg?: string; bg?: string }>> {
+  const cleaned: Record<string, Record<string, { fg?: string; bg?: string }>> = {}
+  for (const [themeName, themeEntries] of Object.entries(themes)) {
+    const cleanedEntries: Record<string, { fg?: string; bg?: string }> = {}
+    for (const [widgetName, entry] of Object.entries(themeEntries)) {
+      const cleanedEntry = { ...entry }
+      for (const key of ['fg', 'bg'] as const) {
+        if (cleanedEntry[key] !== undefined && !isColor(cleanedEntry[key])) {
+          warn(`stripped unknown color "${cleanedEntry[key]}" in theme "${themeName}" (${widgetName})`)
+          cleanedEntry[key] = undefined
+        }
+      }
+      cleanedEntries[widgetName] = cleanedEntry
+    }
+    cleaned[themeName] = cleanedEntries
+  }
+  return cleaned
+}
+
 export function loadConfig(raw: unknown): { config: Config; warnings: string[] } {
   const warnings: string[] = []
   const warn = (s: string) => warnings.push(s)
+
+  // Check for version migration before parsing
+  const rawVersion = typeof raw === 'object' && raw !== null && 'version' in raw ? (raw as { version: unknown }).version : undefined
+  if (rawVersion !== undefined && rawVersion !== 1) {
+    warn(`migrated config from version ${rawVersion} to 1`)
+  }
 
   const parsed = configSchema.safeParse(raw)
   if (!parsed.success) {
@@ -47,10 +72,12 @@ export function loadConfig(raw: unknown): { config: Config; warnings: string[] }
     }
   }
 
+  const themesToUse = Object.keys(p.themes).length ? p.themes : structuredClone(defaultConfig.themes)
+
   const config: Config = {
     version: 1,
     theme: p.theme,
-    themes: Object.keys(p.themes).length ? p.themes : structuredClone(defaultConfig.themes),
+    themes: cleanThemes(themesToUse, warn),
     defaults: { ...defaultConfig.defaults, ...p.defaults },
     surfaces: {
       band: surf('band'),
