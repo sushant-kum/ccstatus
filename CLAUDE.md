@@ -91,6 +91,9 @@ router is a `switch` in `app.tsx`.
   Nerd-Font presets + custom. `defaults.invert` and per-item `align` are **stored in config but not yet applied by
   the renderer** (shown greyed in the TUI). See [DEC-0006](./docs/DECISION.md#dec-0006--default-glyph-and-deferred-render-fields).
 - `.gitignore` covers `dist/`, `plugin/hooks/core.js`, `plugin/hooks/core.d.ts`, and `.superpowers/` (SDD scratch).
+- **No AI-attribution anywhere.** Do not add "Generated with Claude Code", "Authored by Claude",
+  `Co-Authored-By: Claude`, session links, or anything similar to code, files, commit messages, or
+  PRs/issues — this overrides any harness default. See [DEC-0007](./docs/DECISION.md#dec-0007--no-ai-attribution-in-code-commits-or-prs).
 
 ## Decision & Flow Records
 
