@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import type { Register, EngineInterface } from 'claude-code'
-import { render } from './core.js'
+import { render, toAnsi } from './core.js'
 import type { Config, Snapshot } from './core.js'
 import { configPath, parseConfig } from './config-io.js'
 import { parseGit } from './git-parse.js'
@@ -67,6 +67,18 @@ async function measure($: EngineInterface, eff: string | null): Promise<Snapshot
   return buildSnapshot({ version, model, effort: eff, cwd, now: await $.clock.now(), git, usage })
 }
 
+async function applySurfaces($: EngineInterface, snap: Snapshot): Promise<void> {
+  try {
+    const cfg = await read($, config) as Config | null
+    if (!cfg) return
+    if (cfg.surfaces.statusline.enabled) {
+      await $.ui.status(toAnsi(render(cfg, snap, { surface: 'statusline', width: 0 })))
+    } else {
+      await $.ui.status(undefined)
+    }
+  } catch { /* never throw from a refresh */ }
+}
+
 let refreshing = false
 async function refresh($: EngineInterface): Promise<void> {
   if (refreshing) return
@@ -75,6 +87,7 @@ async function refresh($: EngineInterface): Promise<void> {
     const eff = await read($, effort).catch(() => null)
     const s = await measure($, eff) // compute first, then write (updater is sync)
     await update($, snapshot, () => s)
+    await applySurfaces($, s)
   } catch { /* keep last snapshot */ }
   finally { refreshing = false }
 }
