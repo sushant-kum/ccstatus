@@ -1,9 +1,16 @@
+import { useState } from 'react'
 import { expect, test, vi } from 'vitest'
 import { render } from 'ink-testing-library'
 import { Items } from './items.js'
 import { defaultConfig } from '@ccstatus/core'
+import type { Config } from '@ccstatus/core'
 
 const tick = () => new Promise(r => setTimeout(r, 20))
+function Harness({ initial, onChange }: { initial: Config; onChange: (c: Config) => void }){
+  const [c, setC] = useState(initial)
+  return <Items config={c} setConfig={n => { setC(n); onChange(n) }} goHome={()=>{}}/>
+}
+const DOWN = '\u001B[B', RIGHT = '\u001B[C'
 const len = defaultConfig.surfaces.band.lines[0]!.length
 
 test('lists the band items and can remove one', async () => {
@@ -62,5 +69,52 @@ test('e edits: ↓ to raw, → toggles rawValue; tab switches surface; esc home'
   expect(goHome).not.toHaveBeenCalled() // esc leaves editor first
   stdin.write('\t'); await tick()
   expect(lastFrame()).toContain('statusline')
+  unmount()
+})
+
+test('fg and bg cycle to a color, then back to (none) which removes the key', async () => {
+  for (const [downs, key] of [[0, 'fg'], [1, 'bg']] as const) {
+    let last!: Config
+    const { stdin, unmount } = render(<Harness initial={defaultConfig} onChange={c => { last = c }}/>)
+    await tick()
+    stdin.write('e'); await tick()
+    for (let i = 0; i < downs; i++) { stdin.write(DOWN); await tick() }
+    // defaults give item 0 a fg/bg; cycle forward until it wraps to (none)
+    let guard = 0
+    while (last?.surfaces.band.lines[0]![0]![key] !== undefined || guard === 0) {
+      stdin.write(RIGHT); await tick()
+      expect(++guard).toBeLessThan(60)
+    }
+    expect('fg' in last.surfaces.band.lines[0]![0]! && key === 'fg').toBe(false)
+    expect(key in last.surfaces.band.lines[0]![0]!).toBe(false)
+    stdin.write(RIGHT); await tick()
+    expect(last.surfaces.band.lines[0]![0]![key]).toBeDefined()
+    unmount()
+  }
+})
+
+test('editing line 0 preserves lines[1]', async () => {
+  const extra = { id: 'cwd-x', type: 'cwd' as const }
+  const cfg: Config = { ...defaultConfig, surfaces: { ...defaultConfig.surfaces,
+    band: { ...defaultConfig.surfaces.band, lines: [defaultConfig.surfaces.band.lines[0]!, [extra]] } } }
+  const setConfig = vi.fn()
+  const { stdin, unmount } = render(<Items config={cfg} setConfig={setConfig} goHome={()=>{}}/>)
+  await tick()
+  stdin.write('x'); await tick()
+  const next = setConfig.mock.calls.at(-1)![0] as Config
+  expect(next.surfaces.band.lines.length).toBe(2)
+  expect(next.surfaces.band.lines[1]).toEqual([extra])
+  unmount()
+})
+
+test('empty line: x, e, → do not throw', async () => {
+  const cfg: Config = { ...defaultConfig, surfaces: { ...defaultConfig.surfaces,
+    band: { ...defaultConfig.surfaces.band, lines: [[]] } } }
+  const setConfig = vi.fn()
+  const { lastFrame, stdin, unmount } = render(<Items config={cfg} setConfig={setConfig} goHome={()=>{}}/>)
+  await tick()
+  for (const k of ['x', 'e', RIGHT]) { stdin.write(k); await tick() }
+  expect(lastFrame()).toContain('no items')
+  expect(setConfig).not.toHaveBeenCalled()
   unmount()
 })

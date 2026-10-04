@@ -82,7 +82,7 @@ export function Items({ config, setConfig, goHome }: ScreenProps){
       else if (key.downArrow) setPick(p => wrap(p + 1, WIDGETS.length))
       else if (key.return) {
         const type = WIDGETS[pick]!.type
-        commit([...items, { id: `${type}-${Date.now().toString(36)}`, type }])
+        commit([...items, { id: `${type}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`, type }])
         setSel(items.length)
         setMode('strip')
       }
