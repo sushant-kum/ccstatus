@@ -1,9 +1,14 @@
 {
   "name": "ccstatus-monorepo",
   "private": true,
+  "type": "module",
   "workspaces": ["packages/*"],
   "scripts": {
     "test": "npm run test --workspaces --if-present",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "build:plugin-core": "tsup --entry.core=packages/core/src/index.ts --format esm --dts --clean=false --out-dir plugin/hooks"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0"
   }
 }

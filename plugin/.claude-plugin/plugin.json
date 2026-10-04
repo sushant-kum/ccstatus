@@ -1,0 +1,6 @@
+{
+  "name": "ccstatus",
+  "version": "0.1.0",
+  "description": "A configurable status bar for Claude Code — band, status line, pane, and toasts driven by one config; configured with npx ccstatus or /ccstatus.",
+  "types": "./types/index.d.ts"
+}

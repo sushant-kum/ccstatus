@@ -1,5 +1,6 @@
 # generated: core synced into the plugin folder
-plugin/hooks/core/
+plugin/hooks/core.js
+plugin/hooks/core.d.ts
 node_modules/
 dist/
 *.log
