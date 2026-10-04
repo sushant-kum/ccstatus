@@ -1,0 +1,232 @@
+# FLOW.md — Flow Catalogue
+
+> **What this is.** The reference for _how_ multi-step behaviour actually runs in this repo — user
+> journeys, request/response chains, auth sequences, build and release pipelines. One entry per
+> flow, each naming the concrete files that implement it.
+>
+> **What this is not.** Rationale (that is [DECISION.md](./DECISION.md)) or specs. A flow entry says
+> what happens, in order, and what happens when a step fails.
+>
+> **Conflict rule:** if this document and the source disagree, the source wins — then update the
+> affected flow in the same PR.
+
+---
+
+## How to use this file
+
+**Write a flow when any of these is true:**
+
+- Behaviour spans more than one module, app, service, or process.
+- Understanding it today requires opening three or more files.
+- It has non-obvious failure or fallback branches.
+- It crosses a boundary someone else owns (backend contract, CI/CD pipeline, deploy/GitOps repo).
+
+**Do not write a flow for:** a single component's internal state, anything a function's doc comment
+already explains, or a sequence that exists only inside one file.
+
+**Rules of the catalogue:**
+
+1. IDs are sequential (`FLOW-0001`, `FLOW-0002`, …) and never reused.
+2. Every flow gets a row in the index table below, in the same PR.
+3. Unlike DECISION.md, flow entries are **living documents** — edit a flow in place when the
+   behaviour changes, and update its `Last verified` date. Delete a flow only when the behaviour is
+   gone, and record the removal as a `DEC-XXXX` entry.
+4. Always list the **source files** that implement the flow — the entry is worthless once it drifts,
+   and the file list is what makes drift checkable.
+5. Diagrams are optional; use a fenced `mermaid` block when the branching is hard to read as
+   prose. Numbered steps are mandatory.
+6. Cross-link freely: `FLOW-0002`, `DEC-0001`, other doc sections.
+
+---
+
+## Index
+
+| ID        | Title                                   | Scope        | Last verified |
+| --------- | --------------------------------------- | ------------ | ------------- |
+| FLOW-0001 | Mod renders the above-prompt band       | plugin       | 2026-10-04    |
+| FLOW-0002 | Config edit → shared file → mod reload  | tui \| plugin | 2026-10-04    |
+| FLOW-0003 | Bundle core into the plugin             | repo-wide    | 2026-10-04    |
+
+---
+
+## Entry template
+
+Copy this block verbatim for a new flow.
+
+```markdown
+## FLOW-XXXX — <Short noun-phrase title>
+
+- **Scope:** repo-wide | core | plugin | tui
+- **Trigger:** what starts the flow (a user action, a route match, a request, a pushed tag, a timer).
+- **Outcome:** the successful end state.
+- **Last verified:** YYYY-MM-DD
+- **Related:** DEC-XXXX, FLOW-XXXX
+
+### Participants
+
+| Piece  | File / endpoint | Role         |
+| ------ | --------------- | ------------ |
+| <name> | `path/to/file`  | what it does |
+
+### Steps
+
+1. …
+2. …
+
+### Branches & failure modes
+
+- **<Condition>** → what happens instead.
+
+### Notes
+
+Anything a reader would otherwise get wrong — ordering constraints, dev-vs-prod differences,
+cross-service assumptions.
+```
+
+---
+
+## FLOW-0001 — Mod renders the above-prompt band
+
+- **Scope:** plugin
+- **Trigger:** session start, then every 2s tick, and every `turn.complete` / `tool.call`; the engine
+  also calls the `ui.render` hook whenever it paints the `AbovePrompt` site.
+- **Outcome:** the configured band is painted above the prompt from a fresh snapshot.
+- **Last verified:** 2026-10-04
+- **Related:** DEC-0001, [FLOW-0002](#flow-0002--config-edit--shared-file--mod-reload)
+
+### Participants
+
+| Piece              | File / endpoint                      | Role                                                        |
+| ------------------ | ------------------------------------ | ---------------------------------------------------------- |
+| register           | `plugin/hooks/register.tsx`          | hooks: session.start, clock tick, turn/tool, command, render |
+| config I/O         | `plugin/hooks/config-io.ts`          | `configPath`, `parseConfig`, `snapshotPath`, `shouldReload` |
+| git parse          | `plugin/hooks/git-parse.ts`          | `parseGit` — tab-delimited git output → fields              |
+| snapshot build     | `plugin/hooks/snapshot-build.ts`     | `buildSnapshot` — raw `$`/git values → `Snapshot` (pure)    |
+| paint              | `plugin/hooks/paint.tsx`             | `paintModel` — `RenderModel` → `$.ui.resolve` elements      |
+| bundled core       | `plugin/hooks/core.js` (generated)   | `render` / `loadConfig` (see [FLOW-0003](#flow-0003--bundle-core-into-the-plugin)) |
+
+### Steps
+
+1. `session.start` registers the `/ccstatus` command, loads config from disk
+   (`configPath` built from `$.env.get('HOME'/'XDG_CONFIG_HOME')` → `$.fs.read` → `parseConfig`),
+   takes a first snapshot, and starts `$.clock.every(2000, …)`.
+2. Each tick (and each `turn.complete` / `tool.call`) runs `refresh($)`: a re-entrancy-guarded
+   function that gathers `version`/`model`/`cwd`/`usage` via `$.session.*` and git fields via
+   `$.process.run(<git script>)` → `parseGit`, assembles them with `buildSnapshot`, and writes the
+   `snapshot` atom. `tool.call` / `turn.complete` first capture the thinking-effort into the `effort`
+   atom.
+3. `refresh` also persists the snapshot JSON to `snapshotPath` (for the TUI preview — see FLOW-0002)
+   and applies the status-line surface (`$.ui.status(toAnsi(render(...)))`) and toast rules.
+4. When the engine paints the prompt it calls the `ui.render` hook for `{ component: 'AbovePrompt' }`.
+   The hook reads the `visible`, `config`, and `snapshot` atoms, calls
+   `render(config, snapshot, { surface: 'band', width: e.props.bodyColumns })`, and returns
+   `paintModel(model)`.
+
+### Branches & failure modes
+
+- **`e.props.hasSurvey`, band hidden (`visible` false), or missing `config`/`snapshot`** → the render
+  hook returns `next(e)` (the engine draws its own; the band is absent).
+- **`e.props.bodyColumns` is `0`/undefined (not yet measured)** → `next(e)`; the band waits a frame
+  rather than painting at width 0 (core returns an empty model at width 0).
+- **`render` produces zero lines** → `next(e)`.
+- **Any `$` call fails** (`$.session.*`, git `$.process.run`, `$.fs`) → caught; the field degrades to a
+  default/null and the last good snapshot is kept. No hook ever throws.
+
+### Notes
+
+The 2s timer is cancelled on module reload / session end. `buildSnapshot` currently sets `cost` and
+`blockReset` to `null` (best-effort, deferred), so the `cost` and `block-timer` widgets omit.
+
+---
+
+## FLOW-0002 — Config edit → shared file → mod reload
+
+- **Scope:** tui | plugin
+- **Trigger:** the user edits and saves config in `npx ccstatus` (or hand-edits
+  `~/.config/ccstatus/config.json`).
+- **Outcome:** the running mod picks up the new config and repaints within one tick.
+- **Last verified:** 2026-10-04
+- **Related:** DEC-0001, [FLOW-0001](#flow-0001--mod-renders-the-above-prompt-band)
+
+### Participants
+
+| Piece          | File / endpoint                      | Role                                                       |
+| -------------- | ------------------------------------ | --------------------------------------------------------- |
+| TUI app        | `packages/tui/src/app.tsx`           | holds config state; Save → `saveConfigFile`               |
+| TUI screens    | `packages/tui/src/screens/*.tsx`     | call `setConfig` with an immutably-updated config          |
+| config store   | `packages/tui/src/config-store.ts`   | `configPath`, `loadConfigFile`, `saveConfigFile` (atomic)  |
+| core validate  | `packages/core/src/config/validate.ts` | `loadConfig` — validate/migrate/default, never throws     |
+| mod register   | `plugin/hooks/register.tsx`          | tick-time `reloadConfig` via mtime                         |
+| mod config I/O | `plugin/hooks/config-io.ts`          | `shouldReload(prevMtime, stat)`, `parseConfig`             |
+| shared file    | `~/.config/ccstatus/config.json`     | the single source both sides read/write                    |
+
+### Steps
+
+1. In the TUI, a screen calls `setConfig` with a cloned, updated `Config` (screens never mutate in
+   place). The pinned preview re-renders live via `core.render`.
+2. On **Save**, `saveConfigFile(configPath(), config)` rounds the config through `core.loadConfig`
+   first (so only a valid config is written), copies any existing file to `config.json.bak`, writes a
+   `.tmp` file, then `rename`s it over `config.json` (atomic).
+3. The running mod, on each 2s tick, calls `reloadConfig`: `$.fs.stat(path)` → `shouldReload` compares
+   `mtimeMs` to the stored `configMtime` atom; on change it re-reads + `parseConfig` and updates the
+   `config` atom.
+4. The next `refresh` + `ui.render` (FLOW-0001) repaints with the new config.
+
+### Branches & failure modes
+
+- **File missing / unreadable / invalid JSON** → `loadConfigFile` (TUI) and `parseConfig` (mod) both
+  fall back to `defaultConfig` (TUI adds a warning); neither throws.
+- **`saveConfigFile` I/O error** → the write is atomic, so `config.json` is never left corrupt and the
+  prior `.bak` remains; the session's unsaved edits are lost (currently without a user-facing message).
+- **mtime unchanged** → `reloadConfig` is a no-op (cheap `stat` only).
+- **`/ccstatus reload`** forces an immediate re-read regardless of mtime.
+
+### Notes
+
+Config path is `$XDG_CONFIG_HOME/ccstatus/config.json`, else `~/.config/ccstatus/config.json` — the
+same resolution on both sides. The TUI also reads the mod-written `snapshot.json` beside it to preview
+with real numbers (else a bundled sample).
+
+---
+
+## FLOW-0003 — Bundle core into the plugin
+
+- **Scope:** repo-wide
+- **Trigger:** `npm run build:plugin-core` (run after any change to `@ccstatus/core`), and the TUI
+  build (`npm run build -w @ccstatus/tui`).
+- **Outcome:** the mod and the `ccstatus` bin each carry a self-contained copy of core with zod
+  inlined.
+- **Last verified:** 2026-10-04
+- **Related:** DEC-0001, [FLOW-0001](#flow-0001--mod-renders-the-above-prompt-band)
+
+### Participants
+
+| Piece            | File / endpoint                    | Role                                                    |
+| ---------------- | ---------------------------------- | ------------------------------------------------------ |
+| root script      | `package.json` (`build:plugin-core`) | tsup entry that bundles core into the plugin           |
+| core entry       | `packages/core/src/index.ts`       | the public API surface that gets bundled                |
+| plugin bundle    | `plugin/hooks/core.js` + `core.d.ts` | GENERATED, gitignored; imported by the mod as `./core.js` |
+| tui build config | `packages/tui/tsup.config.ts`      | `noExternal: ['@ccstatus/core']` bundles core into the bin |
+
+### Steps
+
+1. `npm run build:plugin-core` runs tsup with `--entry.core=packages/core/src/index.ts --format esm
+   --dts --out-dir plugin/hooks`, producing `plugin/hooks/core.js` + `core.d.ts` with zod inlined.
+2. The mod's modules import from `./core.js` (values) and `import type … from './core.js'` (types).
+   Pure modules import **only** `./core.js`; `register.tsx` / `paint.tsx` additionally import
+   `claude-code`.
+3. `npm run build -w @ccstatus/tui` bundles its own copy of core into `packages/tui/dist/index.js`
+   (the `ccstatus` bin) via `noExternal`.
+
+### Branches & failure modes
+
+- **Core changed but `build:plugin-core` not re-run** → the mod runs a stale core; `claude plugin
+  test plugin` exercises the bundle, so this surfaces there. Always rebuild after a core change.
+- **An `import` from `node_modules` added to a bundled-and-shipped core path** → fine for the TUI
+  (normal Node), but the mod sandbox has no `node_modules`, so any such dependency must be bundled
+  (as zod is) or it fails to load in the mod.
+
+### Notes
+
+`plugin/hooks/core.js` and `core.d.ts` are generated artifacts — never hand-edit them; edit
+`packages/core/src/**` and rebuild. They are gitignored so they are not committed.
