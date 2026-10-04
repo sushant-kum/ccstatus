@@ -1,6 +1,9 @@
 {
   "name": "@ccstatus/tui",
   "version": "0.1.0",
+  "description": "Interactive configurator TUI for the ccstatus Claude Code status bar",
+  "license": "MIT",
+  "engines": { "node": ">=20" },
   "type": "module",
   "bin": { "ccstatus": "./dist/index.js" },
   "files": ["dist"],
