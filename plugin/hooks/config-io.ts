@@ -7,6 +7,12 @@ export function configPath(env: Record<string, string | undefined>): string {
   return `${base}/ccstatus/config.json`
 }
 
+export function snapshotPath(env: Record<string, string | undefined>): string {
+  const xdg = env['XDG_CONFIG_HOME']
+  const base = xdg && xdg.startsWith('/') ? xdg : `${env['HOME'] ?? ''}/.config`
+  return `${base}/ccstatus/snapshot.json`
+}
+
 export function parseConfig(text: string | null): { config: Config; warnings: string[] } {
   if (text === null) return loadConfig(undefined)
   let parsed: unknown

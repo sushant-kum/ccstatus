@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { configPath, parseConfig } from './config-io.js'
+import { configPath, parseConfig, snapshotPath } from './config-io.js'
 
 test('configPath prefers XDG_CONFIG_HOME', () => {
   expect(configPath({ XDG_CONFIG_HOME: '/x/.config', HOME: '/home/u' }))
@@ -22,4 +22,8 @@ test('valid JSON is loaded through core', () => {
   const raw = JSON.stringify({ version: 1, surfaces: { band: { enabled: false, lines: [] } } })
   const { config } = parseConfig(raw)
   expect(config.surfaces.band.enabled).toBe(false)
+})
+
+test('snapshotPath sits beside the config', () => {
+  expect(snapshotPath({ HOME: '/home/u' })).toBe('/home/u/.config/ccstatus/snapshot.json')
 })

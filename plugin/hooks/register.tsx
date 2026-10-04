@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { Register, EngineInterface } from 'claude-code'
 import { render, toAnsi } from './core.js'
 import type { Config, Snapshot } from './core.js'
-import { configPath, parseConfig, shouldReload } from './config-io.js'
+import { configPath, parseConfig, shouldReload, snapshotPath } from './config-io.js'
 import { dueToasts, evalWhen } from './toasts.js'
 import { parseGit } from './git-parse.js'
 import { buildSnapshot, type RawUsage } from './snapshot-build.js'
@@ -138,6 +138,13 @@ async function refresh($: EngineInterface): Promise<void> {
     const eff = await read($, effort).catch(() => null)
     const s = await measure($, eff) // compute first, then write (updater is sync)
     await update($, snapshot, () => s)
+    try {
+      const env = {
+        HOME: await $.env.get('HOME').catch(() => undefined),
+        XDG_CONFIG_HOME: await $.env.get('XDG_CONFIG_HOME').catch(() => undefined),
+      }
+      await $.fs.write(snapshotPath(env), JSON.stringify(s)).catch(() => {})
+    } catch { /* ignore snapshot persistence errors */ }
     await applySurfaces($, s)
   } catch { /* keep last snapshot */ }
   finally { refreshing = false }

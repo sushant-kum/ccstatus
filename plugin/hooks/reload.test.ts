@@ -17,12 +17,14 @@ function setup($: any, on: any) {
   const clock = mock.clock(on, { now: 1_000_000 })
   mock.env(on, { HOME: '/h' })
   const w = { text: JSON.stringify(withStatusline(true)), mtime: 1, status: undefined as string | undefined,
-    reads: 0, writes: [] as string[], clock: null as any }
+    reads: 0, writes: [] as string[], snapshots: [] as string[], clock: null as any }
   on('session.start', async (_$: any, e: any) => ({ cwd: e.cwd }))
   on('command.register', async () => ({ value: { command: 'ccstatus' } }))
   on('fs.read', async () => { w.reads++; return { value: w.text } as any })
   on('fs.stat', async () => ({ value: { mtimeMs: w.mtime } }) as any)
-  on('fs.write', async (_$: any, e: any) => { w.writes.push(e.text); w.text = e.text; return { value: undefined } as any })
+  on('fs.write', async (_$: any, e: any) => {
+    if (String(e.path).endsWith('/snapshot.json')) { w.snapshots.push(e.text); return { value: undefined } as any }
+    w.writes.push(e.text); w.text = e.text; return { value: undefined } as any })
   on('session.cwd', async () => ({ value: '' }))
   on('session.model', async () => ({ value: 'opus' }))
   on('session.version', async () => ({ value: { version: '1.2.3' } }))
@@ -66,4 +68,11 @@ test('/ccstatus theme <name> writes the config back', async ($, on) => {
   expect(bad.text).toContain('unknown')
   const edit = await $.command.run({ command: 'ccstatus', args: 'edit' } as any)
   expect(edit.text).toContain('npx ccstatus')
+})
+
+test('refresh persists the snapshot to snapshot.json', async ($, on) => {
+  const w = setup($, on)
+  await $.session.start({ cwd: '', surface: 'terminal', isInteractive: true })
+  expect(w.snapshots.length).toBeGreaterThan(0)
+  expect(JSON.parse(w.snapshots[0]!).version).toBe('1.2.3')
 })
