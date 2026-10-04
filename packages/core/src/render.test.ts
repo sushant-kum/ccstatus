@@ -24,3 +24,12 @@ test('disabled surface renders nothing', () => {
   const model = render(defaultConfig, snap, { surface: 'statusline', width: 120 })
   expect(model.lines).toEqual([])
 })
+
+test('render uses the configured powerline glyph', () => {
+  const cfg = JSON.parse(JSON.stringify(defaultConfig)) as typeof defaultConfig
+  cfg.defaults.glyph = '►'
+  const model = render(cfg, snap, { surface: 'band', width: 120 })
+  const text = model.lines[0]!.segments.map(s => s.text).join('')
+  expect(text).toContain('►')
+  expect(text).not.toContain('▒')
+})

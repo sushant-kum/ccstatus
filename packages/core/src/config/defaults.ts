@@ -12,7 +12,7 @@ export const defaultConfig: Config = {
       'git-changes': { fg: 'white', bg: 'bgBrightBlack' },
     },
   },
-  defaults: { separator: 'powerline', padding: 1, align: 'left' },
+  defaults: { separator: 'powerline', padding: 1, align: 'left', glyph: '▒', invert: false },
   surfaces: {
     band: {
       enabled: true,

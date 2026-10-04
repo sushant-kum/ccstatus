@@ -24,7 +24,7 @@ export function render(config: Config, snapshot: Snapshot, opts: RenderOptions):
   const lines = surface.lines
     .map(items => lineToCells(items, config, snapshot, outputs))
     .filter(cells => cells.length > 0)
-    .map(cells => ({ segments: composeLine(cells, config.defaults.separator, opts.width) }))
+    .map(cells => ({ segments: composeLine(cells, config.defaults.separator, opts.width, config.defaults.glyph) }))
 
   return { lines }
 }

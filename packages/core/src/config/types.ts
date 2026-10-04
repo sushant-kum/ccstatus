@@ -24,7 +24,7 @@ export type SurfaceLayout = { enabled: boolean; lines: Item[][] }
 export type ToastRule = { when: string; text: string; once?: boolean }
 export type ToastSurface = { enabled: boolean; rules: ToastRule[] }
 export type Theme = Record<string, { fg?: string; bg?: string }>
-export type Defaults = { separator: SeparatorMode; padding: number; align: Align }
+export type Defaults = { separator: SeparatorMode; padding: number; align: Align; glyph: string; invert: boolean }
 
 export type Config = {
   version: 1

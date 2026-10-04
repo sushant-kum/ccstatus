@@ -30,7 +30,7 @@ export const configSchema = z.object({
   version: z.literal(1).catch(1),
   theme: z.string().default('default'),
   themes: z.record(z.record(z.object({ fg: z.string().optional(), bg: z.string().optional() }))).default({}),
-  defaults: z.object({ separator: sep, padding: z.number(), align }).partial().default({}),
+  defaults: z.object({ separator: sep, padding: z.number(), align, glyph: z.string().min(1), invert: z.boolean() }).partial().default({}),
   surfaces: z
     .object({
       band: surfaceLayoutSchema.optional(),
