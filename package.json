@@ -1,0 +1,9 @@
+{
+  "name": "ccstatus-monorepo",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "tsc -b"
+  }
+}
