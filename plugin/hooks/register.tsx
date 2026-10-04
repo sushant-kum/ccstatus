@@ -14,12 +14,12 @@ const effort = atom({ plugin: 'ccstatus', key: 'effort' } as const, null)
 
 const GIT = 'r=$(git rev-parse --show-toplevel 2>/dev/null)||{ printf NO;exit 0;};'
   + 'b=$(git rev-parse --abbrev-ref HEAD 2>/dev/null);'
-  + 'w=$(git rev-parse --show-toplevel 2>/dev/null|xargs -I{} sh -c "git -C {} rev-parse --git-dir" 2>/dev/null);'
+  + 'gd=$(git rev-parse --git-dir 2>/dev/null); case "$gd" in */worktrees/*) w=$(basename "$gd");; *) w="";; esac;'
   + 's=$(git status --porcelain 2>/dev/null);'
   + 'a=$(printf "%s\\n" "$s"|grep -cE "^(A.|.A|\\?\\?)");'
   + 'm=$(printf "%s\\n" "$s"|grep -cE "^(M.|.M)");'
   + 'd=$(printf "%s\\n" "$s"|grep -cE "^(D.|.D)");'
-  + 'printf "YES\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s" "$(basename "$r")" "$b" "" "$a" "$m" "$d"'
+  + 'printf "YES\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s" "$(basename "$r")" "$b" "$w" "$a" "$m" "$d"'
 
 async function loadConfigFromDisk($: EngineInterface): Promise<Config> {
   try {
@@ -111,9 +111,13 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'ccstatus' }, async $ => {
-    const now = !(await read($, visible))
-    await update($, visible, () => now)
-    return { text: now ? 'ccstatus band shown.' : 'ccstatus band hidden.' }
+    try {
+      const now = !(await read($, visible))
+      await update($, visible, () => now)
+      return { text: now ? 'ccstatus band shown.' : 'ccstatus band hidden.' }
+    } catch {
+      return { text: 'ccstatus: toggle failed.' }
+    }
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
