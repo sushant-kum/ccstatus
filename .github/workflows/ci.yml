@@ -41,7 +41,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:plugin-core
-      - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code
-      - name: Validate plugin (static)
-        run: claude plugin validate plugin
+      # The mod uses the function-hooks ("modules") format, which only the preview
+      # claude build understands; the public `claude plugin validate`/`test` reject
+      # it (hooks shape + `types` field). Do a dependency-free structural check here;
+      # run the full engine validate/test locally with the preview CLI. See FLOW-0004.
+      - name: Validate plugin structure
+        run: node scripts/check-plugin.mjs

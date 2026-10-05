@@ -266,8 +266,12 @@ See [DEC-0010](./DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-privat
 1. Ensure the core bundle is current: `npm run build:plugin-core` (CI also gates
    this via `git diff --exit-code`). Commit if it changed.
 2. Verify green: `npm test -w @ccstatus/core`, `npm test -w ccstatus`,
-   `npm run build -w ccstatus`, `claude plugin validate plugin`,
-   `claude plugin test plugin`.
+   `npm run build -w ccstatus`, and — with the **preview** claude build —
+   `claude plugin validate plugin` + `claude plugin test plugin`. CI cannot run
+   those two: the public npm `@anthropic-ai/claude-code` doesn't understand the
+   function-hooks (`modules`) format (it errors on the hooks shape and warns on
+   `types`), so the CI `plugin` job runs `node scripts/check-plugin.mjs`
+   (structural: manifest, hooks modules, committed bundle, marketplace entry) instead.
 3. **TUI → npm:** bump `packages/tui/package.json` `version`, then
    `npm publish -w ccstatus` (the package is unscoped + `publishConfig.access:
    public`; core is bundled, so no private dependency is fetched). Requires npm

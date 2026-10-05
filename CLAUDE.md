@@ -39,11 +39,15 @@ npm run build -w ccstatus                     # emits packages/tui/dist/index.js
 
 # plugin (the mod) — NOT vitest; uses the claude CLI + claude-code/testing
 npm run build:plugin-core                     # REQUIRED after any core change: bundles core into plugin/hooks/core.js
-claude plugin validate plugin                 # static check (hooks/manifest/state contract); a "no author" warning is expected
-claude plugin test plugin                     # runs plugin/hooks/*.test.ts against the engine
+claude plugin validate plugin                 # static check (hooks/manifest/state contract) — needs the PREVIEW claude build
+claude plugin test plugin                     # runs plugin/hooks/*.test.ts against the engine — PREVIEW claude build
+node scripts/check-plugin.mjs                 # dependency-free structural check (what CI runs; no claude CLI)
 ```
 
-`npm test` at the root runs core + tui (not the plugin — that needs `claude plugin test`).
+`npm test` at the root runs core + tui (not the plugin — that needs `claude plugin test`). **`claude plugin
+validate`/`test` require the preview claude build that understands the function-hooks (`modules`) format; the
+public npm `@anthropic-ai/claude-code` rejects it, so CI runs `node scripts/check-plugin.mjs` instead (structural
+only). Run the engine validate/test locally.**
 
 ## Architecture — the parts that span files
 
