@@ -222,7 +222,7 @@ with real numbers (else a bundled sample).
 | ---------------- | ---------------------------------- | ------------------------------------------------------ |
 | root script      | `package.json` (`build:plugin-core`) | tsup entry that bundles core into the plugin           |
 | core entry       | `packages/core/src/index.ts`       | the public API surface that gets bundled                |
-| plugin bundle    | `plugin/hooks/core.js` + `core.d.ts` | GENERATED, gitignored; imported by the mod as `./core.js` |
+| plugin bundle    | `plugin/hooks/core.js` + `core.d.ts` | GENERATED; committed and kept fresh by CI (DEC-0010); imported by the mod as `./core.js` |
 | tui build config | `packages/tui/tsup.config.ts`      | `noExternal: ['@ccstatus/core']` bundles core into the bin |
 
 ### Steps

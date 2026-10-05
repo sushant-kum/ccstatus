@@ -166,10 +166,12 @@ the TUI via Ink, the native status line via `toAnsi`.
 
 ## DEC-0003 — Bundle core (zod inlined) into the plugin
 
+> **Narrowed by [DEC-0010](#dec-0010--distribution-unscoped-ccstatus-bin-private-bundled-core-committed-plugin-bundle):** the generated bundle below is now **committed** (not gitignored) so git/marketplace installs can load the mod; it remains generated and CI-gated. The "gitignored artifact" wording in Decision is as-of 2026-10-04.
+
 - **Date:** 2026-10-04
 - **Status:** Accepted
 - **Scope:** plugin | core
-- **Related:** DEC-0002, [FLOW-0003](./FLOW.md#flow-0003--bundle-core-into-the-plugin)
+- **Related:** DEC-0002, DEC-0010, [FLOW-0003](./FLOW.md#flow-0003--bundle-core-into-the-plugin)
 
 ### Context
 

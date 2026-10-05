@@ -8,11 +8,14 @@ rendered live by a Claude Code mod. The TUI preview and the mod paint from the
 same engine, so what you preview is what you get.
 
 > **Status:** v1, pre-release (`0.1.0`). Not yet published to npm or a hosted
-> marketplace — install from source as below.
+> marketplace — the published commands below work **once it ships**; until then
+> use the [from-source setup](#development).
 
 ## Install
 
-ccstatus has two halves that share one config file.
+ccstatus has two halves that share one config file. _(Published install — these
+work once ccstatus is on npm and the marketplace; to try it before then, see
+[Development](#development).)_
 
 ### 1. The mod (renders the bar)
 
