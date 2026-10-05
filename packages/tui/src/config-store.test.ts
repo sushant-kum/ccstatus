@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { configPath, snapshotPath, loadConfigFile, saveConfigFile } from './config-store.js'
@@ -14,6 +14,13 @@ test('missing file loads defaults, no throw', () => {
   const p = join(mkdtempSync(join(tmpdir(),'ccs-')),'config.json')
   const { config } = loadConfigFile(p)
   expect(config.version).toBe(1)
+})
+test('an existing but unreadable config loads defaults WITH a warning (not silently)', () => {
+  const d = mkdtempSync(join(tmpdir(),'ccs-')); const p = join(d,'config.json')
+  mkdirSync(p) // a directory where a file is expected → readFileSync throws EISDIR
+  const { config, warnings } = loadConfigFile(p)
+  expect(config.version).toBe(1) // falls back to defaults
+  expect(warnings.some(w => /could not read/i.test(w))).toBe(true) // but is NOT silent
 })
 test('invalid JSON loads defaults with a warning', () => {
   const d = mkdtempSync(join(tmpdir(),'ccs-')); const p = join(d,'config.json')

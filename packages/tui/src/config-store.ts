@@ -13,7 +13,16 @@ export const snapshotPath = (env: Env = process.env) => `${base(env)}/ccstatus/s
 
 export function loadConfigFile(path: string): { config: Config; warnings: string[] } {
   let text: string | null = null
-  try { text = existsSync(path) ? readFileSync(path, 'utf8') : null } catch { text = null }
+  if (existsSync(path)) {
+    // Distinguish "file exists but can't be read" (EACCES/EISDIR/transient I/O) from
+    // "no config yet". Collapsing both to defaults would hide a recoverable config —
+    // and a later save would overwrite it with defaults, with no warning and no .bak.
+    try { text = readFileSync(path, 'utf8') }
+    catch (e) {
+      const f = loadConfig(undefined)
+      return { config: f.config, warnings: [`could not read config file (${e instanceof Error ? e.message : String(e)}); editing from defaults — saving will replace it`] }
+    }
+  }
   if (text === null) return loadConfig(undefined)
   try { return loadConfig(JSON.parse(text)) }
   catch { const f = loadConfig(undefined); return { config: f.config, warnings: ['config file is not valid JSON; using defaults'] } }
