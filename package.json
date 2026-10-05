@@ -2,6 +2,11 @@
   "name": "ccstatus-monorepo",
   "private": true,
   "type": "module",
+  "license": "MIT",
+  "author": "Sushant Kumar",
+  "repository": { "type": "git", "url": "git+https://github.com/sushant-kum/ccstatus.git" },
+  "homepage": "https://github.com/sushant-kum/ccstatus#readme",
+  "bugs": { "url": "https://github.com/sushant-kum/ccstatus/issues" },
   "workspaces": [
     "packages/*"
   ],
