@@ -1,0 +1,23 @@
+{
+  "name": "ccstatus-monorepo",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "author": "Sushant Kumar",
+  "repository": { "type": "git", "url": "git+https://github.com/sushant-kum/ccstatus.git" },
+  "homepage": "https://github.com/sushant-kum/ccstatus#readme",
+  "bugs": { "url": "https://github.com/sushant-kum/ccstatus/issues" },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "tsc -b",
+    "build:plugin-core": "tsup --entry.core=packages/core/src/index.ts --format esm --dts --clean=false --out-dir plugin/hooks",
+    "test:plugin-pure": "vitest run --config plugin/vitest.config.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "tsup": "^8.0.0"
+  }
+}

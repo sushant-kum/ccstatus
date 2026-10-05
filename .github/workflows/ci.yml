@@ -1,0 +1,54 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # core
+      - run: npm run typecheck -w @ccstatus/core
+      - run: npm test -w @ccstatus/core
+
+      # tui (published as `ccstatus`)
+      - run: npm run typecheck -w ccstatus
+      - run: npm test -w ccstatus
+      - run: npm run build -w ccstatus
+
+      # plugin core bundle must be committed AND current
+      - name: Core bundle is fresh
+        run: |
+          npm run build:plugin-core
+          git diff --exit-code plugin/hooks/core.js plugin/hooks/core.d.ts \
+            || { echo "::error::plugin/hooks/core.{js,d.ts} is stale — run 'npm run build:plugin-core' and commit"; exit 1; }
+
+  plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:plugin-core
+      # The mod uses the function-hooks ("modules") format, which only the preview
+      # claude build understands; the public `claude plugin validate`/`test` reject
+      # it (hooks shape + `types` field). Do a dependency-free structural check here;
+      # run the full engine validate/test locally with the preview CLI. See FLOW-0004.
+      - name: Validate plugin structure
+        run: node scripts/check-plugin.mjs
+      # The engine-free plugin modules (git-parse/snapshot-build/config-io/toasts)
+      # run under vitest so their logic is CI-guarded (the engine-integration tests
+      # still run only under the preview `claude plugin test`).
+      - name: Test pure plugin modules
+        run: npm run test:plugin-pure

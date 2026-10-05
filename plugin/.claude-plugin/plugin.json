@@ -1,0 +1,10 @@
+{
+  "name": "ccstatus",
+  "version": "0.1.0",
+  "description": "A configurable status bar for Claude Code — band, status line, pane, and toasts driven by one config; configured with npx ccstatus or /ccstatus.",
+  "author": { "name": "Sushant Kumar", "url": "https://github.com/sushant-kum" },
+  "homepage": "https://github.com/sushant-kum/ccstatus",
+  "license": "MIT",
+  "keywords": ["claude-code", "statusline", "status-bar", "plugin", "mod"],
+  "types": "./types/index.d.ts"
+}
