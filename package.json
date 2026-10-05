@@ -13,7 +13,8 @@
   "scripts": {
     "test": "npm run test --workspaces --if-present",
     "typecheck": "tsc -b",
-    "build:plugin-core": "tsup --entry.core=packages/core/src/index.ts --format esm --dts --clean=false --out-dir plugin/hooks"
+    "build:plugin-core": "tsup --entry.core=packages/core/src/index.ts --format esm --dts --clean=false --out-dir plugin/hooks",
+    "test:plugin-pure": "vitest run --config plugin/vitest.config.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",

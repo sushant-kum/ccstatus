@@ -47,3 +47,8 @@ jobs:
       # run the full engine validate/test locally with the preview CLI. See FLOW-0004.
       - name: Validate plugin structure
         run: node scripts/check-plugin.mjs
+      # The engine-free plugin modules (git-parse/snapshot-build/config-io/toasts)
+      # run under vitest so their logic is CI-guarded (the engine-integration tests
+      # still run only under the preview `claude plugin test`).
+      - name: Test pure plugin modules
+        run: npm run test:plugin-pure
