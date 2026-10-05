@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { detectModStatus, type RunCmd, type RunResult } from './mod-status.js'
+import { detectModStatus, installMod, type RunCmd, type RunResult } from './mod-status.js'
 
 const run = (res: Partial<RunResult>): RunCmd => async () => ({ code: 0, stdout: '', stderr: '', ...res })
 
@@ -23,4 +23,25 @@ test('unknown when output is JSON but not an array', async () => {
 test('detection never rejects even if the runner throws', async () => {
   const throwing: RunCmd = async () => { throw new Error('spawn boom') }
   await expect(detectModStatus(throwing)).resolves.toBe('unknown')
+})
+
+const seq = (results: Partial<RunResult>[]): RunCmd => {
+  let i = 0
+  return async () => ({ code: 0, stdout: '', stderr: '', ...(results[i++] ?? {}) })
+}
+
+test('install runs marketplace add then install and reports the reload caveat', async () => {
+  const r = await installMod(seq([{ code: 0 }, { code: 0 }]))
+  expect(r.ok).toBe(true)
+  expect(r.message).toMatch(/restart Claude Code|reload/i)
+})
+test('install reports marketplace-add failure without claiming success', async () => {
+  const r = await installMod(seq([{ code: 1, stderr: 'network down' }, { code: 0 }]))
+  expect(r.ok).toBe(false)
+  expect(r.message).toMatch(/marketplace add failed/i)
+})
+test('install reports the install-step failure', async () => {
+  const r = await installMod(seq([{ code: 0 }, { code: 1, stderr: 'no such plugin' }]))
+  expect(r.ok).toBe(false)
+  expect(r.message).toMatch(/install failed/i)
 })

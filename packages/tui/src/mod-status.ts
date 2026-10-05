@@ -35,3 +35,18 @@ export async function detectModStatus(run: RunCmd = runCmd): Promise<ModStatus> 
     && (p as { id: string }).id.startsWith('ccstatus@'))
   return found ? 'installed' : 'absent'
 }
+
+export type InstallResult = { ok: boolean; message: string }
+
+const firstLine = (s: string): string => s.split('\n').map((l) => l.trim()).find(Boolean) ?? ''
+
+// Opt-in only (called from an explicit keypress). Adds the marketplace, then
+// installs non-interactively (-y). On success the mod still loads only on the
+// next Claude Code start / /reload-plugins — the message says so.
+export async function installMod(run: RunCmd = runCmd): Promise<InstallResult> {
+  const add = await run(['claude', 'plugin', 'marketplace', 'add', MARKETPLACE_SLUG])
+  if (add.code !== 0) return { ok: false, message: `marketplace add failed: ${firstLine(add.stderr || add.stdout) || `exit ${add.code}`}` }
+  const inst = await run(['claude', 'plugin', 'install', PLUGIN_ID, '-y'])
+  if (inst.code !== 0) return { ok: false, message: `install failed: ${firstLine(inst.stderr || inst.stdout) || `exit ${inst.code}`}` }
+  return { ok: true, message: 'mod installed — restart Claude Code (or run /reload-plugins) to see the bar' }
+}
