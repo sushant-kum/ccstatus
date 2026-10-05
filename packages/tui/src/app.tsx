@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Text, useApp, useInput } from 'ink'
 import { configPath, snapshotPath, loadConfigFile, saveConfigFile } from './config-store.js'
 import { detectModStatus, installMod, MARKETPLACE_SLUG, PLUGIN_ID, type ModStatus, type InstallResult } from './mod-status.js'
@@ -53,27 +53,33 @@ export function App({ modProbe }: { modProbe?: ModProbe } = {}){
   const [installing, setInstalling] = useState(false)
   const [installMsg, setInstallMsg] = useState<string | null>(null)
   const [installOk, setInstallOk] = useState(true)
+  // Refs (not state) so the guards are correct within a single tick: `installStarted`
+  // blocks a second `i` before the first install's state update re-renders;
+  // `mounted` stops any async callback from setting state after unmount.
+  const installStartedRef = useRef(false)
+  const mountedRef = useRef(true)
+  useEffect(() => () => { mountedRef.current = false }, [])
   const snap = readSnapshot(snapshotPath())
   const width = process.stdout.columns || 120
 
   // Detect the mod asynchronously so the UI paints immediately; the guard keeps
   // us from setting state after unmount, and any detection error degrades to 'unknown'.
   useEffect(() => {
-    let alive = true
-    probe.detect().then((s) => { if (alive) setModStatus(s) }).catch(() => { if (alive) setModStatus('unknown') })
-    return () => { alive = false }
+    probe.detect().then((s) => { if (mountedRef.current) setModStatus(s) })
+      .catch(() => { if (mountedRef.current) setModStatus('unknown') })
   }, [])
 
   // `i` installs the mod — menu screen only, so it never hijacks typing in an editor.
   useInput((input) => {
     if (screen !== 'menu') return
     if (input === 'q') { exit(); return }
-    if (input === 'i' && modStatus === 'absent' && !installing) {
+    if (input === 'i' && modStatus === 'absent' && !installStartedRef.current) {
+      installStartedRef.current = true
       setInstalling(true)
       probe.install()
-        .then((r) => { setInstallMsg(r.message); setInstallOk(r.ok); if (r.ok) setModStatus('installed') })
-        .catch((e) => { setInstallMsg(e instanceof Error ? e.message : String(e)); setInstallOk(false) })
-        .finally(() => setInstalling(false))
+        .then((r) => { if (!mountedRef.current) return; setInstallMsg(r.message); setInstallOk(r.ok); if (r.ok) setModStatus('installed') })
+        .catch((e) => { if (!mountedRef.current) return; setInstallMsg(e instanceof Error ? e.message : String(e)); setInstallOk(false) })
+        .finally(() => { installStartedRef.current = false; if (mountedRef.current) setInstalling(false) })
     }
   })
 
@@ -101,6 +107,8 @@ export function App({ modProbe }: { modProbe?: ModProbe } = {}){
       ? <Text color={installOk ? 'green' : 'red'}>{installOk ? '✓ ' : '⚠ '}{installMsg}</Text>
       : modStatus === 'absent'
         ? <Text color="yellow">⚠ ccstatus mod not installed — press i to install ({PLUGIN_ID}){installing ? ' … installing' : ''}</Text>
+      : modStatus === 'disabled'
+        ? <Text color="yellow">⚠ ccstatus mod installed but disabled — enable it: claude plugin enable {PLUGIN_ID}</Text>
       : modStatus === 'unknown'
         ? <Text color="yellow">⚠ couldn't check if the mod is installed — if the bar isn't showing, run: claude plugin marketplace add {MARKETPLACE_SLUG} && claude plugin install {PLUGIN_ID}</Text>
         : null}

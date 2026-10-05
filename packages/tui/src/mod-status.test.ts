@@ -11,6 +11,14 @@ test('absent when the list has no ccstatus entry', async () => {
   const stdout = JSON.stringify([{ id: 'other@mp', enabled: true }])
   expect(await detectModStatus(run({ code: 0, stdout }))).toBe('absent')
 })
+test('disabled when the ccstatus entry is present but enabled:false', async () => {
+  const stdout = JSON.stringify([{ id: 'ccstatus@ccstatus', enabled: false }])
+  expect(await detectModStatus(run({ code: 0, stdout }))).toBe('disabled')
+})
+test('installed when the ccstatus entry has no enabled field (treat as enabled)', async () => {
+  const stdout = JSON.stringify([{ id: 'ccstatus@ccstatus' }])
+  expect(await detectModStatus(run({ code: 0, stdout }))).toBe('installed')
+})
 test('unknown when claude is not on PATH (non-zero exit)', async () => {
   expect(await detectModStatus(run({ code: -1, stderr: 'ENOENT' }))).toBe('unknown')
 })

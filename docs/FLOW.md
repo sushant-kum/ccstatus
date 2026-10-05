@@ -299,9 +299,9 @@ See [DEC-0010](./DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-privat
 ### Steps
 
 1. `App` mounts and, in a `useEffect`, calls `detectModStatus()` → `runCmd(['claude','plugin','list','--json'])`.
-2. The result sets `modStatus`: `'installed'` (an `id` starts with `ccstatus@`), `'absent'` (list parsed, none), or `'unknown'` (claude missing / non-zero / non-JSON).
-3. `'absent'` → yellow banner "mod not installed — press i to install". `i` on the menu screen calls `installMod()` → `marketplace add` then `install … -y`; the green result message (incl. the restart/reload caveat) replaces the banner and, on success, `modStatus` flips to `'installed'`.
-4. `'installed'` → no banner. `'unknown'` → banner with manual commands, no `i` action.
+2. The result sets `modStatus`: `'installed'` (a `ccstatus@` entry, not `enabled:false`), `'disabled'` (a `ccstatus@` entry with `enabled:false`), `'absent'` (list parsed, none), or `'unknown'` (claude missing / non-zero / non-JSON).
+3. `'absent'` → yellow banner "mod not installed — press i to install". `i` on the menu screen calls `installMod()` → `marketplace add` then `install … -y`; the result message replaces the banner (green `✓` on success, red `⚠` on failure — the message names the failed step) and, on success, `modStatus` flips to `'installed'`. A re-entrancy ref blocks a second `i` while an install is in flight; a mounted ref stops any async callback from setting state after unmount.
+4. `'installed'` → no banner. `'disabled'` → banner hinting `claude plugin enable ccstatus@ccstatus` (no `i` action). `'unknown'` → banner with manual install commands, no `i` action.
 
 ### Branches & failure modes
 

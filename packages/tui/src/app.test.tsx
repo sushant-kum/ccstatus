@@ -134,3 +134,21 @@ test('pressing i does nothing when not on the menu screen', async () => {
   expect(called).toBe(0)
   unmount()
 })
+
+test('shows an enable hint when the mod is installed but disabled', async () => {
+  const { lastFrame, unmount } = render(<App modProbe={probe('disabled')}/>)
+  await tick()
+  expect(lastFrame()).toContain('disabled')
+  expect(lastFrame()).toContain('claude plugin enable')
+  unmount()
+})
+test('a rapid double i triggers only one install', async () => {
+  let called = 0
+  const p = probe('absent', async () => { called++; await tick(); return { ok: true, message: 'mod installed — reload' } })
+  const { stdin, unmount } = render(<App modProbe={p}/>)
+  await tick()
+  stdin.write('i'); stdin.write('i')   // two presses before any re-render
+  await tick(); await tick(); await tick()
+  expect(called).toBe(1)
+  unmount()
+})

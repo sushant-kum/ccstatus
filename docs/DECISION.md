@@ -489,10 +489,12 @@ only the TUI gets a saved config and no visible bar, with no explanation.
 On launch the TUI shells out to `claude plugin list --json`; if no `ccstatus@`
 entry is present it shows a banner and binds `i` (menu screen only) to run
 `claude plugin marketplace add sushant-kum/ccstatus` + `claude plugin install
-ccstatus@ccstatus -y`. Detection is read-only; install fires only from the
-explicit keypress. Any detection failure (no `claude` on `PATH`, non-zero,
-non-JSON) degrades to `'unknown'` — a banner with manual instructions and no
-keypress action — and never blocks or crashes the TUI.
+ccstatus@ccstatus -y`. A present-but-`enabled:false` entry is reported as
+`'disabled'` with a banner hinting `claude plugin enable` (the bar is otherwise
+silently missing). Detection is read-only; install fires only from the explicit
+keypress, guarded against re-entry. Any detection failure (no `claude` on
+`PATH`, non-zero, non-JSON) degrades to `'unknown'` — a banner with manual
+instructions and no keypress action — and never blocks or crashes the TUI.
 
 ### Alternatives considered
 

@@ -1,10 +1,9 @@
 import { execFile } from 'node:child_process'
 
 export const MARKETPLACE_SLUG = 'sushant-kum/ccstatus'
-export const MARKETPLACE_NAME = 'ccstatus'
 export const PLUGIN_ID = 'ccstatus@ccstatus'
 
-export type ModStatus = 'installed' | 'absent' | 'unknown'
+export type ModStatus = 'installed' | 'disabled' | 'absent' | 'unknown'
 export type RunResult = { code: number; stdout: string; stderr: string }
 export type RunCmd = (argv: string[]) => Promise<RunResult>
 
@@ -29,11 +28,14 @@ export async function detectModStatus(run: RunCmd = runCmd): Promise<ModStatus> 
   let parsed: unknown
   try { parsed = JSON.parse(res.stdout) } catch { return 'unknown' }
   if (!Array.isArray(parsed)) return 'unknown'
-  const found = parsed.some((p) =>
+  const entry = parsed.find((p) =>
     !!p && typeof p === 'object'
     && typeof (p as { id?: unknown }).id === 'string'
-    && (p as { id: string }).id.startsWith('ccstatus@'))
-  return found ? 'installed' : 'absent'
+    && (p as { id: string }).id.startsWith('ccstatus@')) as { enabled?: unknown } | undefined
+  if (!entry) return 'absent'
+  // Present but disabled → the bar won't show; report it distinctly so the TUI
+  // can hint `claude plugin enable` rather than a (useless) reinstall.
+  return entry.enabled === false ? 'disabled' : 'installed'
 }
 
 export type InstallResult = { ok: boolean; message: string }
