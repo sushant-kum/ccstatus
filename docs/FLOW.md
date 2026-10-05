@@ -46,6 +46,7 @@ already explains, or a sequence that exists only inside one file.
 | FLOW-0001 | Mod renders the above-prompt band       | plugin       | 2026-10-04    |
 | FLOW-0002 | Config edit → shared file → mod reload  | tui \| plugin | 2026-10-04    |
 | FLOW-0003 | Bundle core into the plugin             | repo-wide    | 2026-10-04    |
+| FLOW-0004 | Release & distribution                  | repo-wide    | 2026-10-05    |
 
 ---
 
@@ -245,4 +246,41 @@ with real numbers (else a bundled sample).
 ### Notes
 
 `plugin/hooks/core.js` and `core.d.ts` are generated artifacts — never hand-edit them; edit
-`packages/core/src/**` and rebuild. They are gitignored so they are not committed.
+`packages/core/src/**` and rebuild. They are **committed** (so git/marketplace installs can load the
+mod) but still generated: CI rebuilds and fails on any diff, keeping them in sync with `@ccstatus/core`.
+See [DEC-0010](./DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-private-bundled-core-committed-plugin-bundle) and [FLOW-0004](#flow-0004--release--distribution).
+
+---
+
+## FLOW-0004 — Release & distribution
+
+- **Scope:** repo-wide
+- **Trigger:** cutting a public release of ccstatus (manual; not automated in v1).
+- **Outcome:** `npx ccstatus` installs the TUI from npm; `claude plugin marketplace add sushant-kum/ccstatus` + install adds the mod.
+- **Last verified:** 2026-10-05
+- **Related:** DEC-0010, [FLOW-0003](#flow-0003--bundle-core-into-the-plugin)
+
+### Steps
+
+1. Ensure the core bundle is current: `npm run build:plugin-core` (CI also gates
+   this via `git diff --exit-code`). Commit if it changed.
+2. Verify green: `npm test -w @ccstatus/core`, `npm test -w ccstatus`,
+   `npm run build -w ccstatus`, `claude plugin validate plugin`,
+   `claude plugin test plugin`.
+3. **TUI → npm:** bump `packages/tui/package.json` `version`, then
+   `npm publish -w ccstatus` (the package is unscoped + `publishConfig.access:
+   public`; core is bundled, so no private dependency is fetched). Requires npm
+   auth — **not performed in Phase 4.**
+4. **Mod → marketplace:** bump the `version` in `plugin/.claude-plugin/plugin.json`
+   and `.claude-plugin/marketplace.json`, tag/release the repo. Users then run
+   `claude plugin marketplace add sushant-kum/ccstatus` and
+   `claude plugin install ccstatus@ccstatus`. The committed `plugin/hooks/core.js`
+   makes the installed mod loadable. **Not performed in Phase 4.**
+
+### Branches & failure modes
+
+- **Published `ccstatus` can't resolve `@ccstatus/core`** → core was left in
+  `dependencies`; it must be bundled and in `devDependencies` only (DEC-0010).
+- **Installed mod fails to load (`./core.js` missing)** → the bundle wasn't
+  committed / went stale; rebuild and commit (CI drift check guards this).
+- **`npm pack` ships `src/`** → `files` must be `["dist", "README.md"]`.

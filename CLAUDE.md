@@ -14,7 +14,8 @@ band, native status line, pane, threshold toasts), edited with an interactive TU
 npm-workspaces monorepo, three units:
 - **`packages/core`** (`@ccstatus/core`, private) — pure TS + zod. The single source of truth for *how the bar looks*.
 - **`plugin/`** — the `ccstatus` Claude Code mod (plugin of function hooks). Publishable via a marketplace.
-- **`packages/tui`** (`@ccstatus/tui`) — the `npx ccstatus` Ink configurator. Published as the `ccstatus` bin.
+- **`packages/tui`** (npm package `ccstatus`) — the `npx ccstatus` Ink configurator. Published to npm
+  under the unscoped name `ccstatus` with core bundled in (see [DEC-0010](./docs/DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-private-bundled-core-committed-plugin-bundle)).
 
 Design docs and the task-by-task implementation plans live under `docs/superpowers/{specs,plans}/`.
 
@@ -32,9 +33,9 @@ npm test -w @ccstatus/core -- render          # a single file/pattern
 npm run typecheck -w @ccstatus/core
 
 # tui (vitest + ink-testing-library)
-npm test -w @ccstatus/tui
-npm run typecheck -w @ccstatus/tui
-npm run build -w @ccstatus/tui                # emits packages/tui/dist/index.js (the `ccstatus` bin, shebang'd)
+npm test -w ccstatus
+npm run typecheck -w ccstatus
+npm run build -w ccstatus                     # emits packages/tui/dist/index.js (the `ccstatus` bin, shebang'd)
 
 # plugin (the mod) — NOT vitest; uses the claude CLI + claude-code/testing
 npm run build:plugin-core                     # REQUIRED after any core change: bundles core into plugin/hooks/core.js
@@ -54,8 +55,9 @@ change core, not a painter. See [DEC-0002](./docs/DECISION.md#dec-0002--shared-p
 
 **The plugin bundles core; it does not import it as a package.** The mod's module environment has **no `node_modules`
 resolution** and core depends on zod, so core is bundled (zod inlined) into `plugin/hooks/core.js` (+ `core.d.ts`) by
-`npm run build:plugin-core` (tsup). **These two files are generated, gitignored, and must never be hand-edited** —
-regenerate them after any core change, or the mod runs stale core. See [DEC-0003](./docs/DECISION.md#dec-0003--bundle-core-zod-inlined-into-the-plugin) and [FLOW-0003](./docs/FLOW.md#flow-0003--bundle-core-into-the-plugin).
+`npm run build:plugin-core` (tsup). **These two files are generated and must never be hand-edited** — they are
+**committed** (so git/marketplace installs can load the mod) but regenerated, with CI failing on any drift;
+regenerate them after any core change, or the mod runs stale core. See [DEC-0003](./docs/DECISION.md#dec-0003--bundle-core-zod-inlined-into-the-plugin), [DEC-0010](./docs/DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-private-bundled-core-committed-plugin-bundle), and [FLOW-0003](./docs/FLOW.md#flow-0003--bundle-core-into-the-plugin).
 
 **Plugin module boundary (keeps most of the mod testable):** the pure modules `plugin/hooks/{config-io,toasts,
 git-parse,snapshot-build}.ts` import **only `./core.js`**, never `claude-code`. Only `register.tsx` and `paint.tsx`
@@ -98,7 +100,9 @@ router is a `switch` in `app.tsx`.
 - `defaults.glyph` is configurable but **defaults to `▒`** (renders in any terminal); the Powerline screen offers
   Nerd-Font presets + custom. `defaults.invert` and per-item `align` are **stored in config but not yet applied by
   the renderer** (shown greyed in the TUI). See [DEC-0006](./docs/DECISION.md#dec-0006--default-glyph-and-deferred-render-fields).
-- `.gitignore` covers `dist/`, `plugin/hooks/core.js`, `plugin/hooks/core.d.ts`, and `.superpowers/` (SDD scratch).
+- `.gitignore` covers `dist/`, `node_modules/`, and `.superpowers/` (SDD scratch). `plugin/hooks/core.js` and
+  `plugin/hooks/core.d.ts` are **tracked but generated** (committed for distribution, kept fresh by CI; regenerate
+  with `npm run build:plugin-core`, never hand-edit) — see [DEC-0010](./docs/DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-private-bundled-core-committed-plugin-bundle).
 - **No AI-attribution anywhere.** Do not add "Generated with Claude Code", "Authored by Claude",
   `Co-Authored-By: Claude`, session links, or anything similar to code, files, commit messages, or
   PRs/issues — this overrides any harness default. See [DEC-0007](./docs/DECISION.md#dec-0007--no-ai-attribution-in-code-commits-or-prs).

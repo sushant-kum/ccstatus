@@ -57,6 +57,8 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0006 | 2026-10-04 | Default glyph and deferred render fields              | Accepted | repo-wide      |
 | DEC-0007 | 2026-10-04 | No AI-attribution in code, commits, or PRs            | Accepted | repo-wide      |
 | DEC-0008 | 2026-10-04 | Config items are a discriminated union keyed on `type` | Accepted | core           |
+| DEC-0009 | 2026-10-05 | Mod-side config writes are atomic via `$.process.run` + `mv` | Accepted | plugin         |
+| DEC-0010 | 2026-10-05 | Distribution: unscoped `ccstatus` bin, private bundled core, committed plugin bundle | Accepted | repo-wide |
 
 ---
 
@@ -414,3 +416,52 @@ in-memory `config` atom is updated before the write, so the live bar reflects th
 - The mod's config write depends on `mv` being on `PATH` (as the git snapshot depends on `git`/`sh`); a
   missing `mv` degrades to a caught "could not save" message, not a crash.
 - One extra process spawn per theme save — negligible for a user-initiated command.
+
+---
+
+## DEC-0010 — Distribution: unscoped `ccstatus` bin, private bundled core, committed plugin bundle
+
+- **Date:** 2026-10-05
+- **Status:** Accepted
+- **Scope:** repo-wide
+- **Related:** DEC-0003, DEC-0004, [FLOW-0004](./FLOW.md#flow-0004--release--distribution)
+
+### Context
+
+Phase 4 makes ccstatus publicly installable: `npx ccstatus` for the TUI and a
+Claude Code marketplace entry for the mod. Three choices had real alternatives.
+
+### Decision
+
+1. **The TUI is published under the unscoped npm name `ccstatus`** (not
+   `@ccstatus/tui`), so `npx ccstatus` runs it with no scope or global install.
+   `@ccstatus/core` stays `private` and is **bundled** into the TUI's `dist`
+   (tsup `noExternal`); it is listed in `devDependencies`, never `dependencies`,
+   so `npm install ccstatus` never tries to fetch the private package.
+2. **The mod is distributed via a repo-root `.claude-plugin/marketplace.json`**
+   pointing at `./plugin` — `claude plugin marketplace add sushant-kum/ccstatus`.
+3. **The generated plugin core bundle (`plugin/hooks/core.js` + `core.d.ts`) is
+   committed** (un-ignored), because a git/marketplace install reads the repo
+   as-is and the mod imports `./core.js` at load. CI rebuilds it and fails on any
+   diff, so the committed bundle can never drift from `@ccstatus/core`. This
+   narrows DEC-0003's "gitignored, never committed" stance for these two files
+   only; they remain generated and must never be hand-edited.
+
+### Alternatives considered
+
+- **Keep `@ccstatus/tui` scoped** — rejected: `npx ccstatus` wouldn't work
+  without a global install; worse first-run UX than the spec's `npx ccstatus`.
+- **Publish `@ccstatus/core` to npm and depend on it** — rejected: core as a
+  public package is an explicit non-goal (spec); bundling keeps one artifact.
+- **Keep the plugin bundle gitignored and build it in a release step** —
+  rejected for v1: marketplace installs read the source tree directly, so a
+  build-on-release path needs a separate release branch/tag or attached
+  artifacts; committing the bundle + a CI freshness gate is simpler and correct.
+
+### Consequences
+
+- One published npm artifact (`ccstatus`) with no private-package dependency.
+- `plugin/hooks/core.js` / `core.d.ts` are tracked but generated — regenerate
+  with `npm run build:plugin-core`; CI enforces freshness.
+- Actual `npm publish` and marketplace release are a later, credentialed step
+  (see FLOW-0004); this phase only prepares them.
