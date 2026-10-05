@@ -79,6 +79,12 @@ even *through* the mappers — Ink/chalk have `gray`/`bgGray` but no `grayBright
 `~/.config/ccstatus/snapshot.json`; the TUI's `readSnapshot` reads it for the preview, falling back to a bundled
 sample when absent. Config lives at `$XDG_CONFIG_HOME/ccstatus/config.json` (else `~/.config/...`), shared by both.
 
+**Mod detection (TUI).** On launch the TUI also shells out to the `claude` CLI (`mod-status.ts`) to detect whether
+the mod is installed (`claude plugin list --json`) and, on an explicit `i` keypress (menu screen only), to install it
+(`marketplace add` + `install -y`). Detection is read-only and the install is opt-in; both degrade to a
+manual-instructions banner when `claude` is absent, and `detectModStatus`/`installMod` take an injected runner so tests
+never shell out. See [DEC-0011](./docs/DECISION.md#dec-0011--tui-detects-the-mod-and-offers-to-install-it-on-first-run) and [FLOW-0005](./docs/FLOW.md#flow-0005--tui-first-run-mod-detection--install).
+
 **TUI screen contract.** Screens receive `{ config, setConfig, goHome }` and must update config **immutably** (clone,
 never mutate the prop — it's React state). `App` owns the pinned live preview shown on every screen; the screen
 router is a `switch` in `app.tsx`.

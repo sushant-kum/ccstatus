@@ -36,6 +36,10 @@ npx ccstatus
 An interactive TUI with a live band preview on every screen. Changes are saved
 to the shared config file and the running mod hot-reloads them.
 
+On launch, `npx ccstatus` checks whether the mod is installed; if it isn't, it
+shows a banner and offers to install it for you (press `i`). A successful install
+takes effect after you restart Claude Code or run `/reload-plugins`.
+
 ## The four surfaces
 
 - **Band** — a status row above the prompt.

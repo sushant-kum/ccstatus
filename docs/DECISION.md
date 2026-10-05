@@ -59,6 +59,7 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0008 | 2026-10-04 | Config items are a discriminated union keyed on `type` | Accepted | core           |
 | DEC-0009 | 2026-10-05 | Mod-side config writes are atomic via `$.process.run` + `mv` | Accepted | plugin         |
 | DEC-0010 | 2026-10-05 | Distribution: unscoped `ccstatus` bin, private bundled core, committed plugin bundle | Accepted | repo-wide |
+| DEC-0011 | 2026-10-05 | TUI detects the mod and offers to install it on first run | Accepted | tui |
 
 ---
 
@@ -467,3 +468,48 @@ Claude Code marketplace entry for the mod. Three choices had real alternatives.
   with `npm run build:plugin-core`; CI enforces freshness.
 - Actual `npm publish` and marketplace release are a later, credentialed step
   (see FLOW-0004); this phase only prepares them.
+
+---
+
+## DEC-0011 — TUI detects the mod and offers to install it on first run
+
+- **Date:** 2026-10-05
+- **Status:** Accepted
+- **Scope:** tui
+- **Related:** DEC-0002, DEC-0004, DEC-0010, [FLOW-0005](./FLOW.md#flow-0005--tui-first-run-mod-detection--install)
+
+### Context
+
+ccstatus ships as two separately-installed halves sharing one config (DEC-0004).
+`npx ccstatus` edits the config but does not install the mod, so a user who runs
+only the TUI gets a saved config and no visible bar, with no explanation.
+
+### Decision
+
+On launch the TUI shells out to `claude plugin list --json`; if no `ccstatus@`
+entry is present it shows a banner and binds `i` (menu screen only) to run
+`claude plugin marketplace add sushant-kum/ccstatus` + `claude plugin install
+ccstatus@ccstatus -y`. Detection is read-only; install fires only from the
+explicit keypress. Any detection failure (no `claude` on `PATH`, non-zero,
+non-JSON) degrades to `'unknown'` — a banner with manual instructions and no
+keypress action — and never blocks or crashes the TUI.
+
+### Alternatives considered
+
+- **Snapshot-based detection** (treat absent `snapshot.json` as "not installed")
+  — dependency-free, but can't tell installed-but-never-run from not-installed,
+  and gives no basis to offer the install; rejected in favor of the authoritative
+  `claude plugin list`.
+- **Hint only, never run the install** — lowest-risk, but leaves the user to
+  copy/paste; rejected in favor of the one-keypress offer.
+- **Auto-install without asking** — rejected: the TUI must not mutate the user's
+  Claude install unprompted.
+
+### Consequences
+
+- The TUI now depends on the `claude` CLI at runtime for this feature only, and
+  degrades gracefully when it is absent (the rest of the TUI is unaffected).
+- The install is testable without side effects: `detectModStatus`/`installMod`
+  take an injected `RunCmd`; `App` takes an optional `modProbe`.
+- A successful install still needs a Claude Code restart / `/reload-plugins`; the
+  success message says so.

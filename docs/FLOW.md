@@ -47,6 +47,7 @@ already explains, or a sequence that exists only inside one file.
 | FLOW-0002 | Config edit → shared file → mod reload  | tui \| plugin | 2026-10-04    |
 | FLOW-0003 | Bundle core into the plugin             | repo-wide    | 2026-10-04    |
 | FLOW-0004 | Release & distribution                  | repo-wide    | 2026-10-05    |
+| FLOW-0005 | TUI first-run mod detection & install   | tui          | 2026-10-05    |
 
 ---
 
@@ -284,3 +285,27 @@ See [DEC-0010](./DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-privat
 - **Installed mod fails to load (`./core.js` missing)** → the bundle wasn't
   committed / went stale; rebuild and commit (CI drift check guards this).
 - **`npm pack` ships `src/`** → `files` must be `["dist", "README.md"]`.
+
+---
+
+## FLOW-0005 — TUI first-run mod detection & install
+
+- **Scope:** tui
+- **Trigger:** `npx ccstatus` launch.
+- **Outcome:** when the mod is absent the user is told and can install it with one keypress.
+- **Last verified:** 2026-10-05
+- **Related:** DEC-0011, [FLOW-0002](#flow-0002--config-edit--shared-file--mod-reload)
+
+### Steps
+
+1. `App` mounts and, in a `useEffect`, calls `detectModStatus()` → `runCmd(['claude','plugin','list','--json'])`.
+2. The result sets `modStatus`: `'installed'` (an `id` starts with `ccstatus@`), `'absent'` (list parsed, none), or `'unknown'` (claude missing / non-zero / non-JSON).
+3. `'absent'` → yellow banner "mod not installed — press i to install". `i` on the menu screen calls `installMod()` → `marketplace add` then `install … -y`; the green result message (incl. the restart/reload caveat) replaces the banner and, on success, `modStatus` flips to `'installed'`.
+4. `'installed'` → no banner. `'unknown'` → banner with manual commands, no `i` action.
+
+### Branches & failure modes
+
+- **`claude` not on `PATH`** → `runCmd` resolves code `-1`; detection `'unknown'`; manual-instructions banner; no install offered (install needs `claude` too).
+- **`claude plugin list` non-zero / non-JSON / non-array** → `'unknown'` (never throws).
+- **`i` outside the menu screen** → ignored (the handler early-returns unless `screen==='menu'`), so typing `i` in an editor never installs.
+- **marketplace-add or install step fails** → `installMod` returns `{ ok:false, message }` naming the failed step; the banner shows it; `modStatus` stays `'absent'`.
