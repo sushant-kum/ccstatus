@@ -1,0 +1,53 @@
+{
+  "extends": ["stylelint-config-standard", "stylelint-config-standard-scss"],
+  "rules": {
+    "no-empty-source": true,
+    "font-family-name-quotes": [
+      "always-unless-keyword",
+      {
+        "disableFix": true
+      }
+    ],
+    "scss/no-global-function-names": true,
+    "declaration-block-no-redundant-longhand-properties": [
+      true,
+      {
+        "disableFix": true
+      }
+    ],
+    "property-no-vendor-prefix": [
+      true,
+      {
+        "disableFix": true
+      }
+    ],
+    "value-keyword-case": [
+      "lower",
+      {
+        "camelCaseSvgKeywords": true
+      }
+    ],
+    "selector-not-notation": [
+      "complex",
+      {
+        "disableFix": true
+      }
+    ],
+    "selector-pseudo-element-colon-notation": [
+      "double",
+      {
+        "disableFix": true
+      }
+    ],
+    "selector-class-pattern": null,
+    "scss/selector-class-pattern": [
+      "^[a-z][a-z0-9-_]*$",
+      {
+        "resolveNestedSelectors": true
+      }
+    ],
+    "no-descending-specificity": null,
+    "scss/at-extend-no-missing-placeholder": true,
+    "selector-pseudo-class-no-unknown": [true, { "ignorePseudoClasses": ["global"] }]
+  }
+}

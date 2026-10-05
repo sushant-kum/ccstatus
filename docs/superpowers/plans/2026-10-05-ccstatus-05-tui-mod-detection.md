@@ -32,42 +32,53 @@
 ### Task 1: `mod-status.ts` — detection
 
 **Files:**
+
 - Create: `packages/tui/src/mod-status.ts`
 - Test: `packages/tui/src/mod-status.test.ts`
 
 **Interfaces:**
+
 - Produces: `MARKETPLACE_SLUG`, `PLUGIN_ID`, `MARKETPLACE_NAME` consts; types `ModStatus = 'installed'|'absent'|'unknown'`, `RunResult = { code: number; stdout: string; stderr: string }`, `RunCmd = (argv: string[]) => Promise<RunResult>`; `runCmd: RunCmd` (default execFile runner); `detectModStatus(run?: RunCmd): Promise<ModStatus>`. Task 2 adds `installMod` to the same file; Task 3 consumes `detectModStatus`/`installMod`.
 
 - [ ] **Step 1: Write the failing tests**
 
 ```ts
 // packages/tui/src/mod-status.test.ts
-import { expect, test } from 'vitest'
-import { detectModStatus, type RunCmd, type RunResult } from './mod-status.js'
+import { expect, test } from 'vitest';
+import { detectModStatus, type RunCmd, type RunResult } from './mod-status.js';
 
-const run = (res: Partial<RunResult>): RunCmd => async () => ({ code: 0, stdout: '', stderr: '', ...res })
+const run =
+  (res: Partial<RunResult>): RunCmd =>
+  async () => ({ code: 0, stdout: '', stderr: '', ...res });
 
 test('installed when claude plugin list includes a ccstatus@ entry', async () => {
-  const stdout = JSON.stringify([{ id: 'other@mp', enabled: true }, { id: 'ccstatus@ccstatus', enabled: true }])
-  expect(await detectModStatus(run({ code: 0, stdout }))).toBe('installed')
-})
+  const stdout = JSON.stringify([
+    { id: 'other@mp', enabled: true },
+    { id: 'ccstatus@ccstatus', enabled: true },
+  ]);
+  expect(await detectModStatus(run({ code: 0, stdout }))).toBe('installed');
+});
 test('absent when the list has no ccstatus entry', async () => {
-  const stdout = JSON.stringify([{ id: 'other@mp', enabled: true }])
-  expect(await detectModStatus(run({ code: 0, stdout }))).toBe('absent')
-})
+  const stdout = JSON.stringify([{ id: 'other@mp', enabled: true }]);
+  expect(await detectModStatus(run({ code: 0, stdout }))).toBe('absent');
+});
 test('unknown when claude is not on PATH (non-zero exit)', async () => {
-  expect(await detectModStatus(run({ code: -1, stderr: 'ENOENT' }))).toBe('unknown')
-})
+  expect(await detectModStatus(run({ code: -1, stderr: 'ENOENT' }))).toBe('unknown');
+});
 test('unknown when output is not JSON', async () => {
-  expect(await detectModStatus(run({ code: 0, stdout: 'not json' }))).toBe('unknown')
-})
+  expect(await detectModStatus(run({ code: 0, stdout: 'not json' }))).toBe('unknown');
+});
 test('unknown when output is JSON but not an array', async () => {
-  expect(await detectModStatus(run({ code: 0, stdout: '{"id":"ccstatus@ccstatus"}' }))).toBe('unknown')
-})
+  expect(await detectModStatus(run({ code: 0, stdout: '{"id":"ccstatus@ccstatus"}' }))).toBe(
+    'unknown'
+  );
+});
 test('detection never rejects even if the runner throws', async () => {
-  const throwing: RunCmd = async () => { throw new Error('spawn boom') }
-  await expect(detectModStatus(throwing)).resolves.toBe('unknown')
-})
+  const throwing: RunCmd = async () => {
+    throw new Error('spawn boom');
+  };
+  await expect(detectModStatus(throwing)).resolves.toBe('unknown');
+});
 ```
 
 - [ ] **Step 2: Run the tests — verify they fail**
@@ -79,42 +90,58 @@ Expected: FAIL — `detectModStatus` / `mod-status.js` not found.
 
 ```ts
 // packages/tui/src/mod-status.ts
-import { execFile } from 'node:child_process'
+import { execFile } from 'node:child_process';
 
-export const MARKETPLACE_SLUG = 'sushant-kum/ccstatus'
-export const MARKETPLACE_NAME = 'ccstatus'
-export const PLUGIN_ID = 'ccstatus@ccstatus'
+export const MARKETPLACE_SLUG = 'sushant-kum/ccstatus';
+export const MARKETPLACE_NAME = 'ccstatus';
+export const PLUGIN_ID = 'ccstatus@ccstatus';
 
-export type ModStatus = 'installed' | 'absent' | 'unknown'
-export type RunResult = { code: number; stdout: string; stderr: string }
-export type RunCmd = (argv: string[]) => Promise<RunResult>
+export type ModStatus = 'installed' | 'absent' | 'unknown';
+export type RunResult = { code: number; stdout: string; stderr: string };
+export type RunCmd = (argv: string[]) => Promise<RunResult>;
 
 // Default runner: execFile the given binary. Resolves (never rejects) with the
 // child's exit code, or -1 when the binary is missing / can't spawn (ENOENT),
 // so a missing `claude` on PATH is a normal non-fatal outcome for callers.
-export const runCmd: RunCmd = (argv) => new Promise((resolve) => {
-  execFile(argv[0]!, argv.slice(1), { timeout: 10_000, maxBuffer: 1024 * 1024 }, (err, stdout, stderr) => {
-    const errCode = (err as { code?: unknown } | null)?.code
-    const code = typeof errCode === 'number' ? errCode : err ? -1 : 0
-    resolve({ code, stdout: stdout ?? '', stderr: stderr ?? '' })
-  })
-})
+export const runCmd: RunCmd = (argv) =>
+  new Promise((resolve) => {
+    execFile(
+      argv[0]!,
+      argv.slice(1),
+      { timeout: 10_000, maxBuffer: 1024 * 1024 },
+      (err, stdout, stderr) => {
+        const errCode = (err as { code?: unknown } | null)?.code;
+        const code = typeof errCode === 'number' ? errCode : err ? -1 : 0;
+        resolve({ code, stdout: stdout ?? '', stderr: stderr ?? '' });
+      }
+    );
+  });
 
 // 'installed' | 'absent' | 'unknown'. Any failure to get a clean answer
 // (claude missing, non-zero, non-JSON, wrong shape, thrown) is 'unknown'.
 export async function detectModStatus(run: RunCmd = runCmd): Promise<ModStatus> {
-  let res: RunResult
-  try { res = await run(['claude', 'plugin', 'list', '--json']) }
-  catch { return 'unknown' }
-  if (res.code !== 0) return 'unknown'
-  let parsed: unknown
-  try { parsed = JSON.parse(res.stdout) } catch { return 'unknown' }
-  if (!Array.isArray(parsed)) return 'unknown'
-  const found = parsed.some((p) =>
-    !!p && typeof p === 'object'
-    && typeof (p as { id?: unknown }).id === 'string'
-    && (p as { id: string }).id.startsWith('ccstatus@'))
-  return found ? 'installed' : 'absent'
+  let res: RunResult;
+  try {
+    res = await run(['claude', 'plugin', 'list', '--json']);
+  } catch {
+    return 'unknown';
+  }
+  if (res.code !== 0) return 'unknown';
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(res.stdout);
+  } catch {
+    return 'unknown';
+  }
+  if (!Array.isArray(parsed)) return 'unknown';
+  const found = parsed.some(
+    (p) =>
+      !!p &&
+      typeof p === 'object' &&
+      typeof (p as { id?: unknown }).id === 'string' &&
+      (p as { id: string }).id.startsWith('ccstatus@')
+  );
+  return found ? 'installed' : 'absent';
 }
 ```
 
@@ -138,38 +165,40 @@ git commit -m "feat(tui): detect whether the ccstatus mod is installed via claud
 ### Task 2: `mod-status.ts` — opt-in install
 
 **Files:**
+
 - Modify: `packages/tui/src/mod-status.ts`
 - Test: `packages/tui/src/mod-status.test.ts`
 
 **Interfaces:**
+
 - Consumes: `RunCmd`, `MARKETPLACE_SLUG`, `PLUGIN_ID` from Task 1.
 - Produces: `InstallResult = { ok: boolean; message: string }`; `installMod(run?: RunCmd): Promise<InstallResult>`. Task 3 consumes `installMod`.
 
 - [ ] **Step 1: Write the failing tests** (append to `mod-status.test.ts`)
 
 ```ts
-import { installMod } from './mod-status.js'
+import { installMod } from './mod-status.js';
 
 const seq = (results: Partial<RunResult>[]): RunCmd => {
-  let i = 0
-  return async () => ({ code: 0, stdout: '', stderr: '', ...(results[i++] ?? {}) })
-}
+  let i = 0;
+  return async () => ({ code: 0, stdout: '', stderr: '', ...(results[i++] ?? {}) });
+};
 
 test('install runs marketplace add then install and reports the reload caveat', async () => {
-  const r = await installMod(seq([{ code: 0 }, { code: 0 }]))
-  expect(r.ok).toBe(true)
-  expect(r.message).toMatch(/restart Claude Code|reload/i)
-})
+  const r = await installMod(seq([{ code: 0 }, { code: 0 }]));
+  expect(r.ok).toBe(true);
+  expect(r.message).toMatch(/restart Claude Code|reload/i);
+});
 test('install reports marketplace-add failure without claiming success', async () => {
-  const r = await installMod(seq([{ code: 1, stderr: 'network down' }, { code: 0 }]))
-  expect(r.ok).toBe(false)
-  expect(r.message).toMatch(/marketplace add failed/i)
-})
+  const r = await installMod(seq([{ code: 1, stderr: 'network down' }, { code: 0 }]));
+  expect(r.ok).toBe(false);
+  expect(r.message).toMatch(/marketplace add failed/i);
+});
 test('install reports the install-step failure', async () => {
-  const r = await installMod(seq([{ code: 0 }, { code: 1, stderr: 'no such plugin' }]))
-  expect(r.ok).toBe(false)
-  expect(r.message).toMatch(/install failed/i)
-})
+  const r = await installMod(seq([{ code: 0 }, { code: 1, stderr: 'no such plugin' }]));
+  expect(r.ok).toBe(false);
+  expect(r.message).toMatch(/install failed/i);
+});
 ```
 
 - [ ] **Step 2: Run the tests — verify they fail**
@@ -180,19 +209,34 @@ Expected: FAIL — `installMod` not exported.
 - [ ] **Step 3: Implement install** (append to `mod-status.ts`)
 
 ```ts
-export type InstallResult = { ok: boolean; message: string }
+export type InstallResult = { ok: boolean; message: string };
 
-const firstLine = (s: string): string => s.split('\n').map(l => l.trim()).find(Boolean) ?? ''
+const firstLine = (s: string): string =>
+  s
+    .split('\n')
+    .map((l) => l.trim())
+    .find(Boolean) ?? '';
 
 // Opt-in only (called from an explicit keypress). Adds the marketplace, then
 // installs non-interactively (-y). On success the mod still loads only on the
 // next Claude Code start / /reload-plugins — the message says so.
 export async function installMod(run: RunCmd = runCmd): Promise<InstallResult> {
-  const add = await run(['claude', 'plugin', 'marketplace', 'add', MARKETPLACE_SLUG])
-  if (add.code !== 0) return { ok: false, message: `marketplace add failed: ${firstLine(add.stderr || add.stdout) || `exit ${add.code}`}` }
-  const inst = await run(['claude', 'plugin', 'install', PLUGIN_ID, '-y'])
-  if (inst.code !== 0) return { ok: false, message: `install failed: ${firstLine(inst.stderr || inst.stdout) || `exit ${inst.code}`}` }
-  return { ok: true, message: 'mod installed — restart Claude Code (or run /reload-plugins) to see the bar' }
+  const add = await run(['claude', 'plugin', 'marketplace', 'add', MARKETPLACE_SLUG]);
+  if (add.code !== 0)
+    return {
+      ok: false,
+      message: `marketplace add failed: ${firstLine(add.stderr || add.stdout) || `exit ${add.code}`}`,
+    };
+  const inst = await run(['claude', 'plugin', 'install', PLUGIN_ID, '-y']);
+  if (inst.code !== 0)
+    return {
+      ok: false,
+      message: `install failed: ${firstLine(inst.stderr || inst.stdout) || `exit ${inst.code}`}`,
+    };
+  return {
+    ok: true,
+    message: 'mod installed — restart Claude Code (or run /reload-plugins) to see the bar',
+  };
 }
 ```
 
@@ -216,10 +260,12 @@ git commit -m "feat(tui): add opt-in installMod (marketplace add + install -y)"
 ### Task 3: Wire detection + banner + opt-in keypress into `App`
 
 **Files:**
+
 - Modify: `packages/tui/src/app.tsx`
 - Test: `packages/tui/src/app.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `detectModStatus`, `installMod`, `ModStatus`, `InstallResult`, `PLUGIN_ID`, `MARKETPLACE_SLUG` from Tasks 1–2.
 - Produces: `App` now accepts an optional `modProbe` prop for injection: `App({ modProbe }?: { modProbe?: { detect: () => Promise<ModStatus>; install: () => Promise<InstallResult> } })`, defaulting to the real functions. Render output gains a mod banner and (on `menu`) an `i`-to-install action.
 
@@ -275,12 +321,21 @@ Expected: FAIL — `App` takes no `modProbe` prop; no banner text.
 - [ ] **Step 3: Implement the wiring in `app.tsx`**
 
 Add imports:
+
 ```ts
-import { useEffect } from 'react'
-import { detectModStatus, installMod, MARKETPLACE_SLUG, PLUGIN_ID, type ModStatus, type InstallResult } from './mod-status.js'
+import { useEffect } from 'react';
+import {
+  detectModStatus,
+  installMod,
+  MARKETPLACE_SLUG,
+  PLUGIN_ID,
+  type ModStatus,
+  type InstallResult,
+} from './mod-status.js';
 ```
 
 Change the signature and add state + effect + keypress (inside `App`, before `return`):
+
 ```ts
 export function App({ modProbe }: { modProbe?: { detect: () => Promise<ModStatus>; install: () => Promise<InstallResult> } } = {}){
   const probe = modProbe ?? { detect: () => detectModStatus(), install: () => installMod() }
@@ -297,28 +352,46 @@ export function App({ modProbe }: { modProbe?: { detect: () => Promise<ModStatus
 ```
 
 Extend the existing menu `useInput` (keep the `q` handler) so `i` installs, menu-only:
+
 ```ts
-  useInput((input) => {
-    if (screen !== 'menu') return
-    if (input === 'q') { exit(); return }
-    if (input === 'i' && modStatus === 'absent' && !installing) {
-      setInstalling(true)
-      probe.install().then((r) => { setInstallMsg(r.message); if (r.ok) setModStatus('installed') })
-        .catch((e) => setInstallMsg(e instanceof Error ? e.message : String(e)))
-        .finally(() => setInstalling(false))
-    }
-  })
+useInput((input) => {
+  if (screen !== 'menu') return;
+  if (input === 'q') {
+    exit();
+    return;
+  }
+  if (input === 'i' && modStatus === 'absent' && !installing) {
+    setInstalling(true);
+    probe
+      .install()
+      .then((r) => {
+        setInstallMsg(r.message);
+        if (r.ok) setModStatus('installed');
+      })
+      .catch((e) => setInstallMsg(e instanceof Error ? e.message : String(e)))
+      .finally(() => setInstalling(false));
+  }
+});
 ```
 
 Add the banner to the render tree (after the `saveError` line, before `<Preview .../>`):
+
 ```tsx
-    {installMsg
-      ? <Text color="green">{installMsg}</Text>
-      : modStatus === 'absent'
-        ? <Text color="yellow">⚠ ccstatus mod not installed — press i to install ({PLUGIN_ID}){installing ? ' … installing' : ''}</Text>
-      : modStatus === 'unknown'
-        ? <Text color="yellow">⚠ couldn't check if the mod is installed — if the bar isn't showing, run: claude plugin marketplace add {MARKETPLACE_SLUG} && claude plugin install {PLUGIN_ID}</Text>
-        : null}
+{
+  installMsg ? (
+    <Text color="green">{installMsg}</Text>
+  ) : modStatus === 'absent' ? (
+    <Text color="yellow">
+      ⚠ ccstatus mod not installed — press i to install ({PLUGIN_ID})
+      {installing ? ' … installing' : ''}
+    </Text>
+  ) : modStatus === 'unknown' ? (
+    <Text color="yellow">
+      ⚠ couldn't check if the mod is installed — if the bar isn't showing, run: claude plugin
+      marketplace add {MARKETPLACE_SLUG} && claude plugin install {PLUGIN_ID}
+    </Text>
+  ) : null;
+}
 ```
 
 - [ ] **Step 4: Run the tests — verify they pass**
@@ -341,22 +414,26 @@ git commit -m "feat(tui): offer to install the mod on first run when it's absent
 ### Task 4: Docs — DEC-0011, FLOW-0005, README, CLAUDE.md
 
 **Files:**
+
 - Modify: `docs/DECISION.md` (DEC-0011 + index row)
 - Modify: `docs/FLOW.md` (FLOW-0005 + index row)
 - Modify: `README.md` (note the first-run offer)
 - Modify: `CLAUDE.md` (TUI now shells out to `claude`)
 
 **Interfaces:**
+
 - Consumes: the behavior built in Tasks 1–3.
 
 - [ ] **Step 1: Add DEC-0011 to `docs/DECISION.md`** (index row + entry)
 
 Index row (after DEC-0010):
+
 ```
 | DEC-0011 | 2026-10-05 | TUI detects the mod and offers to install it on first run | Accepted | tui |
 ```
 
 Entry (append at end):
+
 ```markdown
 ---
 
@@ -407,11 +484,13 @@ keypress action — and never blocks or crashes the TUI.
 - [ ] **Step 2: Add FLOW-0005 to `docs/FLOW.md`** (index row + entry)
 
 Index row (after FLOW-0004):
+
 ```
 | FLOW-0005 | TUI first-run mod detection & install   | tui          | 2026-10-05    |
 ```
 
 Entry (append at end):
+
 ```markdown
 ---
 
@@ -441,6 +520,7 @@ Entry (append at end):
 - [ ] **Step 3: Update `README.md` Install section**
 
 Under "### 2. The configurator", add a sentence:
+
 ```markdown
 On launch, `npx ccstatus` checks whether the mod is installed; if it isn't, it
 shows a banner and offers to install it for you (press `i`). A successful install
@@ -454,10 +534,12 @@ In the TUI/snapshot-handoff area, add one line: the TUI additionally shells out 
 - [ ] **Step 5: Verify doc links and commit**
 
 Run:
+
 ```bash
 grep -q "DEC-0011" docs/DECISION.md && grep -q "FLOW-0005" docs/FLOW.md \
   && grep -q "DEC-0011" CLAUDE.md && grep -q "press \`i\`\|press i" README.md && echo "DOCS-OK"
 ```
+
 Expected: `DOCS-OK`.
 
 ```bash

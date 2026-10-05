@@ -1,0 +1,6 @@
+{
+  "*.{ts,tsx,mts,cts}": ["eslint --fix", "prettier --write"],
+  "*.{css,scss}": ["stylelint --fix --quiet --allow-empty-input", "prettier --write"],
+  "*.{js,mjs,cjs,json,md,yml,yaml}": ["prettier --write"],
+  "*": ["secretlint --maskSecrets"]
+}

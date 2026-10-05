@@ -1,13 +1,13 @@
-import type { Snapshot } from '../snapshot.js'
-import type { Item, WidgetType } from '../config/types.js'
+import type { Item, WidgetType } from '../config/types.js';
+import type { Snapshot } from '../snapshot.js';
 
-export type WidgetContext = {
-  snapshot: Snapshot
-  item: Item
-  commandOutputs: Record<string, string>
+export interface WidgetContext {
+  snapshot: Snapshot;
+  item: Item;
+  commandOutputs: Record<string, string>;
 }
-export type WidgetDef = {
-  type: WidgetType
-  label: string
-  format: (ctx: WidgetContext) => string | null
+export interface WidgetDef {
+  type: WidgetType;
+  label: string;
+  format: (ctx: WidgetContext) => string | null;
 }

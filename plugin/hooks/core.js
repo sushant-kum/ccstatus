@@ -4,12 +4,6 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// packages/core/src/widgets/registry.ts
-var registry = {};
-function register(def) {
-  registry[def.type] = def;
-}
-
 // packages/core/src/theme/themes.ts
 function resolveColors(item, config) {
   var _a;
@@ -34,7 +28,11 @@ var WIDGETS = [
 var mk = (rows) => {
   const t = {};
   WIDGETS.forEach((w, i) => {
-    const [fg2, bg2] = rows[i];
+    const row = rows[i];
+    if (!row) {
+      return;
+    }
+    const [fg2, bg2] = row;
     t[w] = { fg: fg2, bg: bg2 };
   });
   return t;
@@ -129,12 +127,22 @@ var builtinThemes = {
   ])
 };
 
+// packages/core/src/widgets/registry.ts
+var registry = {};
+function register(def) {
+  registry[def.type] = def;
+}
+
 // packages/core/src/layout/cells.ts
 function itemToCell(item, config, snapshot, commandOutputs) {
   const def = registry[item.type];
-  if (!def) return null;
+  if (!def) {
+    return null;
+  }
   const value = def.format({ snapshot, item, commandOutputs });
-  if (value === null) return null;
+  if (value === null) {
+    return null;
+  }
   const flex = item.type === "flex-separator";
   const pad = flex ? "" : " ".repeat(Math.max(0, Math.floor(config.defaults.padding)));
   const { fg: fg2, bg: bg2 } = resolveColors(item, config);
@@ -147,8 +155,12 @@ function lineToCells(items, config, snapshot, commandOutputs) {
 
 // packages/core/src/layout/compose.ts
 function bgToFg(bg2) {
-  if (!bg2) return void 0;
-  if (!bg2.startsWith("bg")) return bg2;
+  if (!bg2) {
+    return void 0;
+  }
+  if (!bg2.startsWith("bg")) {
+    return bg2;
+  }
   const rest = bg2.slice(2);
   return rest.charAt(0).toLowerCase() + rest.slice(1);
 }
@@ -164,51 +176,20 @@ function mergeCells(cells) {
   }
   return out;
 }
-function composeLine(cells, mode, width, glyph = "\u2592") {
-  const merged = mergeCells(cells);
-  const content = merged.filter((c) => !c.flex);
-  const flexCount = merged.filter((c) => c.flex).length;
-  const contentWidth = content.reduce((n, c) => n + c.text.length, 0);
-  let sepWidth = 0;
-  if (mode === "powerline") sepWidth = Math.max(0, content.length - 1) + (content.length ? 2 : 0);
-  else if (mode === "space") sepWidth = Math.max(0, content.length - 1);
-  const leftover = Math.max(0, width - contentWidth - sepWidth);
-  const per = flexCount ? Math.floor(leftover / flexCount) : 0;
-  let extra = flexCount ? leftover - per * flexCount : 0;
-  const flexWidth = () => {
-    const w = per + (extra > 0 ? 1 : 0);
-    if (extra > 0) extra -= 1;
-    return w;
-  };
-  const segs = [];
-  const emitStartCap = mode === "powerline" && content.length > 0;
-  if (emitStartCap) segs.push({ kind: "cap", text: glyph, fg: bgToFg(content[0].bg) });
-  let ci = 0;
-  for (const c of merged) {
-    if (c.flex) {
-      segs.push({ kind: "flex", text: " ".repeat(flexWidth()) });
-      continue;
-    }
-    segs.push({ kind: "cell", text: c.text, fg: c.fg, bg: c.bg });
-    const isLast = ci === content.length - 1;
-    if (!isLast) {
-      const next = content[ci + 1];
-      if (mode === "powerline") segs.push({ kind: "separator", text: glyph, fg: bgToFg(c.bg), bg: next.bg });
-      else if (mode === "space") segs.push({ kind: "separator", text: " " });
-    }
-    ci += 1;
-  }
-  if (emitStartCap) segs.push({ kind: "cap", text: glyph, fg: bgToFg(content[content.length - 1].bg) });
-  return truncate(segs, width);
-}
 function truncate(segs, width) {
   const total = segs.reduce((n, s) => n + s.text.length, 0);
-  if (total <= width) return segs;
+  if (total <= width) {
+    return segs;
+  }
   let budget = width;
   const out = [];
   for (const s of segs) {
-    if (s.kind === "cap") continue;
-    if (budget <= 0) break;
+    if (s.kind === "cap") {
+      continue;
+    }
+    if (budget <= 0) {
+      break;
+    }
     if (s.text.length <= budget) {
       out.push(s);
       budget -= s.text.length;
@@ -219,12 +200,66 @@ function truncate(segs, width) {
   }
   return out;
 }
+function composeLine(cells, mode, width, glyph = "\u2592") {
+  var _a, _b;
+  const merged = mergeCells(cells);
+  const content = merged.filter((c) => !c.flex);
+  const flexCount = merged.filter((c) => c.flex).length;
+  const contentWidth = content.reduce((n, c) => n + c.text.length, 0);
+  let sepWidth = 0;
+  if (mode === "powerline") {
+    sepWidth = Math.max(0, content.length - 1) + (content.length ? 2 : 0);
+  } else if (mode === "space") {
+    sepWidth = Math.max(0, content.length - 1);
+  }
+  const leftover = Math.max(0, width - contentWidth - sepWidth);
+  const per = flexCount ? Math.floor(leftover / flexCount) : 0;
+  let extra = flexCount ? leftover - per * flexCount : 0;
+  const flexWidth = () => {
+    const w = per + (extra > 0 ? 1 : 0);
+    if (extra > 0) {
+      extra -= 1;
+    }
+    return w;
+  };
+  const segs = [];
+  const emitStartCap = mode === "powerline" && content.length > 0;
+  if (emitStartCap) {
+    segs.push({ kind: "cap", text: glyph, fg: bgToFg((_a = content[0]) == null ? void 0 : _a.bg) });
+  }
+  let ci = 0;
+  for (const c of merged) {
+    if (c.flex) {
+      segs.push({ kind: "flex", text: " ".repeat(flexWidth()) });
+      continue;
+    }
+    segs.push({ kind: "cell", text: c.text, fg: c.fg, bg: c.bg });
+    const isLast = ci === content.length - 1;
+    const next = content[ci + 1];
+    if (!isLast && next) {
+      if (mode === "powerline") {
+        segs.push({ kind: "separator", text: glyph, fg: bgToFg(c.bg), bg: next.bg });
+      } else if (mode === "space") {
+        segs.push({ kind: "separator", text: " " });
+      }
+    }
+    ci += 1;
+  }
+  if (emitStartCap) {
+    segs.push({ kind: "cap", text: glyph, fg: bgToFg((_b = content[content.length - 1]) == null ? void 0 : _b.bg) });
+  }
+  return truncate(segs, width);
+}
 
 // packages/core/src/format.ts
 function fmtNum(n) {
   const trim = (v, suffix) => `${v.toFixed(1).replace(/\.0$/, "")}${suffix}`;
-  if (Math.abs(n) >= 1e6) return trim(n / 1e6, "M");
-  if (Math.abs(n) >= 1e3) return trim(n / 1e3, "k");
+  if (Math.abs(n) >= 1e6) {
+    return trim(n / 1e6, "M");
+  }
+  if (Math.abs(n) >= 1e3) {
+    return trim(n / 1e3, "k");
+  }
   return String(Math.round(n));
 }
 function fmtDur(ms) {
@@ -233,8 +268,12 @@ function fmtDur(ms) {
   s -= h * 3600;
   const m = Math.floor(s / 60);
   s -= m * 60;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${s}s`;
+  if (h > 0) {
+    return `${h}h ${m}m`;
+  }
+  if (m > 0) {
+    return `${m}m ${s}s`;
+  }
   return `${s}s`;
 }
 function pct(x) {
@@ -254,26 +293,64 @@ register({
   label: "Version",
   format: ({ snapshot, item }) => snapshot.version ? rawOf(item) ? snapshot.version : `v${snapshot.version}` : null
 });
-register({ type: "context-length", label: "Ctx", format: ({ snapshot, item }) => labeled(rawOf(item), "Ctx", fmtNum(snapshot.ctxTokens)) });
-register({ type: "context-percentage", label: "Ctx Used", format: ({ snapshot, item }) => labeled(rawOf(item), "Ctx Used", pct(snapshot.ctxPct)) });
-register({ type: "tokens-input", label: "In", format: ({ snapshot, item }) => labeled(rawOf(item), "In", fmtNum(snapshot.input)) });
-register({ type: "tokens-output", label: "Out", format: ({ snapshot, item }) => labeled(rawOf(item), "Out", fmtNum(snapshot.output)) });
-register({ type: "tokens-cached", label: "Cached", format: ({ snapshot, item }) => labeled(rawOf(item), "Cached", fmtNum(snapshot.cached)) });
-register({ type: "tokens-total", label: "Total", format: ({ snapshot, item }) => labeled(rawOf(item), "Total", fmtNum(snapshot.total)) });
-register({ type: "session-clock", label: "Session", format: ({ snapshot, item }) => labeled(rawOf(item), "Session", fmtDur(snapshot.now - snapshot.startedAt)) });
+register({
+  type: "context-length",
+  label: "Ctx",
+  format: ({ snapshot, item }) => labeled(rawOf(item), "Ctx", fmtNum(snapshot.ctxTokens))
+});
+register({
+  type: "context-percentage",
+  label: "Ctx Used",
+  format: ({ snapshot, item }) => labeled(rawOf(item), "Ctx Used", pct(snapshot.ctxPct))
+});
+register({
+  type: "tokens-input",
+  label: "In",
+  format: ({ snapshot, item }) => labeled(rawOf(item), "In", fmtNum(snapshot.input))
+});
+register({
+  type: "tokens-output",
+  label: "Out",
+  format: ({ snapshot, item }) => labeled(rawOf(item), "Out", fmtNum(snapshot.output))
+});
+register({
+  type: "tokens-cached",
+  label: "Cached",
+  format: ({ snapshot, item }) => labeled(rawOf(item), "Cached", fmtNum(snapshot.cached))
+});
+register({
+  type: "tokens-total",
+  label: "Total",
+  format: ({ snapshot, item }) => labeled(rawOf(item), "Total", fmtNum(snapshot.total))
+});
+register({
+  type: "session-clock",
+  label: "Session",
+  format: ({ snapshot, item }) => labeled(rawOf(item), "Session", fmtDur(snapshot.now - snapshot.startedAt))
+});
 register({
   type: "cwd",
   label: "cwd",
   format: ({ snapshot }) => {
-    if (!snapshot.cwd) return null;
+    if (!snapshot.cwd) {
+      return null;
+    }
     const parts = snapshot.cwd.split("/").filter(Boolean);
     return parts[parts.length - 1] ?? snapshot.cwd;
   }
 });
 
 // packages/core/src/widgets/git-widgets.ts
-register({ type: "git-branch", label: "Branch", format: ({ snapshot }) => snapshot.repo ? `\u270E ${snapshot.gitBranch || "?"}` : null });
-register({ type: "git-root-dir", label: "Git root", format: ({ snapshot }) => snapshot.repo ? `\u2302 ${snapshot.gitRoot || "?"}` : null });
+register({
+  type: "git-branch",
+  label: "Branch",
+  format: ({ snapshot }) => snapshot.repo ? `\u270E ${snapshot.gitBranch || "?"}` : null
+});
+register({
+  type: "git-root-dir",
+  label: "Git root",
+  format: ({ snapshot }) => snapshot.repo ? `\u2302 ${snapshot.gitRoot || "?"}` : null
+});
 register({
   type: "git-changes",
   label: "Changes",
@@ -287,18 +364,28 @@ register({
 
 // packages/core/src/widgets/usage-widgets.ts
 function until(iso, now) {
-  if (!iso) return null;
+  if (!iso) {
+    return null;
+  }
   const t = Date.parse(iso);
-  if (Number.isNaN(t)) return null;
+  if (Number.isNaN(t)) {
+    return null;
+  }
   const d = t - now;
   return d > 0 ? d : null;
 }
-register({ type: "cost", label: "Cost", format: ({ snapshot }) => snapshot.cost === null ? null : `$${snapshot.cost.toFixed(2)}` });
+register({
+  type: "cost",
+  label: "Cost",
+  format: ({ snapshot }) => snapshot.cost === null ? null : `$${snapshot.cost.toFixed(2)}`
+});
 register({
   type: "rate-limit-5h",
   label: "Session limit",
   format: ({ snapshot }) => {
-    if (snapshot.fivePct === null) return "Session: \u2014";
+    if (snapshot.fivePct === null) {
+      return "Session: \u2014";
+    }
     const reset = until(snapshot.fiveReset, snapshot.now);
     return `Session: ${bar(snapshot.fivePct)} ${pct(snapshot.fivePct)}${reset !== null ? `  ${fmtDur(reset)}` : ""}`;
   }
@@ -307,7 +394,9 @@ register({
   type: "rate-limit-week",
   label: "Weekly limit",
   format: ({ snapshot }) => {
-    if (snapshot.weekPct === null) return "Weekly: \u2014";
+    if (snapshot.weekPct === null) {
+      return "Weekly: \u2014";
+    }
     const reset = until(snapshot.weekReset, snapshot.now);
     return `Weekly: ${pct(snapshot.weekPct)}${reset !== null ? `  ${fmtDur(reset)}` : ""}`;
   }
@@ -343,9 +432,13 @@ register({ type: "flex-separator", label: "Flex separator", format: () => "" });
 // packages/core/src/render.ts
 function render(config, snapshot, opts) {
   const surface = config.surfaces[opts.surface];
-  if (!surface.enabled) return { lines: [] };
+  if (!surface.enabled) {
+    return { lines: [] };
+  }
   const outputs = opts.commandOutputs ?? {};
-  const lines = surface.lines.map((items) => lineToCells(items, config, snapshot, outputs)).filter((cells) => cells.length > 0).map((cells) => ({ segments: composeLine(cells, config.defaults.separator, opts.width, config.defaults.glyph) }));
+  const lines = surface.lines.map((items) => lineToCells(items, config, snapshot, outputs)).filter((cells) => cells.length > 0).map((cells) => ({
+    segments: composeLine(cells, config.defaults.separator, opts.width, config.defaults.glyph)
+  }));
   return { lines };
 }
 
@@ -392,9 +485,15 @@ var BG = {
 };
 function sgr(seg) {
   const codes = [];
-  if (seg.fg && FG[seg.fg] !== void 0) codes.push(`\x1B[${FG[seg.fg]}m`);
-  if (seg.bg && BG[seg.bg] !== void 0) codes.push(`\x1B[${BG[seg.bg]}m`);
-  if (!codes.length) return seg.text;
+  if (seg.fg && FG[seg.fg] !== void 0) {
+    codes.push(`\x1B[${FG[seg.fg]}m`);
+  }
+  if (seg.bg && BG[seg.bg] !== void 0) {
+    codes.push(`\x1B[${BG[seg.bg]}m`);
+  }
+  if (!codes.length) {
+    return seg.text;
+  }
   return `${codes.join("")}${seg.text}\x1B[0m`;
 }
 function toAnsi(model) {
@@ -402,8 +501,18 @@ function toAnsi(model) {
 }
 
 // packages/core/src/colors.ts
-var BASE = ["black", "white", "red", "green", "yellow", "blue", "magenta", "cyan", "gray"];
-var cap = (s) => s[0].toUpperCase() + s.slice(1);
+var BASE = [
+  "black",
+  "white",
+  "red",
+  "green",
+  "yellow",
+  "blue",
+  "magenta",
+  "cyan",
+  "gray"
+];
+var cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 var fg = BASE.flatMap((c) => [c, `bright${cap(c)}`]);
 var bg = BASE.flatMap((c) => [`bg${cap(c)}`, `bgBright${cap(c)}`]);
 var COLORS = /* @__PURE__ */ new Set([...fg, ...bg]);
@@ -423,15 +532,26 @@ var TOAST_FIELDS = {
 var WHEN_RE = /^\s*([a-zA-Z]+)\s*(>=|<=|==|>|<)\s*(-?\d+(?:\.\d+)?)\s*$/;
 function isValidWhen(when) {
   const m = WHEN_RE.exec(when);
-  return m !== null && m[1] in TOAST_FIELDS;
+  if (m === null) {
+    return false;
+  }
+  const field = m[1];
+  return field !== void 0 && field in TOAST_FIELDS;
 }
 function evalWhen(when, snapshot) {
   const m = WHEN_RE.exec(when);
-  if (!m) return false;
-  const getter = TOAST_FIELDS[m[1]];
-  if (!getter) return false;
+  if (!m) {
+    return false;
+  }
+  const field = m[1];
+  const getter = field === void 0 ? void 0 : TOAST_FIELDS[field];
+  if (!getter) {
+    return false;
+  }
   const value = getter(snapshot);
-  if (value === null || value === void 0 || Number.isNaN(value)) return false;
+  if (value === null || value === void 0 || Number.isNaN(value)) {
+    return false;
+  }
   const n = Number(m[3]);
   switch (m[2]) {
     case ">":
@@ -448,31 +568,6 @@ function evalWhen(when, snapshot) {
       return false;
   }
 }
-
-// packages/core/src/config/types.ts
-var WIDGET_TYPES = [
-  "model",
-  "version",
-  "context-length",
-  "context-percentage",
-  "tokens-input",
-  "tokens-output",
-  "tokens-cached",
-  "tokens-total",
-  "session-clock",
-  "cwd",
-  "git-branch",
-  "git-changes",
-  "git-worktree",
-  "git-root-dir",
-  "cost",
-  "rate-limit-5h",
-  "rate-limit-week",
-  "block-timer",
-  "custom-text",
-  "custom-command",
-  "flex-separator"
-];
 
 // packages/core/src/config/defaults.ts
 var defaultConfig = {
@@ -4572,7 +4667,13 @@ var configSchema = external_exports.object({
   version: external_exports.literal(1).catch(1),
   theme: external_exports.string().default("default"),
   themes: external_exports.record(external_exports.record(external_exports.object({ fg: external_exports.string().optional(), bg: external_exports.string().optional() }))).default({}),
-  defaults: external_exports.object({ separator: sep, padding: external_exports.number().int().min(0).catch(1), align, glyph: external_exports.string().min(1), invert: external_exports.boolean() }).partial().default({}),
+  defaults: external_exports.object({
+    separator: sep,
+    padding: external_exports.number().int().min(0).catch(1),
+    align,
+    glyph: external_exports.string().min(1),
+    invert: external_exports.boolean()
+  }).partial().default({}),
   surfaces: external_exports.object({
     band: surfaceLayoutSchema.optional(),
     statusline: surfaceLayoutSchema.optional(),
@@ -4581,19 +4682,55 @@ var configSchema = external_exports.object({
   }).default({})
 });
 
+// packages/core/src/config/types.ts
+var WIDGET_TYPES = [
+  "model",
+  "version",
+  "context-length",
+  "context-percentage",
+  "tokens-input",
+  "tokens-output",
+  "tokens-cached",
+  "tokens-total",
+  "session-clock",
+  "cwd",
+  "git-branch",
+  "git-changes",
+  "git-worktree",
+  "git-root-dir",
+  "cost",
+  "rate-limit-5h",
+  "rate-limit-week",
+  "block-timer",
+  "custom-text",
+  "custom-command",
+  "flex-separator"
+];
+
 // packages/core/src/config/validate.ts
 var clone = (v) => JSON.parse(JSON.stringify(v));
 var WIDGET_TYPE_SET = new Set(WIDGET_TYPES);
 function cleanStyle(raw, type, warn) {
   const style = {};
-  if (raw.merge !== void 0) style.merge = raw.merge;
-  if (raw.align !== void 0) style.align = raw.align;
-  if (raw.rawValue !== void 0) style.rawValue = raw.rawValue;
+  if (raw.merge !== void 0) {
+    style.merge = raw.merge;
+  }
+  if (raw.align !== void 0) {
+    style.align = raw.align;
+  }
+  if (raw.rawValue !== void 0) {
+    style.rawValue = raw.rawValue;
+  }
   for (const key of ["fg", "bg"]) {
     const v = raw[key];
-    if (v === void 0) continue;
-    if (isColor(v)) style[key] = v;
-    else warn(`stripped unknown color "${v}" on a ${type} item`);
+    if (v === void 0) {
+      continue;
+    }
+    if (isColor(v)) {
+      style[key] = v;
+    } else {
+      warn(`stripped unknown color "${v}" on a ${type} item`);
+    }
   }
   return style;
 }
@@ -4609,10 +4746,21 @@ function cleanItem(raw, warn) {
     return null;
   }
   const id = raw.id;
-  if (type === "flex-separator") return { id, type: "flex-separator" };
+  if (type === "flex-separator") {
+    return { id, type: "flex-separator" };
+  }
   const style = cleanStyle(raw, type, warn);
-  if (type === "custom-text") return { id, type: "custom-text", text: raw.text ?? legacy(raw, "text") ?? "", ...style };
-  if (type === "custom-command") return { id, type: "custom-command", command: raw.command ?? legacy(raw, "command") ?? "", ...style };
+  if (type === "custom-text") {
+    return { id, type: "custom-text", text: raw.text ?? legacy(raw, "text") ?? "", ...style };
+  }
+  if (type === "custom-command") {
+    return {
+      id,
+      type: "custom-command",
+      command: raw.command ?? legacy(raw, "command") ?? "",
+      ...style
+    };
+  }
   return { id, type, ...style };
 }
 function cleanThemes(themes, warn) {
@@ -4623,7 +4771,9 @@ function cleanThemes(themes, warn) {
       const cleanedEntry = { ...entry };
       for (const key of ["fg", "bg"]) {
         if (cleanedEntry[key] !== void 0 && !isColor(cleanedEntry[key])) {
-          warn(`stripped unknown color "${cleanedEntry[key]}" in theme "${themeName}" (${widgetName})`);
+          warn(
+            `stripped unknown color "${cleanedEntry[key]}" in theme "${themeName}" (${widgetName})`
+          );
           cleanedEntry[key] = void 0;
         }
       }
@@ -4634,9 +4784,13 @@ function cleanThemes(themes, warn) {
   return cleaned;
 }
 function cleanToasts(raw, warn) {
-  if (!raw) return clone(defaultConfig.surfaces.toasts);
+  if (!raw) {
+    return clone(defaultConfig.surfaces.toasts);
+  }
   const rules = raw.rules.filter((r) => {
-    if (isValidWhen(r.when)) return true;
+    if (isValidWhen(r.when)) {
+      return true;
+    }
     warn(`dropped toast rule with invalid condition "${r.when}"`);
     return false;
   });
@@ -4645,23 +4799,31 @@ function cleanToasts(raw, warn) {
 function loadConfig(raw) {
   var _a;
   const warnings = [];
-  const warn = (s) => warnings.push(s);
+  const warn = (s) => {
+    warnings.push(s);
+  };
   const rawVersion = typeof raw === "object" && raw !== null && "version" in raw ? raw.version : void 0;
   if (rawVersion !== void 0 && rawVersion !== 1) {
     warn(`config was written for version ${rawVersion}; loaded as version 1`);
   }
   const parsed = configSchema.safeParse(raw);
   if (!parsed.success) {
-    if (raw !== void 0) warn(`config invalid (${((_a = parsed.error.issues[0]) == null ? void 0 : _a.message) ?? "unknown"}); using defaults`);
+    if (raw !== void 0) {
+      warn(`config invalid (${((_a = parsed.error.issues[0]) == null ? void 0 : _a.message) ?? "unknown"}); using defaults`);
+    }
     return { config: clone(defaultConfig), warnings };
   }
   const p = parsed.data;
   const surf = (name) => {
     const s = p.surfaces[name];
-    if (!s) return clone(defaultConfig.surfaces[name]);
+    if (!s) {
+      return clone(defaultConfig.surfaces[name]);
+    }
     return {
       enabled: s.enabled,
-      lines: s.lines.map((line) => line.map((it) => cleanItem(it, warn)).filter((x) => x !== null))
+      lines: s.lines.map(
+        (line) => line.map((it) => cleanItem(it, warn)).filter((x) => x !== null)
+      )
     };
   };
   const themesToUse = Object.keys(p.themes).length ? p.themes : clone(defaultConfig.themes);

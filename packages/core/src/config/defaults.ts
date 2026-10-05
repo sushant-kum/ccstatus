@@ -1,5 +1,6 @@
-import type { Config } from './types.js'
-import { builtinThemes } from '../theme/themes.js'
+import { builtinThemes } from '../theme/themes.js';
+
+import type { Config } from './types.js';
 
 export const defaultConfig: Config = {
   version: 1,
@@ -25,4 +26,4 @@ export const defaultConfig: Config = {
       rules: [{ when: 'ctxPct>80', text: 'Context over 80%', once: true }],
     },
   },
-}
+};

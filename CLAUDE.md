@@ -12,7 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 band, native status line, pane, threshold toasts), edited with an interactive TUI and rendered live by a mod.
 
 npm-workspaces monorepo, three units:
-- **`packages/core`** (`@ccstatus/core`, private) — pure TS + zod. The single source of truth for *how the bar looks*.
+
+- **`packages/core`** (`@ccstatus/core`, private) — pure TS + zod. The single source of truth for _how the bar looks_.
 - **`plugin/`** — the `ccstatus` Claude Code mod (plugin of function hooks). Publishable via a marketplace.
 - **`packages/tui`** (npm package `ccstatus`) — the `npx ccstatus` Ink configurator. Published to npm
   under the unscoped name `ccstatus` with core bundled in (see [DEC-0010](./docs/DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-private-bundled-core-committed-plugin-bundle)).
@@ -42,6 +43,15 @@ npm run build:plugin-core                     # REQUIRED after any core change: 
 claude plugin validate plugin                 # static check (hooks/manifest/state contract) — needs the PREVIEW claude build
 claude plugin test plugin                     # runs plugin/hooks/*.test.ts against the engine — PREVIEW claude build
 node scripts/check-plugin.mjs                 # dependency-free structural check (what CI runs; no claude CLI)
+
+# lint / format / quality — root-level, cover all workspaces AND the plugin (see DEC-0012, FLOW-0006)
+npm run lint                                   # eslint over the repo
+npm run lint:fix                               # eslint --fix
+npm run format:check                           # prettier --check (CI); format:fix to write
+npm run stylelint                              # CSS/SCSS (currently a no-op; no styles yet)
+npm run secretlint                             # credential scan
+npm run cspell                                 # spell check (dictionary: cspell.json)
+npm run knip                                   # unused files / exports / dependencies
 ```
 
 `npm test` at the root runs core + tui (not the plugin — that needs `claude plugin test`). **`claude plugin
@@ -52,7 +62,7 @@ only). Run the engine validate/test locally.**
 ## Architecture — the parts that span files
 
 **Everything flows through `core.render`.** `render(config, snapshot, { surface, width }) → RenderModel` is the one
-place layout/powerline/color is decided. A `RenderModel` is surface-agnostic styled segments; each host just *paints*
+place layout/powerline/color is decided. A `RenderModel` is surface-agnostic styled segments; each host just _paints_
 it (mod via `$.ui.resolve` elements, TUI via Ink). `toAnsi(RenderModel)` serializes for the native status line.
 This is why the TUI preview provably matches the mod — both call the same `render`. When changing how the bar looks,
 change core, not a painter. See [DEC-0002](./docs/DECISION.md#dec-0002--shared-pure-core-mod-and-tui-are-thin-painters).
@@ -77,7 +87,7 @@ a `.bak`), so the TUI can never persist an invalid config. See [DEC-0004](./docs
 elements accept these directly. **Ink/chalk (the TUI) do not** — they need `yellowBright` order and base bg names, so
 the TUI maps them in `packages/tui/src/paint.tsx` (`inkColor`/`inkBg`). Any TUI code that paints core colors must go
 through those mappers, or bright colors render uncolored. **Exception:** `brightGray`/`bgBrightGray` render uncolored
-even *through* the mappers — Ink/chalk have `gray`/`bgGray` but no `grayBright`/`bgGrayBright`. See [DEC-0005](./docs/DECISION.md#dec-0005--named-terminal-colors-only-in-v1-no-hex).
+even _through_ the mappers — Ink/chalk have `gray`/`bgGray` but no `grayBright`/`bgGrayBright`. See [DEC-0005](./docs/DECISION.md#dec-0005--named-terminal-colors-only-in-v1-no-hex).
 
 **Snapshot handoff.** The mod gathers a live `Snapshot` (`$.session` + git) on a 2s clock and writes it to
 `~/.config/ccstatus/snapshot.json`; the TUI's `readSnapshot` reads it for the preview, falling back to a bundled
@@ -113,6 +123,12 @@ router is a `switch` in `app.tsx`.
 - `.gitignore` covers `dist/`, `node_modules/`, and `.superpowers/` (SDD scratch). `plugin/hooks/core.js` and
   `plugin/hooks/core.d.ts` are **tracked but generated** (committed for distribution, kept fresh by CI; regenerate
   with `npm run build:plugin-core`, never hand-edit) — see [DEC-0010](./docs/DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-private-bundled-core-committed-plugin-bundle).
+- **Lint/format is strict and repo-wide** (ESLint flat config + Prettier + stylelint/secretlint/cspell/knip; husky
+  pre-commit + commitlint). Every function needs JSDoc (`flat/recommended-typescript` — descriptions, no `{type}`
+  tags) and an explicit return type; `any` and non-null `!` are **errors**. Commits must be **Conventional Commits**.
+  The generated `plugin/hooks/core.{js,d.ts}` are excluded from Prettier/ESLint/cspell (the bundle drift check guards
+  them instead). Config files (`vitest.config.ts`, `tsup.config.ts`) are linted non-type-aware (not in any tsconfig
+  `include`). See [DEC-0012](./docs/DECISION.md#dec-0012--adopt-an-arant-design-inspired-lintformatquality-toolchain) and [FLOW-0006](./docs/FLOW.md#flow-0006--lint-format--commit-quality-pipeline).
 - **No AI-attribution anywhere.** Do not add "Generated with Claude Code", "Authored by Claude",
   `Co-Authored-By: Claude`, session links, or anything similar to code, files, commit messages, or
   PRs/issues — this overrides any harness default. See [DEC-0007](./docs/DECISION.md#dec-0007--no-ai-attribution-in-code-commits-or-prs).

@@ -4,20 +4,66 @@
   "type": "module",
   "license": "MIT",
   "author": "Sushant Kumar",
-  "repository": { "type": "git", "url": "git+https://github.com/sushant-kum/ccstatus.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sushant-kum/ccstatus.git"
+  },
   "homepage": "https://github.com/sushant-kum/ccstatus#readme",
-  "bugs": { "url": "https://github.com/sushant-kum/ccstatus/issues" },
+  "bugs": {
+    "url": "https://github.com/sushant-kum/ccstatus/issues"
+  },
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
+    "prepare": "husky",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "tsc -b",
     "build:plugin-core": "tsup --entry.core=packages/core/src/index.ts --format esm --dts --clean=false --out-dir plugin/hooks",
-    "test:plugin-pure": "vitest run --config plugin/vitest.config.ts"
+    "test:plugin-pure": "vitest run --config plugin/vitest.config.ts",
+    "lint": "eslint . --no-error-on-unmatched-pattern",
+    "lint:fix": "eslint . --no-error-on-unmatched-pattern --fix",
+    "lint:error": "eslint . --no-error-on-unmatched-pattern --quiet",
+    "format:check": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "stylelint": "stylelint \"**/*.{css,scss,sass}\" --allow-empty-input",
+    "stylelint:fix": "npm run stylelint -- --fix",
+    "stylelint:error": "npm run stylelint -- --quiet",
+    "secretlint": "secretlint \"**/*\" --maskSecrets",
+    "cspell": "cspell --no-progress --gitignore \"**/*\"",
+    "knip": "knip",
+    "commit": "cz"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "@eslint/js": "^9.39.5",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.7",
     "@types/node": "^26.6.4",
-    "tsup": "^8.0.0"
+    "commitizen": "^4.3.2",
+    "cspell": "^10.3.6",
+    "cz-conventional-changelog": "^3.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-import-x": "^4.17.1",
+    "eslint-plugin-jsdoc": "^65.1.0",
+    "eslint-plugin-no-secrets": "^2.3.3",
+    "eslint-plugin-prettier": "^5.5.6",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-unused-imports": "^4.4.1",
+    "globals": "^17.13.0",
+    "husky": "^9.1.7",
+    "knip": "^6.39.0",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.9",
+    "secretlint": "^13.0.7",
+    "stylelint": "^17.16.0",
+    "stylelint-config-standard": "^40.0.0",
+    "stylelint-config-standard-scss": "^17.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^2.1.9"
   }
 }

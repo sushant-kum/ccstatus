@@ -1,0 +1,10 @@
+# Compiled output
+dist/
+build/
+coverage/
+
+# Node
+node_modules/
+
+# Superpowers SDD scratch
+.superpowers/

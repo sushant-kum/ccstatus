@@ -4,4 +4,4 @@
 // CI we run the SAME test files under vitest by aliasing 'claude-code/testing' to
 // this shim (see plugin/vitest.config.ts). Only engine-free modules are included
 // there; the engine-integration tests still run only under `claude plugin test`.
-export { test, expect } from 'vitest'
+export { expect, test } from 'vitest';

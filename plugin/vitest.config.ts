@@ -1,5 +1,6 @@
-import { defineConfig } from 'vitest/config'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath } from 'node:url';
+
+import { defineConfig } from 'vitest/config';
 
 // Runs ONLY the engine-free plugin modules' tests in CI (the same files also run
 // under `claude plugin test`). 'claude-code/testing' is aliased to a vitest shim so
@@ -14,10 +15,6 @@ export default defineConfig({
     },
   },
   test: {
-    include: [
-      'hooks/config-io.test.ts',
-      'hooks/snapshot-build.test.ts',
-      'hooks/toasts.test.ts',
-    ],
+    include: ['hooks/config-io.test.ts', 'hooks/snapshot-build.test.ts', 'hooks/toasts.test.ts'],
   },
-})
+});
