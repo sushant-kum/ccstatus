@@ -1,0 +1,47 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      # core
+      - run: npm run typecheck -w @ccstatus/core
+      - run: npm test -w @ccstatus/core
+
+      # tui (published as `ccstatus`)
+      - run: npm run typecheck -w ccstatus
+      - run: npm test -w ccstatus
+      - run: npm run build -w ccstatus
+
+      # plugin core bundle must be committed AND current
+      - name: Core bundle is fresh
+        run: |
+          npm run build:plugin-core
+          git diff --exit-code plugin/hooks/core.js plugin/hooks/core.d.ts \
+            || { echo "::error::plugin/hooks/core.{js,d.ts} is stale — run 'npm run build:plugin-core' and commit"; exit 1; }
+
+  plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build:plugin-core
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Validate plugin (static)
+        run: claude plugin validate plugin
