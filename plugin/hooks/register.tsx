@@ -69,13 +69,17 @@ async function setTheme($: EngineInterface, name: string): Promise<string> {
   const next: Config = { ...cfg, theme: name }
   await update($, config, () => next)
   const path = await resolveConfigPath($)
+  const tmp = path + '.tmp'
   try {
-    // Back up the current file before overwriting. The sandbox fs has no atomic
-    // rename (read/write/exists/stat only), so a .bak is the recoverable guarantee
-    // we can give — matching the .bak arm of the TUI's saveConfigFile.
+    // Atomic write, matching the TUI's saveConfigFile discipline. The sandbox fs
+    // has no rename, but $.process.run does (the same shell-out the git snapshot
+    // uses), and rename within one directory is atomic — so a reader never sees a
+    // half-written config.json, and a .bak keeps the prior file recoverable.
     const existing = await $.fs.read(path).catch(() => null)
     if (typeof existing === 'string') await $.fs.write(path + '.bak', existing).catch(() => {})
-    await $.fs.write(path, JSON.stringify(next, null, 2) + '\n')
+    await $.fs.write(tmp, JSON.stringify(next, null, 2) + '\n')
+    const { exitCode } = await $.process.run(['mv', '-f', tmp, path], { timeoutMs: 5000 })
+    if (exitCode !== 0) return `ccstatus: theme set to ${name} (could not save the config file).`
   } catch { return `ccstatus: theme set to ${name} (could not save the config file).` }
   return `ccstatus: theme set to ${name}.`
 }

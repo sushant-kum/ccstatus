@@ -189,8 +189,11 @@ rather than silently falling back to defaults.
 - **`saveConfigFile` I/O error** → the write is atomic, so `config.json` is never left corrupt and the
   prior `.bak` remains; the error is caught and shown in the TUI, which stays open instead of exiting.
 - **`/ccstatus theme <name>`** is a second config writer (mod side). It backs the current file up to
-  `config.json.bak` before writing; the sandbox fs exposes no atomic `rename`, so this is a plain write
-  rather than the temp+rename the TUI uses.
+  `config.json.bak`, writes a `.tmp`, then renames it over `config.json` via `$.process.run(['mv','-f',…])`
+  — atomic, matching the TUI's temp+rename. The sandbox `$.fs` has no `rename`, so the move shells out
+  through the same `$.process.run` the git snapshot uses (rename within one directory is atomic). A
+  non-zero `mv` exit (or any thrown error) is caught and reported as "could not save the config file"; the
+  in-memory `config` atom is already updated, so the live bar still reflects the new theme. See DEC-0009.
 - **mtime unchanged** → `reloadConfig` is a no-op (cheap `stat` only).
 - **`/ccstatus reload`** forces an immediate re-read regardless of mtime.
 

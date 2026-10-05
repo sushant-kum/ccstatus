@@ -211,8 +211,9 @@ layout).
 ### Decision
 
 Store one JSON file at `$XDG_CONFIG_HOME/ccstatus/config.json` (else `~/.config/ccstatus/config.json`),
-read by the mod via `$.fs` and written atomically by the TUI. The mod also writes `snapshot.json`
-beside it so the TUI can preview with real numbers.
+read by the mod via `$.fs` and written atomically by both writers (the TUI via node `fs`, the mod via
+`$.process.run` + `mv`; see DEC-0009). The mod also writes `snapshot.json` beside it so the TUI can
+preview with real numbers.
 
 ### Alternatives considered
 
@@ -371,3 +372,45 @@ that turns a parsed row into the union and migrates legacy `metadata.text`/`meta
   configs are migrated at load, so they keep working.
 - `flex-separator` has no styling fields, so generic item code narrows on `type` (helpers like
   `isStylable`, `rawOf`) before touching `fg`/`bg`/`merge`/`align`/`rawValue`.
+
+---
+
+## DEC-0009 — Mod-side config writes are atomic via `$.process.run` + `mv`
+
+- **Date:** 2026-10-05
+- **Status:** Accepted
+- **Scope:** plugin
+- **Related:** DEC-0004, [FLOW-0002](./FLOW.md#flow-0002--config-edit--shared-file--mod-reload)
+
+### Context
+
+The TUI's `saveConfigFile` writes `config.json` atomically (temp file + `rename`) so a reader — the
+hot-reloading mod — never sees a half-written file. The mod has a second writer, `/ccstatus theme <name>`,
+which originally did a plain `$.fs.write` over `config.json` (PR #1 review). The sandbox `$.fs` exposes
+only `read`/`write`/`exists`/`stat` — no `rename` — so an interrupted or racing write there could truncate
+the file, and on next read `parseConfig` would silently fall back to defaults, discarding the user's whole
+config. A `.bak` copy made the loss recoverable but not preventable.
+
+### Decision
+
+Make the mod writer atomic the same way the git snapshot already shells out: write a `.tmp`, then
+`$.process.run(['mv', '-f', tmp, path])`. `mv` within one directory is the `rename` syscall, which is
+atomic, so no reader observes a partial file. The prior file is still copied to `config.json.bak` first.
+A non-zero `mv` exit or any thrown error is caught and surfaced as "could not save the config file"; the
+in-memory `config` atom is updated before the write, so the live bar reflects the new theme regardless.
+
+### Alternatives considered
+
+- **Keep the `.bak`-only plain write** — rejected: recoverable but still corruptible; contradicts the
+  "atomic save" the project advertises.
+- **Route all writes through the TUI (mod never writes config)** — rejected: the TUI isn't running during
+  a mod session, so `/ccstatus theme` could not persist without launching `npx ccstatus`; worse UX.
+- **Ask the engine for `$.fs.rename`** — out of our control and unbounded; `mv` via `$.process.run` is
+  available today and reuses a dependency (`sh`/coreutils) the git snapshot path already assumes.
+
+### Consequences
+
+- Both config writers are now atomic with a `.bak`; `config.json` is never left truncated.
+- The mod's config write depends on `mv` being on `PATH` (as the git snapshot depends on `git`/`sh`); a
+  missing `mv` degrades to a caught "could not save" message, not a crash.
+- One extra process spawn per theme save — negligible for a user-initiated command.

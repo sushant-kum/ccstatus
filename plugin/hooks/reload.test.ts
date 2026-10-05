@@ -17,7 +17,8 @@ function setup($: any, on: any) {
   const clock = mock.clock(on, { now: 1_000_000 })
   mock.env(on, { HOME: '/h' })
   const w = { text: JSON.stringify(withStatusline(true)), mtime: 1, status: undefined as string | undefined,
-    reads: 0, writes: [] as string[], baks: [] as string[], snapshots: [] as string[], clock: null as any }
+    reads: 0, writes: [] as string[], baks: [] as string[], snapshots: [] as string[],
+    tmp: {} as Record<string, string>, clock: null as any }
   on('session.start', async (_$: any, e: any) => ({ cwd: e.cwd }))
   on('command.register', async () => ({ value: { command: 'ccstatus' } }))
   on('fs.read', async () => { w.reads++; return { value: w.text } as any })
@@ -26,7 +27,19 @@ function setup($: any, on: any) {
     const p = String(e.path)
     if (p.endsWith('/snapshot.json')) { w.snapshots.push(e.text); return { value: undefined } as any }
     if (p.endsWith('.bak')) { w.baks.push(e.text); return { value: undefined } as any }
+    if (p.endsWith('.tmp')) { w.tmp[p] = e.text; return { value: undefined } as any }
     w.writes.push(e.text); w.text = e.text; return { value: undefined } as any })
+  // Simulate the atomic rename: `mv -f <tmp> <dest>` moves staged content over the
+  // destination. A committed write lands in w.writes (and w.text), same as before.
+  on('process.run', async (_$: any, e: any) => {
+    const argv = e.argv as string[]
+    const run = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false }
+    if (argv[0] === 'mv') {
+      const src = argv[2]!, staged = w.tmp[src]
+      if (staged !== undefined) { w.writes.push(staged); w.text = staged; delete w.tmp[src] }
+    }
+    return { value: run } as any
+  })
   on('session.cwd', async () => ({ value: '' }))
   on('session.model', async () => ({ value: 'opus' }))
   on('session.version', async () => ({ value: { version: '1.2.3' } }))
@@ -59,7 +72,7 @@ test('/ccstatus reload forces a re-read', async ($, on) => {
   expect(w.status).toBeUndefined()
 })
 
-test('/ccstatus theme <name> writes the config back', async ($, on) => {
+test('/ccstatus theme <name> writes the config back atomically (temp + mv, .bak kept)', async ($, on) => {
   const w = setup($, on)
   await $.session.start({ cwd: '', surface: 'terminal', isInteractive: true })
   const name = Object.keys(defaultConfig.themes)[0]!
@@ -67,6 +80,8 @@ test('/ccstatus theme <name> writes the config back', async ($, on) => {
   expect(w.writes).toHaveLength(1)
   expect(JSON.parse(w.writes[0]!).theme).toBe(name)
   expect(w.baks).toHaveLength(1) // prior config is backed up to .bak before overwriting
+  expect(Object.keys(w.tmp)).toHaveLength(0) // temp file was renamed away — no half-written leftover
+  expect(JSON.parse(w.text).theme).toBe(name) // final config.json holds the new theme
   void r
   const bad = await $.command.run({ command: 'ccstatus', args: 'theme nope-x' } as any)
   expect(bad.text).toContain('unknown')
