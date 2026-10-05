@@ -18,8 +18,8 @@ export const runCmd: RunCmd = (argv) => new Promise((resolve) => {
   })
 })
 
-// 'installed' | 'absent' | 'unknown'. Any failure to get a clean answer
-// (claude missing, non-zero, non-JSON, wrong shape, thrown) is 'unknown'.
+// 'installed' | 'disabled' | 'absent' | 'unknown'. Any failure to get a clean
+// answer (claude missing, non-zero, non-JSON, wrong shape, thrown) is 'unknown'.
 export async function detectModStatus(run: RunCmd = runCmd): Promise<ModStatus> {
   let res: RunResult
   try { res = await run(['claude', 'plugin', 'list', '--json']) }

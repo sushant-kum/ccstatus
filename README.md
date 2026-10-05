@@ -47,7 +47,7 @@ takes effect after you restart Claude Code or run `/reload-plugins`.
 - **Pane** — an openable panel with the full bar.
 - **Toasts** — threshold alerts (e.g. context % over a limit).
 
-All four are driven by the same config and the same 20 widgets (model,
+All four are driven by the same config and the same 21 widget types (model,
 context length/%, tokens, git branch/changes/worktree, session clock, cost,
 rate limits, block timer, cwd, custom text/command, flex separator, …), with
 9 built-in themes and a configurable Powerline separator.
