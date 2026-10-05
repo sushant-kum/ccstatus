@@ -86,6 +86,20 @@ test('every widget type survives validation (no drift between the type list and 
   expect(warnings).toEqual([])
 })
 
+test('a toast rule with an invalid `when` is dropped with a warning; valid ones are kept', () => {
+  const raw = {
+    version: 1,
+    surfaces: { toasts: { enabled: true, rules: [
+      { when: 'ctxPct > 80', text: 'high' },
+      { when: 'ctxPercent > 80', text: 'typo field' },
+    ] } },
+  }
+  const { config, warnings } = loadConfig(raw)
+  expect(config.surfaces.toasts.rules).toHaveLength(1)
+  expect(config.surfaces.toasts.rules[0]!.when).toBe('ctxPct > 80')
+  expect(warnings.some(w => w.includes('ctxPercent'))).toBe(true)
+})
+
 test('negative padding is coerced to a non-negative integer', () => {
   const { config } = loadConfig({ version: 1, defaults: { padding: -1 } })
   expect(config.defaults.padding).toBeGreaterThanOrEqual(0)

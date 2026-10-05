@@ -411,6 +411,44 @@ function isColor(x) {
   return typeof x === "string" && COLORS.has(x);
 }
 
+// packages/core/src/toast.ts
+var TOAST_FIELDS = {
+  ctxPct: (s) => s.ctxPct,
+  fivePct: (s) => s.fivePct,
+  weekPct: (s) => s.weekPct,
+  ctxTokens: (s) => s.ctxTokens,
+  total: (s) => s.total,
+  cost: (s) => s.cost
+};
+var WHEN_RE = /^\s*([a-zA-Z]+)\s*(>=|<=|==|>|<)\s*(-?\d+(?:\.\d+)?)\s*$/;
+function isValidWhen(when) {
+  const m = WHEN_RE.exec(when);
+  return m !== null && m[1] in TOAST_FIELDS;
+}
+function evalWhen(when, snapshot) {
+  const m = WHEN_RE.exec(when);
+  if (!m) return false;
+  const getter = TOAST_FIELDS[m[1]];
+  if (!getter) return false;
+  const value = getter(snapshot);
+  if (value === null || value === void 0 || Number.isNaN(value)) return false;
+  const n = Number(m[3]);
+  switch (m[2]) {
+    case ">":
+      return value > n;
+    case ">=":
+      return value >= n;
+    case "<":
+      return value < n;
+    case "<=":
+      return value <= n;
+    case "==":
+      return value === n;
+    default:
+      return false;
+  }
+}
+
 // packages/core/src/config/types.ts
 var WIDGET_TYPES = [
   "model",
@@ -4595,6 +4633,15 @@ function cleanThemes(themes, warn) {
   }
   return cleaned;
 }
+function cleanToasts(raw, warn) {
+  if (!raw) return clone(defaultConfig.surfaces.toasts);
+  const rules = raw.rules.filter((r) => {
+    if (isValidWhen(r.when)) return true;
+    warn(`dropped toast rule with invalid condition "${r.when}"`);
+    return false;
+  });
+  return { enabled: raw.enabled, rules };
+}
 function loadConfig(raw) {
   var _a;
   const warnings = [];
@@ -4627,7 +4674,7 @@ function loadConfig(raw) {
       band: surf("band"),
       statusline: surf("statusline"),
       pane: surf("pane"),
-      toasts: p.surfaces.toasts ?? clone(defaultConfig.surfaces.toasts)
+      toasts: cleanToasts(p.surfaces.toasts, warn)
     }
   };
   return { config, warnings };
@@ -4683,44 +4730,6 @@ function importCcstatusline(raw) {
   const draft = { version: 1, surfaces: { band: { enabled: true, lines } } };
   const loaded = loadConfig(draft);
   return { config: loaded.config, warnings: [...warnings, ...loaded.warnings] };
-}
-
-// packages/core/src/toast.ts
-var TOAST_FIELDS = {
-  ctxPct: (s) => s.ctxPct,
-  fivePct: (s) => s.fivePct,
-  weekPct: (s) => s.weekPct,
-  ctxTokens: (s) => s.ctxTokens,
-  total: (s) => s.total,
-  cost: (s) => s.cost
-};
-var WHEN_RE = /^\s*([a-zA-Z]+)\s*(>=|<=|==|>|<)\s*(-?\d+(?:\.\d+)?)\s*$/;
-function isValidWhen(when) {
-  const m = WHEN_RE.exec(when);
-  return m !== null && m[1] in TOAST_FIELDS;
-}
-function evalWhen(when, snapshot) {
-  const m = WHEN_RE.exec(when);
-  if (!m) return false;
-  const getter = TOAST_FIELDS[m[1]];
-  if (!getter) return false;
-  const value = getter(snapshot);
-  if (value === null || value === void 0 || Number.isNaN(value)) return false;
-  const n = Number(m[3]);
-  switch (m[2]) {
-    case ">":
-      return value > n;
-    case ">=":
-      return value >= n;
-    case "<":
-      return value < n;
-    case "<=":
-      return value <= n;
-    case "==":
-      return value === n;
-    default:
-      return false;
-  }
 }
 export {
   COLORS,

@@ -1,6 +1,7 @@
 import { isColor } from '../colors.js'
+import { isValidWhen } from '../toast.js'
 import { WIDGET_TYPES } from './types.js'
-import type { Align, Config, DataWidgetType, Item, ItemStyle, WidgetType } from './types.js'
+import type { Align, Config, DataWidgetType, Item, ItemStyle, ToastSurface, WidgetType } from './types.js'
 import { defaultConfig } from './defaults.js'
 import { configSchema } from './schema.js'
 
@@ -69,6 +70,19 @@ function cleanThemes(themes: Record<string, Record<string, { fg?: string; bg?: s
   return cleaned
 }
 
+// Toast rules go through the same shared validator the TUI authors with
+// (isValidWhen), so a hand-edited or imported rule whose `when` can't fire is
+// dropped with a warning here rather than silently loading and never firing.
+function cleanToasts(raw: ToastSurface | undefined, warn: (s: string) => void): ToastSurface {
+  if (!raw) return clone(defaultConfig.surfaces.toasts)
+  const rules = raw.rules.filter(r => {
+    if (isValidWhen(r.when)) return true
+    warn(`dropped toast rule with invalid condition "${r.when}"`)
+    return false
+  })
+  return { enabled: raw.enabled, rules }
+}
+
 export function loadConfig(raw: unknown): { config: Config; warnings: string[] } {
   const warnings: string[] = []
   const warn = (s: string) => warnings.push(s)
@@ -108,7 +122,7 @@ export function loadConfig(raw: unknown): { config: Config; warnings: string[] }
       band: surf('band'),
       statusline: surf('statusline'),
       pane: surf('pane'),
-      toasts: p.surfaces.toasts ?? clone(defaultConfig.surfaces.toasts),
+      toasts: cleanToasts(p.surfaces.toasts, warn),
     },
   }
   return { config, warnings }
