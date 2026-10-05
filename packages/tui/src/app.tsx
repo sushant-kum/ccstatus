@@ -52,6 +52,7 @@ export function App({ modProbe }: { modProbe?: ModProbe } = {}){
   const [modStatus, setModStatus] = useState<ModStatus | null>(null)
   const [installing, setInstalling] = useState(false)
   const [installMsg, setInstallMsg] = useState<string | null>(null)
+  const [installOk, setInstallOk] = useState(true)
   const snap = readSnapshot(snapshotPath())
   const width = process.stdout.columns || 120
 
@@ -70,8 +71,8 @@ export function App({ modProbe }: { modProbe?: ModProbe } = {}){
     if (input === 'i' && modStatus === 'absent' && !installing) {
       setInstalling(true)
       probe.install()
-        .then((r) => { setInstallMsg(r.message); if (r.ok) setModStatus('installed') })
-        .catch((e) => setInstallMsg(e instanceof Error ? e.message : String(e)))
+        .then((r) => { setInstallMsg(r.message); setInstallOk(r.ok); if (r.ok) setModStatus('installed') })
+        .catch((e) => { setInstallMsg(e instanceof Error ? e.message : String(e)); setInstallOk(false) })
         .finally(() => setInstalling(false))
     }
   })
@@ -97,7 +98,7 @@ export function App({ modProbe }: { modProbe?: ModProbe } = {}){
     {saveWarnings.length > 0 && <Text color="yellow">⚠ saved with changes: {saveWarnings.join('; ')}</Text>}
     {saveError && <Text color="red">Could not save config: {saveError}</Text>}
     {installMsg
-      ? <Text color="green">{installMsg}</Text>
+      ? <Text color={installOk ? 'green' : 'red'}>{installOk ? '✓ ' : '⚠ '}{installMsg}</Text>
       : modStatus === 'absent'
         ? <Text color="yellow">⚠ ccstatus mod not installed — press i to install ({PLUGIN_ID}){installing ? ' … installing' : ''}</Text>
       : modStatus === 'unknown'
