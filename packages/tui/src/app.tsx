@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Box, Text, useApp, useInput } from 'ink'
 import { configPath, snapshotPath, loadConfigFile, saveConfigFile } from './config-store.js'
+import { detectModStatus, installMod, MARKETPLACE_SLUG, PLUGIN_ID, type ModStatus, type InstallResult } from './mod-status.js'
 import { readSnapshot } from './snapshot-source.js'
 import { Preview } from './preview.js'
 import { Menu } from './screens/menu.js'
@@ -35,8 +36,11 @@ function PlaceholderOrScreen({ id, snapshot, source, ...props }: ScreenProps & {
   }
 }
 
-export function App(){
+export interface ModProbe { detect: () => Promise<ModStatus>; install: () => Promise<InstallResult> }
+
+export function App({ modProbe }: { modProbe?: ModProbe } = {}){
   const { exit } = useApp()
+  const probe = modProbe ?? { detect: () => detectModStatus(), install: () => installMod() }
   // Load once: keep the warnings so we can tell the user their on-disk config was
   // rejected (otherwise opening on defaults silently clobbers a recoverable file on save).
   const loaded = useMemo(() => loadConfigFile(configPath()), [])
@@ -45,9 +49,32 @@ export function App(){
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveWarnings, setSaveWarnings] = useState<string[]>([])
   const [saved, setSaved] = useState(false)
+  const [modStatus, setModStatus] = useState<ModStatus | null>(null)
+  const [installing, setInstalling] = useState(false)
+  const [installMsg, setInstallMsg] = useState<string | null>(null)
   const snap = readSnapshot(snapshotPath())
   const width = process.stdout.columns || 120
-  useInput((input)=>{ if (screen==='menu' && input==='q') exit() })
+
+  // Detect the mod asynchronously so the UI paints immediately; the guard keeps
+  // us from setting state after unmount, and any detection error degrades to 'unknown'.
+  useEffect(() => {
+    let alive = true
+    probe.detect().then((s) => { if (alive) setModStatus(s) }).catch(() => { if (alive) setModStatus('unknown') })
+    return () => { alive = false }
+  }, [])
+
+  // `i` installs the mod — menu screen only, so it never hijacks typing in an editor.
+  useInput((input) => {
+    if (screen !== 'menu') return
+    if (input === 'q') { exit(); return }
+    if (input === 'i' && modStatus === 'absent' && !installing) {
+      setInstalling(true)
+      probe.install()
+        .then((r) => { setInstallMsg(r.message); if (r.ok) setModStatus('installed') })
+        .catch((e) => setInstallMsg(e instanceof Error ? e.message : String(e)))
+        .finally(() => setInstalling(false))
+    }
+  })
 
   // Returns true only when the config was actually written; on failure we surface
   // the error and stay open rather than exiting as if the save succeeded.
@@ -69,6 +96,13 @@ export function App(){
       <Text color="yellow">⚠ existing config: {loaded.warnings.join('; ')} — editing from defaults; saving replaces it (a .bak is kept)</Text>}
     {saveWarnings.length > 0 && <Text color="yellow">⚠ saved with changes: {saveWarnings.join('; ')}</Text>}
     {saveError && <Text color="red">Could not save config: {saveError}</Text>}
+    {installMsg
+      ? <Text color="green">{installMsg}</Text>
+      : modStatus === 'absent'
+        ? <Text color="yellow">⚠ ccstatus mod not installed — press i to install ({PLUGIN_ID}){installing ? ' … installing' : ''}</Text>
+      : modStatus === 'unknown'
+        ? <Text color="yellow">⚠ couldn't check if the mod is installed — if the bar isn't showing, run: claude plugin marketplace add {MARKETPLACE_SLUG} && claude plugin install {PLUGIN_ID}</Text>
+        : null}
     <Preview config={config} snapshot={snap.snapshot} source={snap.source} width={width}/>
   </Box>
 }
