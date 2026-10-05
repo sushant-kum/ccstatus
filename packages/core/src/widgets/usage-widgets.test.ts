@@ -13,7 +13,7 @@ const base: Snapshot = {
   weekPct: 10, weekReset: null, blockReset: null, terminalWidth: 80, now,
 }
 const fmt = (type: Item['type'], snapshot: Snapshot) =>
-  registry[type]!.format({ snapshot, item: { id: 'x', type }, commandOutputs: {} })
+  registry[type]!.format({ snapshot, item: { id: 'x', type } as unknown as Item, commandOutputs: {} })
 
 test('cost', () => {
   expect(fmt('cost', base)).toBe('$0.12')

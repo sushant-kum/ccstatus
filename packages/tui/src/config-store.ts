@@ -19,11 +19,14 @@ export function loadConfigFile(path: string): { config: Config; warnings: string
   catch { const f = loadConfig(undefined); return { config: f.config, warnings: ['config file is not valid JSON; using defaults'] } }
 }
 
-export function saveConfigFile(path: string, config: Config): void {
-  const { config: clean } = loadConfig(config) // only ever write valid config
+// Returns any warnings from the re-validation round-trip so the caller can tell
+// the user which fields were dropped/normalized on write (empty = clean save).
+export function saveConfigFile(path: string, config: Config): string[] {
+  const { config: clean, warnings } = loadConfig(config) // only ever write valid config
   mkdirSync(dirname(path), { recursive: true })
   if (existsSync(path)) { try { copyFileSync(path, path + '.bak') } catch { /* best effort */ } }
   const tmp = path + '.tmp'
   writeFileSync(tmp, JSON.stringify(clean, null, 2))
   renameSync(tmp, path)
+  return warnings
 }

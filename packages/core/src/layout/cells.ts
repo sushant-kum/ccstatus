@@ -14,9 +14,12 @@ export function itemToCell(
   if (value === null) return null
 
   const flex = item.type === 'flex-separator'
-  const pad = flex ? '' : ' '.repeat(config.defaults.padding)
+  // Defense in depth: the schema already clamps padding, but core must never throw
+  // on a hand-constructed Config either (' '.repeat throws on negative counts).
+  const pad = flex ? '' : ' '.repeat(Math.max(0, Math.floor(config.defaults.padding)))
   const { fg, bg } = resolveColors(item, config)
-  return { text: flex ? '' : `${pad}${value}${pad}`, fg, bg, merge: item.merge ?? false, flex }
+  const merge = item.type === 'flex-separator' ? false : (item.merge ?? false)
+  return { text: flex ? '' : `${pad}${value}${pad}`, fg, bg, merge, flex }
 }
 
 export function lineToCells(

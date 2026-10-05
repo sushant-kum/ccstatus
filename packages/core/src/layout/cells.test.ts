@@ -26,6 +26,10 @@ test('flex cell is unpadded and flagged', () => {
     text: '', fg: undefined, bg: undefined, merge: false, flex: true,
   })
 })
+test('negative padding does not throw', () => {
+  const badConfig = { ...config, defaults: { ...config.defaults, padding: -1 } } as unknown as Config
+  expect(() => itemToCell({ id: 'a', type: 'model' }, badConfig, snap, {})).not.toThrow()
+})
 test('lineToCells drops nulls', () => {
   const cells = lineToCells(
     [{ id: 'a', type: 'model' }, { id: 'g', type: 'git-branch' }],

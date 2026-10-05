@@ -16,7 +16,7 @@ test('maps known items into the band surface', () => {
   const { config, warnings } = importCcstatusline(ccsl)
   const line = config.surfaces.band.lines[0]!
   expect(line.map(i => i.type)).toEqual(['version', 'context-percentage'])
-  expect(line[1]!.bg).toBe('bgBrightYellow')
+  expect((line[1] as { bg?: string }).bg).toBe('bgBrightYellow')
   expect(config.surfaces.band.enabled).toBe(true)
   expect(warnings.some(w => w.includes('totally-unknown'))).toBe(true)
 })

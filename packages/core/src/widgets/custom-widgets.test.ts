@@ -8,11 +8,11 @@ const snap = { terminalWidth: 80, now: 0 } as unknown as Snapshot
 const ctx = (item: Item, commandOutputs: Record<string, string> = {}) => ({ snapshot: snap, item, commandOutputs })
 
 test('custom-text', () => {
-  expect(registry['custom-text']!.format(ctx({ id: 'a', type: 'custom-text', metadata: { text: 'hi' } }))).toBe('hi')
-  expect(registry['custom-text']!.format(ctx({ id: 'a', type: 'custom-text' }))).toBeNull()
+  expect(registry['custom-text']!.format(ctx({ id: 'a', type: 'custom-text', text: 'hi' }))).toBe('hi')
+  expect(registry['custom-text']!.format(ctx({ id: 'a', type: 'custom-text', text: '' }))).toBeNull()
 })
 test('custom-command reads host output', () => {
-  const item: Item = { id: 'cc', type: 'custom-command', metadata: { command: 'whoami' } }
+  const item: Item = { id: 'cc', type: 'custom-command', command: 'whoami' }
   expect(registry['custom-command']!.format(ctx(item, { cc: 'sushant\n' }))).toBe('sushant')
   expect(registry['custom-command']!.format(ctx(item, {}))).toBeNull()
 })

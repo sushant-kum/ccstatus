@@ -88,8 +88,9 @@ cross-service assumptions.
 ## FLOW-0001 — Mod renders the above-prompt band
 
 - **Scope:** plugin
-- **Trigger:** session start, then every 2s tick, and every `turn.complete` / `tool.call`; the engine
-  also calls the `ui.render` hook whenever it paints the `AbovePrompt` site.
+- **Trigger:** session start, then every 2s tick, and every `turn.complete`; `tool.call` captures the
+  thinking-effort only (it does not refresh). The engine also calls the `ui.render` hook whenever it
+  paints the `AbovePrompt` site.
 - **Outcome:** the configured band is painted above the prompt from a fresh snapshot.
 - **Last verified:** 2026-10-04
 - **Related:** DEC-0001, [FLOW-0002](#flow-0002--config-edit--shared-file--mod-reload)
@@ -110,13 +111,15 @@ cross-service assumptions.
 1. `session.start` registers the `/ccstatus` command, loads config from disk
    (`configPath` built from `$.env.get('HOME'/'XDG_CONFIG_HOME')` → `$.fs.read` → `parseConfig`),
    takes a first snapshot, and starts `$.clock.every(2000, …)`.
-2. Each tick (and each `turn.complete` / `tool.call`) runs `refresh($)`: a re-entrancy-guarded
+2. Each tick (and each `turn.complete`) runs `refresh($)`: a re-entrancy-guarded
    function that gathers `version`/`model`/`cwd`/`usage` via `$.session.*` and git fields via
    `$.process.run(<git script>)` → `parseGit`, assembles them with `buildSnapshot`, and writes the
-   `snapshot` atom. `tool.call` / `turn.complete` first capture the thinking-effort into the `effort`
-   atom.
+   `snapshot` atom. `tool.call` and `turn.complete` both first capture the thinking-effort into the
+   `effort` atom; only `turn.complete` then calls `refresh`.
 3. `refresh` also persists the snapshot JSON to `snapshotPath` (for the TUI preview — see FLOW-0002)
-   and applies the status-line surface (`$.ui.status(toAnsi(render(...)))`) and toast rules.
+   and applies the status-line surface (`$.ui.status(toAnsi(render(...)))`, rendered at
+   `snap.terminalWidth || 200`; `terminalWidth` is currently always `0`, so the status line uses the
+   fixed 200-column fallback — deferred) and toast rules.
 4. When the engine paints the prompt it calls the `ui.render` hook for `{ component: 'AbovePrompt' }`.
    The hook reads the `visible`, `config`, and `snapshot` atoms, calls
    `render(config, snapshot, { surface: 'band', width: e.props.bodyColumns })`, and returns
@@ -126,16 +129,20 @@ cross-service assumptions.
 
 - **`e.props.hasSurvey`, band hidden (`visible` false), or missing `config`/`snapshot`** → the render
   hook returns `next(e)` (the engine draws its own; the band is absent).
-- **`e.props.bodyColumns` is `0`/undefined (not yet measured)** → `next(e)`; the band waits a frame
-  rather than painting at width 0 (core returns an empty model at width 0).
+- **`e.props.bodyColumns` is `0`/undefined (not yet measured)** → the band hook returns `next(e)`
+  before calling `render`, so it waits a frame rather than painting at width 0. (For reference, `render`
+  at width 0 returns a single line with empty segments, not an empty model.)
 - **`render` produces zero lines** → `next(e)`.
 - **Any `$` call fails** (`$.session.*`, git `$.process.run`, `$.fs`) → caught; the field degrades to a
   default/null and the last good snapshot is kept. No hook ever throws.
 
 ### Notes
 
-The 2s timer is cancelled on module reload / session end. `buildSnapshot` currently sets `cost` and
-`blockReset` to `null` (best-effort, deferred), so the `cost` and `block-timer` widgets omit.
+The 2s tick is registered once at `session.start` via `$.clock.every(2000, …)`. `buildSnapshot`
+currently sets `cost` and `blockReset` to `null` (best-effort, deferred), so the `cost` and
+`block-timer` widgets omit. When `parseConfig` reports warnings (invalid JSON, dropped items, stripped
+colors), `reloadConfig` surfaces a one-shot `$.ui.toast` so a rejected/degraded config is observable
+rather than silently falling back to defaults.
 
 ---
 
@@ -166,7 +173,8 @@ The 2s timer is cancelled on module reload / session end. `buildSnapshot` curren
    place). The pinned preview re-renders live via `core.render`.
 2. On **Save**, `saveConfigFile(configPath(), config)` rounds the config through `core.loadConfig`
    first (so only a valid config is written), copies any existing file to `config.json.bak`, writes a
-   `.tmp` file, then `rename`s it over `config.json` (atomic).
+   `.tmp` file, then `rename`s it over `config.json` (atomic). It returns the re-validation warnings;
+   the app shows them after save and only exits when the write succeeded.
 3. The running mod, on each 2s tick, calls `reloadConfig`: `$.fs.stat(path)` → `shouldReload` compares
    `mtimeMs` to the stored `configMtime` atom; on change it re-reads + `parseConfig` and updates the
    `config` atom.
@@ -175,9 +183,14 @@ The 2s timer is cancelled on module reload / session end. `buildSnapshot` curren
 ### Branches & failure modes
 
 - **File missing / unreadable / invalid JSON** → `loadConfigFile` (TUI) and `parseConfig` (mod) both
-  fall back to `defaultConfig` (TUI adds a warning); neither throws.
+  fall back to `defaultConfig` (both return warnings); neither throws. The TUI shows a startup banner
+  when the existing config was invalid (so a following Save is an informed overwrite); the mod surfaces
+  a one-shot toast on reload when warnings are present (see FLOW-0001 Notes).
 - **`saveConfigFile` I/O error** → the write is atomic, so `config.json` is never left corrupt and the
-  prior `.bak` remains; the session's unsaved edits are lost (currently without a user-facing message).
+  prior `.bak` remains; the error is caught and shown in the TUI, which stays open instead of exiting.
+- **`/ccstatus theme <name>`** is a second config writer (mod side). It backs the current file up to
+  `config.json.bak` before writing; the sandbox fs exposes no atomic `rename`, so this is a plain write
+  rather than the temp+rename the TUI uses.
 - **mtime unchanged** → `reloadConfig` is a no-op (cheap `stat` only).
 - **`/ccstatus reload`** forces an immediate re-read regardless of mtime.
 

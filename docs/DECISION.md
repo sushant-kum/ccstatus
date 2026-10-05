@@ -56,6 +56,7 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0005 | 2026-10-04 | Named terminal colors only in v1 (no hex)             | Accepted | repo-wide      |
 | DEC-0006 | 2026-10-04 | Default glyph and deferred render fields              | Accepted | repo-wide      |
 | DEC-0007 | 2026-10-04 | No AI-attribution in code, commits, or PRs            | Accepted | repo-wide      |
+| DEC-0008 | 2026-10-04 | Config items are a discriminated union keyed on `type` | Accepted | core           |
 
 ---
 
@@ -326,3 +327,47 @@ rewritten once to remove the trailers already present.
 - Any agent working here must suppress its default attribution, regardless of harness defaults.
 - Enacting this required a one-time history rewrite + force-push of `main` and `feat/ccstatus-core`,
   which changed every commit SHA.
+
+---
+
+## DEC-0008 — Config items are a discriminated union keyed on `type`
+
+- **Date:** 2026-10-04
+- **Status:** Accepted
+- **Scope:** core
+- **Related:** DEC-0004, [FLOW-0002](#flow-0002--config-edit--shared-file--mod-reload)
+
+### Context
+
+`Item` was a flat record (`{ id, type: WidgetType, fg?, bg?, … }`) with all per-widget data in an
+untyped `metadata?: Record<string, unknown>` bag. That made illegal items representable — a
+`custom-text` with no text, a `flex-separator` carrying colors — and the valid widget list was
+duplicated as a hand-maintained `Set` in `validate.ts`, which could silently drift from `WidgetType`
+and drop widgets.
+
+### Decision
+
+`Item` is a discriminated union on `type`: `DataItem` (styling only), `CustomTextItem` (`text: string`),
+`CustomCommandItem` (`command: string`), and `FlexSeparatorItem` (no styling). `WIDGET_TYPES` (a `const`
+array in `config/types.ts`) is the single source of truth — `WidgetType` is `typeof WIDGET_TYPES[number]`
+and `validate.ts` builds its lookup set from the same array. The zod `itemSchema` stays intentionally
+loose (`type: z.string()`, plus optional `text`/`command`/legacy `metadata`) so an unknown type is a
+dropped item with a warning, not a hard parse failure; `loadConfig`/`cleanItem` is the smart constructor
+that turns a parsed row into the union and migrates legacy `metadata.text`/`metadata.command` forward.
+
+### Alternatives considered
+
+- **Keep the flat `Item` + `metadata` bag** — rejected: illegal states stay representable and per-widget
+  data is stringly-typed.
+- **Typed `text?`/`command?` fields without a union** — lighter, but `custom-text` with no text and
+  flex-with-colors would still type-check; the union makes them unrepresentable.
+- **`z.discriminatedUnion` in the schema** — would hard-reject unknown/old types and lose the rest of
+  the config; the soft schema + `cleanItem` boundary keeps the "never throw, degrade gracefully" contract.
+
+### Consequences
+
+- Per-widget invariants live in the type system; the `metadata` escape hatch is gone.
+- The on-disk item shape changed (`metadata.text`/`metadata.command` → typed `text`/`command`); old
+  configs are migrated at load, so they keep working.
+- `flex-separator` has no styling fields, so generic item code narrows on `type` (helpers like
+  `isStylable`, `rawOf`) before touching `fg`/`bg`/`merge`/`align`/`rawValue`.

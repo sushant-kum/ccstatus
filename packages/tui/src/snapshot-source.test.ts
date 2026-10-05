@@ -21,6 +21,16 @@ test('reads a live snapshot and fills gaps from sample', () => {
   expect(typeof r.snapshot.now).toBe('number') // filled from sample
 })
 
+test('a wrong-typed live field is ignored, keeping the sample value', () => {
+  const p = join(mkdtempSync(join(tmpdir(), 'ccs-')), 'snapshot.json')
+  writeFileSync(p, JSON.stringify({ model: 'Haiku', ctxPct: 'oops', cost: 1.25 }))
+  const r = readSnapshot(p)
+  expect(r.source).toBe('live')
+  expect(r.snapshot.model).toBe('Haiku')              // valid string kept
+  expect(r.snapshot.ctxPct).toBe(sampleSnapshot.ctxPct) // bad number ignored
+  expect(r.snapshot.cost).toBe(1.25)                  // valid nullable number kept
+})
+
 test('bad JSON falls back to sample, no throw', () => {
   const p = join(mkdtempSync(join(tmpdir(), 'ccs-')), 'snapshot.json')
   writeFileSync(p, '{bad')

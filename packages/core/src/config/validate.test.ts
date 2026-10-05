@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest'
 import { defaultConfig } from './defaults.js'
 import { loadConfig } from './validate.js'
+import { WIDGET_TYPES } from './types.js'
 
 test('empty input yields default config, no warnings', () => {
   const { config, warnings } = loadConfig(undefined)
@@ -30,7 +31,7 @@ test('unknown color is stripped with a warning', () => {
     surfaces: { band: { enabled: true, lines: [[{ id: 'a', type: 'model', fg: 'fuchsia' }]] } },
   }
   const { config, warnings } = loadConfig(raw)
-  expect(config.surfaces.band.lines[0]![0]!.fg).toBeUndefined()
+  expect((config.surfaces.band.lines[0]![0] as { fg?: string }).fg).toBeUndefined()
   expect(warnings.some(w => w.includes('fuchsia'))).toBe(true)
 })
 
@@ -61,8 +62,37 @@ test('empty input object yields valid config with no warnings', () => {
   expect(warnings).toEqual([])
 })
 
-test('older version config is migrated with warning', () => {
+test('a config written for another version is loaded as v1 with a warning', () => {
   const { config, warnings } = loadConfig({ version: 0 })
   expect(config.version).toBe(1)
-  expect(warnings.some(w => w.includes('migrated') && w.includes('version 0'))).toBe(true)
+  expect(warnings.some(w => w.includes('version 0') && w.includes('loaded as version 1'))).toBe(true)
+})
+
+test('legacy custom-text metadata.text migrates to the typed text field', () => {
+  const raw = {
+    version: 1,
+    surfaces: { band: { enabled: true, lines: [[{ id: 'a', type: 'custom-text', metadata: { text: 'hello' } }]] } },
+  }
+  const { config } = loadConfig(raw)
+  const item = config.surfaces.band.lines[0]![0]!
+  expect(item.type).toBe('custom-text')
+  expect((item as { text?: string }).text).toBe('hello')
+})
+
+test('every widget type survives validation (no drift between the type list and validator)', () => {
+  const lines = [WIDGET_TYPES.map((type, i) => ({ id: `w${i}`, type }))]
+  const { config, warnings } = loadConfig({ version: 1, surfaces: { band: { enabled: true, lines } } })
+  expect(config.surfaces.band.lines[0]).toHaveLength(WIDGET_TYPES.length)
+  expect(warnings).toEqual([])
+})
+
+test('negative padding is coerced to a non-negative integer', () => {
+  const { config } = loadConfig({ version: 1, defaults: { padding: -1 } })
+  expect(config.defaults.padding).toBeGreaterThanOrEqual(0)
+  expect(Number.isInteger(config.defaults.padding)).toBe(true)
+})
+
+test('fractional padding is coerced to an integer', () => {
+  const { config } = loadConfig({ version: 1, defaults: { padding: 1.5 } })
+  expect(Number.isInteger(config.defaults.padding)).toBe(true)
 })

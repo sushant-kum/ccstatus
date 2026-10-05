@@ -12,8 +12,8 @@ const snap: Snapshot = {
   startedAt: 0, cost: 0.12, fivePct: 30, fiveReset: null, weekPct: 10, weekReset: null,
   blockReset: null, terminalWidth: 120, now: 65000,
 }
-const item = (type: Item['type'], extra: Partial<Item> = {}): Item => ({ id: 'x', type, ...extra })
-const fmt = (type: Item['type'], extra: Partial<Item> = {}) =>
+const item = (type: Item['type'], extra: Record<string, unknown> = {}): Item => ({ id: 'x', type, ...extra }) as unknown as Item
+const fmt = (type: Item['type'], extra: Record<string, unknown> = {}) =>
   registry[type]!.format({ snapshot: snap, item: item(type, extra), commandOutputs: {} })
 
 test('model', () => {
@@ -29,6 +29,7 @@ test('context-length and percentage', () => {
 })
 test('tokens', () => {
   expect(fmt('tokens-input')).toBe('In: 2k')
+  expect(fmt('tokens-output')).toBe('Out: 500')
   expect(fmt('tokens-cached')).toBe('Cached: 1k')
   expect(fmt('tokens-total')).toBe('Total: 3.5k')
 })

@@ -3,7 +3,7 @@ import { register } from './registry.js'
 register({
   type: 'custom-text', label: 'Custom text',
   format: ({ item }) => {
-    const text = String(item.metadata?.['text'] ?? '')
+    const text = item.type === 'custom-text' ? item.text : ''
     return text.length ? text : null
   },
 })

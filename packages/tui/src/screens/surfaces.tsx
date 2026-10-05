@@ -1,13 +1,11 @@
 import { useState } from 'react'
 import { Box, Text, useInput } from 'ink'
 import type { ToastRule } from '@ccstatus/core'
+import { isValidWhen } from '@ccstatus/core'
 import type { ScreenProps } from '../app.js'
 import { TOAST_PRESETS } from '../toast-presets.js'
 
 const SURFACES = ['band', 'statusline', 'pane', 'toasts'] as const
-const WHEN_RE = /^\s*(ctxPct|fivePct|weekPct|ctxTokens|total|cost)\s*(>=|<=|==|>|<)\s*-?\d+(\.\d+)?\s*$/
-
-export function isValidWhen(when: string): boolean { return WHEN_RE.test(when) }
 
 type Mode =
   | { kind: 'nav' }

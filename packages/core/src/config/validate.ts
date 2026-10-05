@@ -1,32 +1,53 @@
 import { isColor } from '../colors.js'
-import type { Config, Item, WidgetType } from './types.js'
+import { WIDGET_TYPES } from './types.js'
+import type { Align, Config, DataWidgetType, Item, ItemStyle, WidgetType } from './types.js'
 import { defaultConfig } from './defaults.js'
 import { configSchema } from './schema.js'
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 
-const WIDGET_TYPES = new Set<WidgetType>([
-  'model', 'version', 'context-length', 'context-percentage',
-  'tokens-input', 'tokens-output', 'tokens-cached', 'tokens-total',
-  'session-clock', 'cwd',
-  'git-branch', 'git-changes', 'git-worktree', 'git-root-dir',
-  'cost', 'rate-limit-5h', 'rate-limit-week', 'block-timer',
-  'custom-text', 'custom-command', 'flex-separator',
-])
+const WIDGET_TYPE_SET = new Set<WidgetType>(WIDGET_TYPES)
 
-function cleanItem(raw: { type: string; fg?: string; bg?: string } & Record<string, unknown>, warn: (s: string) => void): Item | null {
-  if (!WIDGET_TYPES.has(raw.type as WidgetType)) {
-    warn(`dropped item with unknown type "${raw.type}"`)
+type RawItem = {
+  id: string; type: string
+  fg?: string; bg?: string; merge?: boolean; align?: Align; rawValue?: boolean
+  text?: string; command?: string; metadata?: Record<string, unknown>
+}
+
+// Carry the common styling fields, dropping (and warning on) unknown colors.
+function cleanStyle(raw: RawItem, type: string, warn: (s: string) => void): ItemStyle {
+  const style: ItemStyle = {}
+  if (raw.merge !== undefined) style.merge = raw.merge
+  if (raw.align !== undefined) style.align = raw.align
+  if (raw.rawValue !== undefined) style.rawValue = raw.rawValue
+  for (const key of ['fg', 'bg'] as const) {
+    const v = raw[key]
+    if (v === undefined) continue
+    if (isColor(v)) style[key] = v
+    else warn(`stripped unknown color "${v}" on a ${type} item`)
+  }
+  return style
+}
+
+const legacy = (raw: RawItem, key: 'text' | 'command'): string | undefined => {
+  const v = raw.metadata?.[key]
+  return typeof v === 'string' ? v : undefined
+}
+
+// Smart constructor: turn a parsed row into a well-typed Item, or drop it.
+// Legacy configs stored custom text/command under `metadata`; migrate them forward.
+function cleanItem(raw: RawItem, warn: (s: string) => void): Item | null {
+  const type = raw.type
+  if (!WIDGET_TYPE_SET.has(type as WidgetType)) {
+    warn(`dropped item with unknown type "${type}"`)
     return null
   }
-  const item = { ...raw, type: raw.type as WidgetType } as Item
-  for (const key of ['fg', 'bg'] as const) {
-    if (item[key] !== undefined && !isColor(item[key])) {
-      warn(`stripped unknown color "${item[key]}" on a ${item.type} item`)
-      item[key] = undefined
-    }
-  }
-  return item
+  const id = raw.id
+  if (type === 'flex-separator') return { id, type: 'flex-separator' }
+  const style = cleanStyle(raw, type, warn)
+  if (type === 'custom-text') return { id, type: 'custom-text', text: raw.text ?? legacy(raw, 'text') ?? '', ...style }
+  if (type === 'custom-command') return { id, type: 'custom-command', command: raw.command ?? legacy(raw, 'command') ?? '', ...style }
+  return { id, type: type as DataWidgetType, ...style }
 }
 
 function cleanThemes(themes: Record<string, Record<string, { fg?: string; bg?: string }>>, warn: (s: string) => void): Record<string, Record<string, { fg?: string; bg?: string }>> {
@@ -52,10 +73,12 @@ export function loadConfig(raw: unknown): { config: Config; warnings: string[] }
   const warnings: string[] = []
   const warn = (s: string) => warnings.push(s)
 
-  // Check for version migration before parsing
+  // Note a version other than 1. There is only one schema version today, so the
+  // config is simply loaded as v1 (unknown fields dropped, defaults filled) rather
+  // than transformed — say exactly that instead of claiming a migration.
   const rawVersion = typeof raw === 'object' && raw !== null && 'version' in raw ? (raw as { version: unknown }).version : undefined
   if (rawVersion !== undefined && rawVersion !== 1) {
-    warn(`migrated config from version ${rawVersion} to 1`)
+    warn(`config was written for version ${rawVersion}; loaded as version 1`)
   }
 
   const parsed = configSchema.safeParse(raw)

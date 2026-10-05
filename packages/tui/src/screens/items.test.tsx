@@ -81,14 +81,14 @@ test('fg and bg cycle to a color, then back to (none) which removes the key', as
     for (let i = 0; i < downs; i++) { stdin.write(DOWN); await tick() }
     // defaults give item 0 a fg/bg; cycle forward until it wraps to (none)
     let guard = 0
-    while (last?.surfaces.band.lines[0]![0]![key] !== undefined || guard === 0) {
+    while ((last?.surfaces.band.lines[0]![0] as Record<string, unknown> | undefined)?.[key] !== undefined || guard === 0) {
       stdin.write(RIGHT); await tick()
       expect(++guard).toBeLessThan(60)
     }
     expect('fg' in last.surfaces.band.lines[0]![0]! && key === 'fg').toBe(false)
     expect(key in last.surfaces.band.lines[0]![0]!).toBe(false)
     stdin.write(RIGHT); await tick()
-    expect(last.surfaces.band.lines[0]![0]![key]).toBeDefined()
+    expect((last.surfaces.band.lines[0]![0] as Record<string, unknown>)[key]).toBeDefined()
     unmount()
   }
 })

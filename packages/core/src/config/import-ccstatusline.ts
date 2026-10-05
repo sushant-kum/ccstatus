@@ -1,10 +1,11 @@
-import type { Config, Item, WidgetType } from './types.js'
+import type { Config, DataWidgetType, Item } from './types.js'
 import { loadConfig } from './validate.js'
 import { defaultConfig } from './defaults.js'
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 
-const TYPE_MAP: Record<string, WidgetType> = {
+// Every mapped target is a data widget, so a mapped item is always a DataItem.
+const TYPE_MAP: Record<string, DataWidgetType> = {
   version: 'version', model: 'model', 'thinking-effort': 'model',
   'context-length': 'context-length', 'context-percentage': 'context-percentage',
   'tokens-cached': 'tokens-cached', 'tokens-input': 'tokens-input',

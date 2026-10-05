@@ -1,31 +1,8 @@
 import type { Snapshot, ToastRule } from './core.js'
+import { evalWhen } from './core.js'
 
-const FIELDS: Record<string, (s: Snapshot) => number | null> = {
-  ctxPct: s => s.ctxPct,
-  fivePct: s => s.fivePct,
-  weekPct: s => s.weekPct,
-  ctxTokens: s => s.ctxTokens,
-  total: s => s.total,
-  cost: s => s.cost,
-}
-
-export function evalWhen(when: string, snapshot: Snapshot): boolean {
-  const m = /^\s*([a-zA-Z]+)\s*(>=|<=|==|>|<)\s*(-?\d+(?:\.\d+)?)\s*$/.exec(when)
-  if (!m) return false
-  const getter = FIELDS[m[1]!]
-  if (!getter) return false
-  const value = getter(snapshot)
-  if (value === null || value === undefined || Number.isNaN(value)) return false
-  const n = Number(m[3])
-  switch (m[2]) {
-    case '>': return value > n
-    case '>=': return value >= n
-    case '<': return value < n
-    case '<=': return value <= n
-    case '==': return value === n
-    default: return false
-  }
-}
+// Re-exported so existing importers (register.tsx, tests) keep their import path.
+export { evalWhen }
 
 export function dueToasts(
   rules: ToastRule[], snapshot: Snapshot, fired: Record<string, boolean>,

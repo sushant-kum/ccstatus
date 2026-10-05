@@ -30,3 +30,17 @@ test('save is atomic + backs up the prior file', () => {
   expect(existsSync(p+'.bak')).toBe(true)
   expect(JSON.parse(readFileSync(p+'.bak','utf8')).old).toBe(true)
 })
+test('save returns the warnings from re-validation', () => {
+  const d = mkdtempSync(join(tmpdir(),'ccs-')); const p = join(d,'config.json')
+  const dirty = {
+    ...defaultConfig,
+    surfaces: {
+      ...defaultConfig.surfaces,
+      band: { enabled: true, lines: [[{ id: 'x', type: 'model', fg: 'notacolor' }]] },
+    },
+  } as unknown as typeof defaultConfig
+  const warnings = saveConfigFile(p, dirty)
+  expect(warnings.some(w => w.includes('notacolor'))).toBe(true)
+  // the stripped field must not reach disk
+  expect(JSON.parse(readFileSync(p,'utf8')).surfaces.band.lines[0][0].fg).toBeUndefined()
+})

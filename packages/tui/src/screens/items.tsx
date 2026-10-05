@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { registry } from '@ccstatus/core'
-import type { Align, Config, Item, WidgetType } from '@ccstatus/core'
+import type { Align, Config, Item, ItemStyle, StylableItem, WidgetType } from '@ccstatus/core'
 import type { ScreenProps } from '../app.js'
 import { NAMED_COLORS } from '../named-colors.js'
 import { inkBg, inkColor } from '../paint.js'
@@ -20,9 +20,13 @@ const WIDGETS = Object.values(registry) as { type: WidgetType; label: string }[]
 
 const wrap = (i: number, n: number) => (i + n) % n
 
+// The flex separator carries no styling; everything else is a StylableItem.
+const isStylable = (item: Item): item is StylableItem => item.type !== 'flex-separator'
 
 function Chip({ item, selected }: { item: Item; selected: boolean }){
-  return <Text inverse={selected} color={inkColor(item.fg)} backgroundColor={inkBg(item.bg)}>[ {item.type} ]</Text>
+  const fg = isStylable(item) ? item.fg : undefined
+  const bg = isStylable(item) ? item.bg : undefined
+  return <Text inverse={selected} color={inkColor(fg)} backgroundColor={inkBg(bg)}>[ {item.type} ]</Text>
 }
 
 function Swatch({ name, bg }: { name?: string; bg?: boolean }){
@@ -47,10 +51,12 @@ export function Items({ config, setConfig, goHome }: ScreenProps){
     const c: Config = { ...config, surfaces: { ...config.surfaces, [surface]: { ...s, lines } } }
     setConfig(c)
   }
-  const patch = (p: Partial<Item>) => {
-    if (idx < 0) return
-    const item = { ...items[idx]!, ...p }
-    for (const k of Object.keys(p) as (keyof Item)[]) if (item[k] === undefined) delete item[k]
+  // Style edits only apply to stylable items (never the flex separator).
+  const patch = (p: Partial<ItemStyle>) => {
+    const base = items[idx]
+    if (idx < 0 || !base || !isStylable(base)) return
+    const item = { ...base, ...p } as StylableItem
+    for (const k of Object.keys(p) as (keyof ItemStyle)[]) if (item[k] === undefined) delete item[k]
     commit(items.map((it, i) => (i === idx ? item : it)))
   }
   const cycleColor = (list: string[], cur: string | undefined, dir: 1 | -1) => {
@@ -58,7 +64,7 @@ export function Items({ config, setConfig, goHome }: ScreenProps){
     return n === '(none)' ? undefined : n
   }
   const change = (dir: 1 | -1) => {
-    if (!cur) return
+    if (!cur || !isStylable(cur)) return
     const f = FIELDS[field]
     if (f === 'fg') patch({ fg: cycleColor(FG, cur.fg, dir) })
     else if (f === 'bg') patch({ bg: cycleColor(BG, cur.bg, dir) })
@@ -82,7 +88,13 @@ export function Items({ config, setConfig, goHome }: ScreenProps){
       else if (key.downArrow) setPick(p => wrap(p + 1, WIDGETS.length))
       else if (key.return) {
         const type = WIDGETS[pick]!.type
-        commit([...items, { id: `${type}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`, type }])
+        const id = `${type}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+        const newItem: Item =
+          type === 'custom-text' ? { id, type, text: '' }
+          : type === 'custom-command' ? { id, type, command: '' }
+          : type === 'flex-separator' ? { id, type }
+          : { id, type }
+        commit([...items, newItem])
         setSel(items.length)
         setMode('strip')
       }
@@ -121,14 +133,19 @@ export function Items({ config, setConfig, goHome }: ScreenProps){
       {WIDGETS.map((w, i) => (
         <Text key={w.type} color={i === pick ? 'cyan' : undefined}>{i === pick ? '▸ ' : '  '}{w.type} <Text dimColor>{w.label}</Text></Text>
       ))}
-    </Box> : cur && <Box flexDirection="column" marginTop={1} borderStyle="round" paddingX={1}>
-      <Text>type: {cur.type}</Text>
-      {row(0, 'fg', <Swatch name={cur.fg}/>)}
-      {row(1, 'bg', <Swatch name={cur.bg} bg/>)}
-      {row(2, 'raw', <Text>{cur.rawValue ? 'on' : 'off'}</Text>)}
-      {row(3, 'merge', <Text>{cur.merge ? 'on' : 'off'}</Text>)}
-      {row(4, 'align', <Text>{cur.align ?? 'left'}</Text>)}
-    </Box>}
+    </Box> : cur && (isStylable(cur)
+      ? <Box flexDirection="column" marginTop={1} borderStyle="round" paddingX={1}>
+        <Text>type: {cur.type}</Text>
+        {row(0, 'fg', <Swatch name={cur.fg}/>)}
+        {row(1, 'bg', <Swatch name={cur.bg} bg/>)}
+        {row(2, 'raw', <Text>{cur.rawValue ? 'on' : 'off'}</Text>)}
+        {row(3, 'merge', <Text>{cur.merge ? 'on' : 'off'}</Text>)}
+        {row(4, 'align', <Text>{cur.align ?? 'left'}</Text>)}
+      </Box>
+      : <Box flexDirection="column" marginTop={1} borderStyle="round" paddingX={1}>
+        <Text>type: {cur.type}</Text>
+        <Text dimColor>(flex separator — no style options)</Text>
+      </Box>)}
     <Text dimColor>{mode === 'strip' ? '←/→ select · [/] move · a add · x remove · e edit · tab surface · esc back'
       : mode === 'editor' ? '↑/↓ field · ←/→ change · esc done' : '↑/↓ choose · enter add · esc cancel'}</Text>
   </Box>

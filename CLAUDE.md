@@ -70,7 +70,8 @@ a `.bak`), so the TUI can never persist an invalid config. See [DEC-0004](./docs
 **Color-name gotcha.** Core uses chalk/mod-style color names (`brightYellow`, `bgBrightYellow`). The mod's own
 elements accept these directly. **Ink/chalk (the TUI) do not** — they need `yellowBright` order and base bg names, so
 the TUI maps them in `packages/tui/src/paint.tsx` (`inkColor`/`inkBg`). Any TUI code that paints core colors must go
-through those mappers, or bright colors render uncolored. See [DEC-0005](./docs/DECISION.md#dec-0005--named-terminal-colors-only-in-v1-no-hex).
+through those mappers, or bright colors render uncolored. **Exception:** `brightGray`/`bgBrightGray` render uncolored
+even *through* the mappers — Ink/chalk have `gray`/`bgGray` but no `grayBright`/`bgGrayBright`. See [DEC-0005](./docs/DECISION.md#dec-0005--named-terminal-colors-only-in-v1-no-hex).
 
 **Snapshot handoff.** The mod gathers a live `Snapshot` (`$.session` + git) on a 2s clock and writes it to
 `~/.config/ccstatus/snapshot.json`; the TUI's `readSnapshot` reads it for the preview, falling back to a bundled
@@ -87,6 +88,13 @@ router is a `switch` in `app.tsx`.
 - Every widget `format(ctx)` is pure and returns `string | null` (`null` = omit the item). New widgets register into
   `core`'s widget `registry` via a side-effect import; `render.ts` imports all widget modules so the registry is
   populated.
+- `Item` is a **discriminated union on `type`** (`DataItem` / `CustomTextItem` with `text` / `CustomCommandItem` with
+  `command` / `FlexSeparatorItem` with no styling) — custom data is typed, not a `metadata` bag. `WIDGET_TYPES`
+  (`config/types.ts`) is the single source of truth for both `WidgetType` and the validator; add a widget type there.
+  Generic item code must narrow on `type` before touching styling fields (the flex separator has none). `loadConfig`
+  is the smart constructor and migrates legacy `metadata.text`/`metadata.command`. See [DEC-0008](./docs/DECISION.md#dec-0008--config-items-are-a-discriminated-union-keyed-on-type).
+- Toast `when` rules share one definition in `core` (`evalWhen`/`isValidWhen`/`TOAST_FIELDS`, `src/toast.ts`); the
+  plugin evaluates and the TUI validates through it, so "valid in the TUI" matches "fires in the mod".
 - `defaults.glyph` is configurable but **defaults to `▒`** (renders in any terminal); the Powerline screen offers
   Nerd-Font presets + custom. `defaults.invert` and per-item `align` are **stored in config but not yet applied by
   the renderer** (shown greyed in the TUI). See [DEC-0006](./docs/DECISION.md#dec-0006--default-glyph-and-deferred-render-fields).

@@ -12,7 +12,7 @@ const base: Snapshot = {
   blockReset: null, terminalWidth: 80, now: 0,
 }
 const fmt = (type: Item['type'], snapshot: Snapshot) =>
-  registry[type]!.format({ snapshot, item: { id: 'x', type }, commandOutputs: {} })
+  registry[type]!.format({ snapshot, item: { id: 'x', type } as unknown as Item, commandOutputs: {} })
 
 test('git widgets render when in a repo', () => {
   expect(fmt('git-branch', base)).toBe('✎ main')

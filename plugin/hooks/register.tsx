@@ -31,12 +31,12 @@ async function resolveConfigPath($: EngineInterface): Promise<string> {
   return configPath({ XDG_CONFIG_HOME: xdg, HOME: home })
 }
 
-async function loadConfigFromDisk($: EngineInterface): Promise<Config> {
+async function loadConfigFromDisk($: EngineInterface): Promise<{ config: Config; warnings: string[] }> {
   try {
     const text = await $.fs.read(await resolveConfigPath($)).catch(() => null)
-    return parseConfig(typeof text === 'string' ? text : null).config
+    return parseConfig(typeof text === 'string' ? text : null)
   } catch {
-    return parseConfig(null).config
+    return parseConfig(null)
   }
 }
 
@@ -47,9 +47,15 @@ async function reloadConfig($: EngineInterface, force: boolean): Promise<boolean
     const stat = await $.fs.stat(path).catch(() => null)
     const prev = await read($, configMtime)
     if (!force && (!stat || !shouldReload(prev, stat))) return false
-    const cfg = await loadConfigFromDisk($)
+    const { config: cfg, warnings } = await loadConfigFromDisk($)
     await update($, config, () => cfg)
     await update($, configMtime, () => stat ? stat.mtimeMs : null)
+    // Make a rejected/degraded config observable instead of silently showing defaults.
+    if (warnings.length) {
+      try {
+        await $.ui.toast(`ccstatus: config had ${warnings.length} problem(s); using defaults where needed — run \`npx ccstatus\` to fix`)
+      } catch { /* guarded: never throw from a reload */ }
+    }
     return true
   } catch { return false }
 }
@@ -62,8 +68,14 @@ async function setTheme($: EngineInterface, name: string): Promise<string> {
   }
   const next: Config = { ...cfg, theme: name }
   await update($, config, () => next)
+  const path = await resolveConfigPath($)
   try {
-    await $.fs.write(await resolveConfigPath($), JSON.stringify(next, null, 2) + '\n')
+    // Back up the current file before overwriting. The sandbox fs has no atomic
+    // rename (read/write/exists/stat only), so a .bak is the recoverable guarantee
+    // we can give — matching the .bak arm of the TUI's saveConfigFile.
+    const existing = await $.fs.read(path).catch(() => null)
+    if (typeof existing === 'string') await $.fs.write(path + '.bak', existing).catch(() => {})
+    await $.fs.write(path, JSON.stringify(next, null, 2) + '\n')
   } catch { return `ccstatus: theme set to ${name} (could not save the config file).` }
   return `ccstatus: theme set to ${name}.`
 }
