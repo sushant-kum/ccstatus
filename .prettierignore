@@ -1,0 +1,17 @@
+# Compiled / build output
+dist/
+build/
+coverage/
+
+# Generated plugin bundle: tsup output (`npm run build:plugin-core`), committed for
+# distribution but never hand-formatted — Prettier would diverge it from the build and
+# break the CI drift check. See DEC-0003, DEC-0010, DEC-0012.
+plugin/hooks/core.js
+plugin/hooks/core.d.ts
+
+# Node
+node_modules/
+package-lock.json
+
+# Superpowers SDD scratch
+.superpowers/

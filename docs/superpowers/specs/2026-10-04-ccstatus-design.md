@@ -22,7 +22,7 @@ all from one config.
 ### Why this exists
 
 The author already hand-built `ccstatusline-band`, a mod that reproduces
-ccstatusline's *data* as a fixed 4×4 powerline grid above the prompt. It is not
+ccstatusline's _data_ as a fixed 4×4 powerline grid above the prompt. It is not
 configurable. `ccstatus` generalizes that into a config-driven, feature-complete,
 publishable project.
 
@@ -48,16 +48,16 @@ publishable project.
 
 ## Decisions (from brainstorming)
 
-| Question | Decision |
-| --- | --- |
-| Primary deliverable | Config-driven mod **+** configurator (closest analog to ccstatusline). |
-| Configurator UX | **Both**: standalone `npx ccstatus` TUI (primary) + in-session `/ccstatus` quick toggles. |
-| Render surfaces | **All four**: above-prompt band, native status line, pane/sidebar, toasts. |
-| Widget scope (v1) | **All**: core data, git, cost & usage limits, custom (text/command/flex). |
-| Styling scope (v1) | **All**: per-item colors + themes, powerline separators, multi-line + merge/align, per-surface layout. |
-| Distribution | **Public from day one** (npm + marketplace + docs). |
-| Name | `ccstatus` (free on npm + GitHub; matches the existing `/ccstatus` command; `ccbar` was saturated ~8× in this niche). |
-| Architecture | **A — shared pure core + thin painters.** |
+| Question            | Decision                                                                                                              |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Primary deliverable | Config-driven mod **+** configurator (closest analog to ccstatusline).                                                |
+| Configurator UX     | **Both**: standalone `npx ccstatus` TUI (primary) + in-session `/ccstatus` quick toggles.                             |
+| Render surfaces     | **All four**: above-prompt band, native status line, pane/sidebar, toasts.                                            |
+| Widget scope (v1)   | **All**: core data, git, cost & usage limits, custom (text/command/flex).                                             |
+| Styling scope (v1)  | **All**: per-item colors + themes, powerline separators, multi-line + merge/align, per-surface layout.                |
+| Distribution        | **Public from day one** (npm + marketplace + docs).                                                                   |
+| Name                | `ccstatus` (free on npm + GitHub; matches the existing `/ccstatus` command; `ccbar` was saturated ~8× in this niche). |
+| Architecture        | **A — shared pure core + thin painters.**                                                                             |
 
 ## Architecture
 
@@ -137,25 +137,33 @@ Extends the existing `ccstatusline-band` snapshot:
 
 ```ts
 type Snapshot = {
-  version: string
-  model: string
-  effort: string | null
-  cwd: string
-  repo: boolean
-  gitRoot: string
-  gitBranch: string
-  gitWorktree: string
-  added: number; modified: number; deleted: number
-  ctxTokens: number; ctxPct: number
-  cached: number; input: number; output: number; total: number
-  startedAt: number
-  cost: number | null            // best-effort (from token counts; null if unavailable)
-  fivePct: number | null; fiveReset: string | null
-  weekPct: number | null; weekReset: string | null
-  blockReset: string | null      // block/burn timer (best-effort)
-  terminalWidth: number          // bodyColumns at render time
-  now: number
-}
+  version: string;
+  model: string;
+  effort: string | null;
+  cwd: string;
+  repo: boolean;
+  gitRoot: string;
+  gitBranch: string;
+  gitWorktree: string;
+  added: number;
+  modified: number;
+  deleted: number;
+  ctxTokens: number;
+  ctxPct: number;
+  cached: number;
+  input: number;
+  output: number;
+  total: number;
+  startedAt: number;
+  cost: number | null; // best-effort (from token counts; null if unavailable)
+  fivePct: number | null;
+  fiveReset: string | null;
+  weekPct: number | null;
+  weekReset: string | null;
+  blockReset: string | null; // block/burn timer (best-effort)
+  terminalWidth: number; // bodyColumns at render time
+  now: number;
+};
 ```
 
 Cost is best-effort: computed in core from token counts (and an optional price
@@ -166,16 +174,17 @@ data.
 
 ```ts
 type Segment = {
-  text: string
-  fg?: string            // named terminal color
-  bg?: string            // named terminal background color
-  kind: 'cell' | 'separator' | 'cap' | 'flex'
-}
-type RenderLine = { segments: Segment[] }
-type RenderModel = { lines: RenderLine[] }
+  text: string;
+  fg?: string; // named terminal color
+  bg?: string; // named terminal background color
+  kind: 'cell' | 'separator' | 'cap' | 'flex';
+};
+type RenderLine = { segments: Segment[] };
+type RenderModel = { lines: RenderLine[] };
 ```
 
 Painters map each segment to their element source:
+
 - **mod**: `const { Box, Text } = $.ui.resolve(e)` → `<Text color={fg} backgroundColor={bg}>`.
 - **TUI**: Ink `<Text color bg>`.
 - **native status line**: `ansi.ts` serializes RenderModel → an ANSI-colored
@@ -194,16 +203,17 @@ ccstatusline configs can be imported.
 {
   "version": 1,
   "theme": "default",
-  "themes": { "default": { /* per-widget default fg/bg */ } },
+  "themes": { "default": {/* per-widget default fg/bg */} },
   "defaults": { "separator": "powerline", "padding": 1, "align": "left" },
   "surfaces": {
-    "band":       { "enabled": true,  "lines": [[ /* items */ ]] },
-    "statusline": { "enabled": false, "lines": [[ /* items */ ]] },
-    "pane":       { "enabled": false, "lines": [[ /* items */ ]] },
-    "toasts":     { "enabled": true,  "rules": [
-      { "when": "ctxPct>80", "text": "Context over 80%", "once": true }
-    ]}
-  }
+    "band": { "enabled": true, "lines": [[/* items */]] },
+    "statusline": { "enabled": false, "lines": [[/* items */]] },
+    "pane": { "enabled": false, "lines": [[/* items */]] },
+    "toasts": {
+      "enabled": true,
+      "rules": [{ "when": "ctxPct>80", "text": "Context over 80%", "once": true }],
+    },
+  },
 }
 ```
 
@@ -212,13 +222,13 @@ ccstatusline configs can be imported.
 ```jsonc
 {
   "id": "uuid",
-  "type": "model",            // see widget types below
+  "type": "model", // see widget types below
   "fg": "white",
   "bg": "bgRed",
-  "merge": false,             // merge into previous cell (no separator between)
-  "align": "left",            // left | center | right
-  "rawValue": false,          // raw value vs labeled
-  "metadata": { }             // widget-specific (custom text content, command, format)
+  "merge": false, // merge into previous cell (no separator between)
+  "align": "left", // left | center | right
+  "rawValue": false, // raw value vs labeled
+  "metadata": {}, // widget-specific (custom text content, command, format)
 }
 ```
 

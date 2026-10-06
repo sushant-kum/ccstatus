@@ -1,0 +1,17 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreDependencies": ["@secretlint/secretlint-rule-preset-recommend", "claude-code"],
+  "workspaces": {
+    ".": {
+      "entry": [
+        "plugin/hooks/register.tsx",
+        "plugin/hooks/**/*.test.ts",
+        "plugin/types/index.d.ts"
+      ],
+      "project": ["scripts/**", "plugin/**"],
+      "ignore": ["plugin/hooks/core.js", "plugin/hooks/core.d.ts"]
+    },
+    "packages/core": {},
+    "packages/tui": {}
+  }
+}

@@ -1,0 +1,30 @@
+if [ -t 2 ]; then
+  exec >/dev/tty 2>&1
+fi
+
+# Husky runs this hook with `sh -e`, so a lint-staged failure aborts here and knip
+# below never runs.
+npx --no -- lint-staged --relative --concurrent false
+
+# Knip analyses the whole project (unused files, exports, dependencies), so it cannot
+# go through lint-staged: it takes no positional arguments and would reject the staged
+# filenames lint-staged appends. Unused exports are only detectable by scanning every
+# importer, so a staged-files-only run would be meaningless anyway.
+#
+# Caveat: this sees the working tree, not the staged snapshot — lint-staged has already
+# restored unstaged changes by this point, so an unstaged edit can fail the commit.
+#
+# The surrounding echoes are deliberate: knip prints nothing at all when it finds
+# nothing, so without them a clean run is indistinguishable from knip never having run.
+# Config hints stay suppressed so the only knip output is a real finding; `npm run knip`
+# shows them.
+echo '→ knip: scanning for unused files, exports, and dependencies...'
+if npx --no -- knip --no-config-hints; then
+  echo '✔ knip passed'
+else
+  echo
+  echo '✖ knip found unused files, exports, or dependencies (config: knip.json).'
+  echo '  Remove them, or — if intentional — add an ignore entry to knip.json.'
+  echo '  Run `npm run knip` for the full report.'
+  exit 1
+fi

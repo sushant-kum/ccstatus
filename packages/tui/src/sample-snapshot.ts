@@ -1,4 +1,4 @@
-import type { Snapshot } from '@ccstatus/core'
+import type { Snapshot } from '@ccstatus/core';
 
 export const sampleSnapshot: Snapshot = {
   version: '2.1.0',
@@ -27,4 +27,4 @@ export const sampleSnapshot: Snapshot = {
   blockReset: null,
   terminalWidth: 0,
   now: 65000,
-}
+};

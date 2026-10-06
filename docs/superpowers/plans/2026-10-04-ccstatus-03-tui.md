@@ -72,25 +72,28 @@ ccstatus/
 ### Task 1: Core — configurable powerline glyph (+ stored invert)
 
 **Files:**
+
 - Modify: `packages/core/src/config/types.ts`, `config/defaults.ts`, `config/schema.ts`, `render.ts`
 - Test: `packages/core/src/render.test.ts` (add a case)
 
 **Interfaces:**
+
 - Produces: `Defaults` gains `glyph: string` (default `"▒"`) and `invert: boolean` (default `false`, stored-only — not applied by the renderer in v1). `render` passes `config.defaults.glyph` to `composeLine` as its glyph argument. `loadConfig` fills/validates both (non-empty string glyph, boolean invert) and keeps them across migration.
 
 - [ ] **Step 1: Write the failing test** (append to `render.test.ts`)
 
 ```ts
 test('render uses the configured powerline glyph', () => {
-  const cfg = structuredCloneSafe(defaultConfig)
-  cfg.defaults.glyph = '►'
-  const snap = sampleSnap() // reuse the test's existing snapshot literal
-  const model = render(cfg, snap, { surface: 'band', width: 120 })
-  const text = model.lines[0]!.segments.map(s => s.text).join('')
-  expect(text).toContain('►')
-  expect(text).not.toContain('▒')
-})
+  const cfg = structuredCloneSafe(defaultConfig);
+  cfg.defaults.glyph = '►';
+  const snap = sampleSnap(); // reuse the test's existing snapshot literal
+  const model = render(cfg, snap, { surface: 'band', width: 120 });
+  const text = model.lines[0]!.segments.map((s) => s.text).join('');
+  expect(text).toContain('►');
+  expect(text).not.toContain('▒');
+});
 ```
+
 (Use the file's existing snapshot/clone helpers; if none, inline a minimal snapshot object and `JSON.parse(JSON.stringify(defaultConfig))`.)
 
 - [ ] **Step 2: Run to verify it fails** — `npm test -w @ccstatus/core -- render` → FAIL (glyph not threaded).
@@ -98,19 +101,32 @@ test('render uses the configured powerline glyph', () => {
 - [ ] **Step 3: Implement**
 
 `config/types.ts`:
+
 ```ts
-export type Defaults = { separator: SeparatorMode; padding: number; align: Align; glyph: string; invert: boolean }
+export type Defaults = {
+  separator: SeparatorMode;
+  padding: number;
+  align: Align;
+  glyph: string;
+  invert: boolean;
+};
 ```
+
 `config/defaults.ts` — in `defaultConfig.defaults`:
+
 ```ts
 defaults: { separator: 'powerline', padding: 1, align: 'left', glyph: '▒', invert: false },
 ```
+
 `config/schema.ts` — extend the defaults object schema:
+
 ```ts
 defaults: z.object({ separator: sep, padding: z.number(), align, glyph: z.string().min(1), invert: z.boolean() }).partial().default({}),
 ```
+
 `config/validate.ts` — the existing `{ ...defaultConfig.defaults, ...p.defaults }` merge already fills `glyph`/`invert` from defaults; add a guard that a non-string or empty glyph falls back to the default with a warning (mirror the existing coercion style).
 `render.ts`:
+
 ```ts
 .map(cells => ({ segments: composeLine(cells, config.defaults.separator, opts.width, config.defaults.glyph) }))
 ```
@@ -129,20 +145,22 @@ git commit -m "feat(core): make the powerline glyph configurable (defaults.glyph
 ### Task 2: Plugin — persist the latest snapshot to disk
 
 **Files:**
+
 - Modify: `plugin/hooks/register.tsx`
 - Modify: `plugin/hooks/config-io.ts` (add `snapshotPath`)
 - Test: `plugin/hooks/config-io.test.ts` (snapshotPath) — snapshot-write itself is covered by a guarded call; add a kit assertion if practical
 - Rebuild: `npm run build:plugin-core` (no core API change needed beyond Task 1; rebuild to pick up Task 1)
 
 **Interfaces:**
+
 - Produces: `snapshotPath(env)` in config-io (sibling of `configPath`, `…/ccstatus/snapshot.json`). On each successful `refresh`, the mod writes the current `Snapshot` as JSON to `snapshotPath` via `$.fs.write` (guarded; failure is swallowed). This is what the TUI Preview reads.
 
 - [ ] **Step 1: Write the failing test** (append to `config-io.test.ts`)
 
 ```ts
 test('snapshotPath sits beside the config', () => {
-  expect(snapshotPath({ HOME: '/home/u' })).toBe('/home/u/.config/ccstatus/snapshot.json')
-})
+  expect(snapshotPath({ HOME: '/home/u' })).toBe('/home/u/.config/ccstatus/snapshot.json');
+});
 ```
 
 - [ ] **Step 2: Run to verify it fails** — `claude plugin test plugin` → FAIL.
@@ -150,21 +168,29 @@ test('snapshotPath sits beside the config', () => {
 - [ ] **Step 3: Implement**
 
 `config-io.ts`:
+
 ```ts
 export function snapshotPath(env: Record<string, string | undefined>): string {
-  const xdg = env['XDG_CONFIG_HOME']
-  const base = xdg && xdg.startsWith('/') ? xdg : `${env['HOME'] ?? ''}/.config`
-  return `${base}/ccstatus/snapshot.json`
+  const xdg = env['XDG_CONFIG_HOME'];
+  const base = xdg && xdg.startsWith('/') ? xdg : `${env['HOME'] ?? ''}/.config`;
+  return `${base}/ccstatus/snapshot.json`;
 }
 ```
+
 `register.tsx` — in `refresh`, after computing `s` and before/after updating the atom, persist it (guarded, never throws):
+
 ```ts
 try {
-  const env = { HOME: await $.env.get('HOME').catch(() => undefined),
-                XDG_CONFIG_HOME: await $.env.get('XDG_CONFIG_HOME').catch(() => undefined) }
-  await $.fs.write(snapshotPath(env), JSON.stringify(s)).catch(() => {})
-} catch { /* ignore snapshot persistence errors */ }
+  const env = {
+    HOME: await $.env.get('HOME').catch(() => undefined),
+    XDG_CONFIG_HOME: await $.env.get('XDG_CONFIG_HOME').catch(() => undefined),
+  };
+  await $.fs.write(snapshotPath(env), JSON.stringify(s)).catch(() => {});
+} catch {
+  /* ignore snapshot persistence errors */
+}
 ```
+
 Import `snapshotPath` from `./config-io.js`.
 
 - [ ] **Step 4: Run to verify it passes** — `claude plugin test plugin` + `claude plugin validate plugin` (confirm the new env read `HOME`/`XDG_CONFIG_HOME` and `fs.write` show in validate's report; they already do for config). Run `npm run build:plugin-core`.
@@ -181,25 +207,27 @@ git commit -m "feat(plugin): persist the latest snapshot to ~/.config/ccstatus/s
 ### Task 3: TUI scaffold + bin
 
 **Files:**
+
 - Create: `packages/tui/package.json`, `tsconfig.json`, `vitest.config.ts`, `tsup.config.ts`, `src/index.tsx`, `src/app.tsx` (minimal), `src/smoke.test.tsx`
 - Modify: root `package.json` (nothing needed — workspaces already `packages/*`)
 
 **Interfaces:**
+
 - Produces: a runnable `@ccstatus/tui` package; `src/index.tsx` is the bin entry (shebang `#!/usr/bin/env node`) that renders `<App/>`; `App` (minimal) renders a title. `npm test -w @ccstatus/tui` runs; `npm run build -w @ccstatus/tui` emits an executable `dist/index.js`.
 
 - [ ] **Step 1: Write the smoke test**
 
 ```tsx
 // packages/tui/src/smoke.test.tsx
-import { expect, test } from 'vitest'
-import { render } from 'ink-testing-library'
-import { App } from './app.js'
+import { expect, test } from 'vitest';
+import { render } from 'ink-testing-library';
+import { App } from './app.js';
 
 test('App renders its title', () => {
-  const { lastFrame, unmount } = render(<App/>)
-  expect(lastFrame()).toContain('ccstatus')
-  unmount()
-})
+  const { lastFrame, unmount } = render(<App />);
+  expect(lastFrame()).toContain('ccstatus');
+  unmount();
+});
 ```
 
 - [ ] **Step 2: Create package files**
@@ -218,35 +246,60 @@ test('App renders its title', () => {
     "typecheck": "tsc --noEmit"
   },
   "dependencies": { "@ccstatus/core": "workspace:*", "ink": "^5.0.0", "react": "^18.3.0" },
-  "devDependencies": { "ink-testing-library": "^4.0.0", "@types/react": "^18.3.0", "tsup": "^8.0.0", "typescript": "^5.5.0", "vitest": "^2.0.0" }
+  "devDependencies": {
+    "ink-testing-library": "^4.0.0",
+    "@types/react": "^18.3.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
 }
 ```
+
 ```jsonc
 // packages/tui/tsconfig.json
-{ "extends": "../../tsconfig.base.json", "compilerOptions": { "jsx": "react-jsx" }, "include": ["src"] }
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "jsx": "react-jsx" },
+  "include": ["src"],
+}
 ```
+
 ```ts
 // packages/tui/vitest.config.ts
-import { defineConfig } from 'vitest/config'
-export default defineConfig({ test: { include: ['src/**/*.test.tsx','src/**/*.test.ts'] } })
+import { defineConfig } from 'vitest/config';
+export default defineConfig({ test: { include: ['src/**/*.test.tsx', 'src/**/*.test.ts'] } });
 ```
+
 ```ts
 // packages/tui/tsup.config.ts
-import { defineConfig } from 'tsup'
-export default defineConfig({ entry: ['src/index.tsx'], format: ['esm'], target: 'node20',
-  banner: { js: '#!/usr/bin/env node' }, noExternal: ['@ccstatus/core'], clean: true })
+import { defineConfig } from 'tsup';
+export default defineConfig({
+  entry: ['src/index.tsx'],
+  format: ['esm'],
+  target: 'node20',
+  banner: { js: '#!/usr/bin/env node' },
+  noExternal: ['@ccstatus/core'],
+  clean: true,
+});
 ```
+
 ```tsx
 // packages/tui/src/index.tsx
-import { render } from 'ink'
-import { App } from './app.js'
-render(<App/>)
+import { render } from 'ink';
+import { App } from './app.js';
+render(<App />);
 ```
+
 ```tsx
 // packages/tui/src/app.tsx
-import { Box, Text } from 'ink'
-export function App(){
-  return <Box flexDirection="column"><Text bold>ccstatus · configurator</Text></Box>
+import { Box, Text } from 'ink';
+export function App() {
+  return (
+    <Box flexDirection="column">
+      <Text bold>ccstatus · configurator</Text>
+    </Box>
+  );
 }
 ```
 
@@ -268,10 +321,12 @@ git commit -m "feat(tui): scaffold @ccstatus/tui Ink app with ccstatus bin"
 ### Task 4: Config store (path, load, atomic save + backup)
 
 **Files:**
+
 - Create: `packages/tui/src/config-store.ts`
 - Test: `packages/tui/src/config-store.test.ts`
 
 **Interfaces:**
+
 - Consumes: `loadConfig`, `Config` from `@ccstatus/core`; `node:fs`, `node:path`, `node:os`.
 - Produces:
   - `configPath(env = process.env): string` and `snapshotPath(env = process.env): string` (XDG then `$HOME/.config`).
@@ -282,38 +337,40 @@ git commit -m "feat(tui): scaffold @ccstatus/tui Ink app with ccstatus bin"
 
 ```ts
 // packages/tui/src/config-store.test.ts
-import { expect, test } from 'vitest'
-import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { configPath, snapshotPath, loadConfigFile, saveConfigFile } from './config-store.js'
-import { defaultConfig } from '@ccstatus/core'
+import { expect, test } from 'vitest';
+import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { configPath, snapshotPath, loadConfigFile, saveConfigFile } from './config-store.js';
+import { defaultConfig } from '@ccstatus/core';
 
 test('paths honor XDG then HOME', () => {
-  expect(configPath({ XDG_CONFIG_HOME: '/x', HOME: '/h' })).toBe('/x/ccstatus/config.json')
-  expect(configPath({ HOME: '/h' })).toBe('/h/.config/ccstatus/config.json')
-  expect(snapshotPath({ HOME: '/h' })).toBe('/h/.config/ccstatus/snapshot.json')
-})
+  expect(configPath({ XDG_CONFIG_HOME: '/x', HOME: '/h' })).toBe('/x/ccstatus/config.json');
+  expect(configPath({ HOME: '/h' })).toBe('/h/.config/ccstatus/config.json');
+  expect(snapshotPath({ HOME: '/h' })).toBe('/h/.config/ccstatus/snapshot.json');
+});
 test('missing file loads defaults, no throw', () => {
-  const p = join(mkdtempSync(join(tmpdir(),'ccs-')),'config.json')
-  const { config } = loadConfigFile(p)
-  expect(config.version).toBe(1)
-})
+  const p = join(mkdtempSync(join(tmpdir(), 'ccs-')), 'config.json');
+  const { config } = loadConfigFile(p);
+  expect(config.version).toBe(1);
+});
 test('invalid JSON loads defaults with a warning', () => {
-  const d = mkdtempSync(join(tmpdir(),'ccs-')); const p = join(d,'config.json')
-  writeFileSync(p,'{not json')
-  const { config, warnings } = loadConfigFile(p)
-  expect(config.version).toBe(1)
-  expect(warnings.length).toBeGreaterThan(0)
-})
+  const d = mkdtempSync(join(tmpdir(), 'ccs-'));
+  const p = join(d, 'config.json');
+  writeFileSync(p, '{not json');
+  const { config, warnings } = loadConfigFile(p);
+  expect(config.version).toBe(1);
+  expect(warnings.length).toBeGreaterThan(0);
+});
 test('save is atomic + backs up the prior file', () => {
-  const d = mkdtempSync(join(tmpdir(),'ccs-')); const p = join(d,'config.json')
-  writeFileSync(p, JSON.stringify({ old: true }))
-  saveConfigFile(p, defaultConfig)
-  expect(JSON.parse(readFileSync(p,'utf8')).version).toBe(1)
-  expect(existsSync(p+'.bak')).toBe(true)
-  expect(JSON.parse(readFileSync(p+'.bak','utf8')).old).toBe(true)
-})
+  const d = mkdtempSync(join(tmpdir(), 'ccs-'));
+  const p = join(d, 'config.json');
+  writeFileSync(p, JSON.stringify({ old: true }));
+  saveConfigFile(p, defaultConfig);
+  expect(JSON.parse(readFileSync(p, 'utf8')).version).toBe(1);
+  expect(existsSync(p + '.bak')).toBe(true);
+  expect(JSON.parse(readFileSync(p + '.bak', 'utf8')).old).toBe(true);
+});
 ```
 
 - [ ] **Step 2: Run to verify it fails** — `npm test -w @ccstatus/tui -- config-store` → FAIL.
@@ -322,34 +379,55 @@ test('save is atomic + backs up the prior file', () => {
 
 ```ts
 // packages/tui/src/config-store.ts
-import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
-import { loadConfig } from '@ccstatus/core'
-import type { Config } from '@ccstatus/core'
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from 'node:fs';
+import { dirname } from 'node:path';
+import { loadConfig } from '@ccstatus/core';
+import type { Config } from '@ccstatus/core';
 
-type Env = Record<string, string | undefined>
+type Env = Record<string, string | undefined>;
 const base = (env: Env) => {
-  const xdg = env['XDG_CONFIG_HOME']
-  return xdg && xdg.startsWith('/') ? xdg : `${env['HOME'] ?? ''}/.config`
-}
-export const configPath = (env: Env = process.env) => `${base(env)}/ccstatus/config.json`
-export const snapshotPath = (env: Env = process.env) => `${base(env)}/ccstatus/snapshot.json`
+  const xdg = env['XDG_CONFIG_HOME'];
+  return xdg && xdg.startsWith('/') ? xdg : `${env['HOME'] ?? ''}/.config`;
+};
+export const configPath = (env: Env = process.env) => `${base(env)}/ccstatus/config.json`;
+export const snapshotPath = (env: Env = process.env) => `${base(env)}/ccstatus/snapshot.json`;
 
 export function loadConfigFile(path: string): { config: Config; warnings: string[] } {
-  let text: string | null = null
-  try { text = existsSync(path) ? readFileSync(path, 'utf8') : null } catch { text = null }
-  if (text === null) return loadConfig(undefined)
-  try { return loadConfig(JSON.parse(text)) }
-  catch { const f = loadConfig(undefined); return { config: f.config, warnings: ['config file is not valid JSON; using defaults'] } }
+  let text: string | null = null;
+  try {
+    text = existsSync(path) ? readFileSync(path, 'utf8') : null;
+  } catch {
+    text = null;
+  }
+  if (text === null) return loadConfig(undefined);
+  try {
+    return loadConfig(JSON.parse(text));
+  } catch {
+    const f = loadConfig(undefined);
+    return { config: f.config, warnings: ['config file is not valid JSON; using defaults'] };
+  }
 }
 
 export function saveConfigFile(path: string, config: Config): void {
-  const { config: clean } = loadConfig(config) // only ever write valid config
-  mkdirSync(dirname(path), { recursive: true })
-  if (existsSync(path)) { try { copyFileSync(path, path + '.bak') } catch { /* best effort */ } }
-  const tmp = path + '.tmp'
-  writeFileSync(tmp, JSON.stringify(clean, null, 2))
-  renameSync(tmp, path)
+  const { config: clean } = loadConfig(config); // only ever write valid config
+  mkdirSync(dirname(path), { recursive: true });
+  if (existsSync(path)) {
+    try {
+      copyFileSync(path, path + '.bak');
+    } catch {
+      /* best effort */
+    }
+  }
+  const tmp = path + '.tmp';
+  writeFileSync(tmp, JSON.stringify(clean, null, 2));
+  renameSync(tmp, path);
 }
 ```
 
@@ -367,10 +445,12 @@ git commit -m "feat(tui): config store with atomic save + backup"
 ### Task 5: Snapshot source (live from disk, else sample)
 
 **Files:**
+
 - Create: `packages/tui/src/sample-snapshot.ts`, `packages/tui/src/snapshot-source.ts`
 - Test: `packages/tui/src/snapshot-source.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Snapshot` from `@ccstatus/core`; `node:fs`.
 - Produces:
   - `sampleSnapshot: Snapshot` — the mockup's sample (Opus 4.8, 42k ctx 21%, 30% session, git repo app/main, tokens) so previews look like the mockup.
@@ -380,31 +460,32 @@ git commit -m "feat(tui): config store with atomic save + backup"
 
 ```ts
 // packages/tui/src/snapshot-source.test.ts
-import { expect, test } from 'vitest'
-import { mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'; import { join } from 'node:path'
-import { readSnapshot } from './snapshot-source.js'
-import { sampleSnapshot } from './sample-snapshot.js'
+import { expect, test } from 'vitest';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { readSnapshot } from './snapshot-source.js';
+import { sampleSnapshot } from './sample-snapshot.js';
 
 test('falls back to sample when no file', () => {
-  const r = readSnapshot(join(mkdtempSync(join(tmpdir(),'ccs-')),'snapshot.json'))
-  expect(r.source).toBe('sample')
-  expect(r.snapshot.model).toBe(sampleSnapshot.model)
-})
+  const r = readSnapshot(join(mkdtempSync(join(tmpdir(), 'ccs-')), 'snapshot.json'));
+  expect(r.source).toBe('sample');
+  expect(r.snapshot.model).toBe(sampleSnapshot.model);
+});
 test('reads a live snapshot and fills gaps from sample', () => {
-  const p = join(mkdtempSync(join(tmpdir(),'ccs-')),'snapshot.json')
-  writeFileSync(p, JSON.stringify({ model: 'Haiku', ctxTokens: 999 }))
-  const r = readSnapshot(p)
-  expect(r.source).toBe('live')
-  expect(r.snapshot.model).toBe('Haiku')
-  expect(r.snapshot.ctxTokens).toBe(999)
-  expect(typeof r.snapshot.now).toBe('number') // filled from sample
-})
+  const p = join(mkdtempSync(join(tmpdir(), 'ccs-')), 'snapshot.json');
+  writeFileSync(p, JSON.stringify({ model: 'Haiku', ctxTokens: 999 }));
+  const r = readSnapshot(p);
+  expect(r.source).toBe('live');
+  expect(r.snapshot.model).toBe('Haiku');
+  expect(r.snapshot.ctxTokens).toBe(999);
+  expect(typeof r.snapshot.now).toBe('number'); // filled from sample
+});
 test('bad JSON falls back to sample, no throw', () => {
-  const p = join(mkdtempSync(join(tmpdir(),'ccs-')),'snapshot.json')
-  writeFileSync(p, '{bad')
-  expect(readSnapshot(p).source).toBe('sample')
-})
+  const p = join(mkdtempSync(join(tmpdir(), 'ccs-')), 'snapshot.json');
+  writeFileSync(p, '{bad');
+  expect(readSnapshot(p).source).toBe('sample');
+});
 ```
 
 - [ ] **Step 2: Run to verify it fails** — `npm test -w @ccstatus/tui -- snapshot-source` → FAIL.
@@ -413,29 +494,61 @@ test('bad JSON falls back to sample, no throw', () => {
 
 ```ts
 // packages/tui/src/sample-snapshot.ts
-import type { Snapshot } from '@ccstatus/core'
+import type { Snapshot } from '@ccstatus/core';
 export const sampleSnapshot: Snapshot = {
-  version: '2.1.0', model: 'Opus 4.8', effort: 'high', cwd: '/home/you/app',
-  repo: true, gitRoot: 'app', gitBranch: 'main', gitWorktree: '',
-  added: 1, modified: 2, deleted: 0, ctxTokens: 42000, ctxPct: 21,
-  cached: 1000, input: 2000, output: 500, total: 3500, startedAt: 0,
-  cost: null, fivePct: 30, fiveReset: null, weekPct: 10, weekReset: null,
-  blockReset: null, terminalWidth: 0, now: 65000,
-}
+  version: '2.1.0',
+  model: 'Opus 4.8',
+  effort: 'high',
+  cwd: '/home/you/app',
+  repo: true,
+  gitRoot: 'app',
+  gitBranch: 'main',
+  gitWorktree: '',
+  added: 1,
+  modified: 2,
+  deleted: 0,
+  ctxTokens: 42000,
+  ctxPct: 21,
+  cached: 1000,
+  input: 2000,
+  output: 500,
+  total: 3500,
+  startedAt: 0,
+  cost: null,
+  fivePct: 30,
+  fiveReset: null,
+  weekPct: 10,
+  weekReset: null,
+  blockReset: null,
+  terminalWidth: 0,
+  now: 65000,
+};
 ```
+
 ```ts
 // packages/tui/src/snapshot-source.ts
-import { existsSync, readFileSync, statSync } from 'node:fs'
-import type { Snapshot } from '@ccstatus/core'
-import { sampleSnapshot } from './sample-snapshot.js'
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import type { Snapshot } from '@ccstatus/core';
+import { sampleSnapshot } from './sample-snapshot.js';
 
-export function readSnapshot(path: string): { snapshot: Snapshot; source: 'live'|'sample'; mtimeMs?: number } {
+export function readSnapshot(path: string): {
+  snapshot: Snapshot;
+  source: 'live' | 'sample';
+  mtimeMs?: number;
+} {
   try {
-    if (!existsSync(path)) return { snapshot: sampleSnapshot, source: 'sample' }
-    const parsed = JSON.parse(readFileSync(path, 'utf8'))
-    if (!parsed || typeof parsed !== 'object') return { snapshot: sampleSnapshot, source: 'sample' }
-    return { snapshot: { ...sampleSnapshot, ...parsed }, source: 'live', mtimeMs: statSync(path).mtimeMs }
-  } catch { return { snapshot: sampleSnapshot, source: 'sample' } }
+    if (!existsSync(path)) return { snapshot: sampleSnapshot, source: 'sample' };
+    const parsed = JSON.parse(readFileSync(path, 'utf8'));
+    if (!parsed || typeof parsed !== 'object')
+      return { snapshot: sampleSnapshot, source: 'sample' };
+    return {
+      snapshot: { ...sampleSnapshot, ...parsed },
+      source: 'live',
+      mtimeMs: statSync(path).mtimeMs,
+    };
+  } catch {
+    return { snapshot: sampleSnapshot, source: 'sample' };
+  }
 }
 ```
 
@@ -453,11 +566,13 @@ git commit -m "feat(tui): snapshot source (live from disk, else sample)"
 ### Task 6: paint + pinned Preview + App router + Menu
 
 **Files:**
+
 - Create: `packages/tui/src/paint.tsx`, `src/preview.tsx`, `src/screens/menu.tsx`
 - Modify: `src/app.tsx`
 - Test: `packages/tui/src/preview.test.tsx`, `src/app.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `render`, `RenderModel`, `Segment`, `Config` from core; `readSnapshot`, `snapshotPath`, `loadConfigFile`, `configPath`; Ink `Box`/`Text`/`useInput`/`useApp`.
 - Produces:
   - `paintModel(model: RenderModel): JSX.Element` — a column `<Box>`; one row `<Box>` per line; one `<Text color={seg.fg} backgroundColor={seg.bg}>{seg.text}</Text>` per segment. (fg/bg are core's named colors, which Ink accepts.)
@@ -469,33 +584,35 @@ git commit -m "feat(tui): snapshot source (live from disk, else sample)"
 
 ```tsx
 // packages/tui/src/preview.test.tsx
-import { expect, test } from 'vitest'
-import { render } from 'ink-testing-library'
-import { Preview } from './preview.js'
-import { sampleSnapshot } from './sample-snapshot.js'
-import { defaultConfig } from '@ccstatus/core'
+import { expect, test } from 'vitest';
+import { render } from 'ink-testing-library';
+import { Preview } from './preview.js';
+import { sampleSnapshot } from './sample-snapshot.js';
+import { defaultConfig } from '@ccstatus/core';
 
 test('Preview renders the default band with content', () => {
   const { lastFrame, unmount } = render(
-    <Preview config={defaultConfig} snapshot={sampleSnapshot} source="sample" width={120}/>)
-  const f = lastFrame()!
-  expect(f).toContain('Ctx')
-  expect(f).toContain('sample')
-  unmount()
-})
+    <Preview config={defaultConfig} snapshot={sampleSnapshot} source="sample" width={120} />
+  );
+  const f = lastFrame()!;
+  expect(f).toContain('Ctx');
+  expect(f).toContain('sample');
+  unmount();
+});
 ```
+
 ```tsx
 // packages/tui/src/app.test.tsx
-import { expect, test } from 'vitest'
-import { render } from 'ink-testing-library'
-import { App } from './app.js'
+import { expect, test } from 'vitest';
+import { render } from 'ink-testing-library';
+import { App } from './app.js';
 test('App shows the menu and the pinned preview', () => {
-  const { lastFrame, unmount } = render(<App/>)
-  const f = lastFrame()!
-  expect(f).toContain('Edit items')      // menu entry
-  expect(f).toContain('live preview')    // pinned preview header
-  unmount()
-})
+  const { lastFrame, unmount } = render(<App />);
+  const f = lastFrame()!;
+  expect(f).toContain('Edit items'); // menu entry
+  expect(f).toContain('live preview'); // pinned preview header
+  unmount();
+});
 ```
 
 - [ ] **Step 2: Run to verify it fails** — `npm test -w @ccstatus/tui -- preview app` → FAIL.
@@ -504,30 +621,51 @@ test('App shows the menu and the pinned preview', () => {
 
 ```tsx
 // packages/tui/src/paint.tsx
-import { Box, Text } from 'ink'
-import type { RenderModel } from '@ccstatus/core'
-export function paintModel(model: RenderModel){
-  return <Box flexDirection="column">
-    {model.lines.map((line,i)=>(
-      <Box key={i}>{line.segments.map((s,j)=>(
-        <Text key={j} color={s.fg} backgroundColor={s.bg}>{s.text}</Text>
-      ))}</Box>
-    ))}
-  </Box>
+import { Box, Text } from 'ink';
+import type { RenderModel } from '@ccstatus/core';
+export function paintModel(model: RenderModel) {
+  return (
+    <Box flexDirection="column">
+      {model.lines.map((line, i) => (
+        <Box key={i}>
+          {line.segments.map((s, j) => (
+            <Text key={j} color={s.fg} backgroundColor={s.bg}>
+              {s.text}
+            </Text>
+          ))}
+        </Box>
+      ))}
+    </Box>
+  );
 }
 ```
+
 ```tsx
 // packages/tui/src/preview.tsx
-import { Box, Text } from 'ink'
-import { render as renderBar } from '@ccstatus/core'
-import type { Config, Snapshot } from '@ccstatus/core'
-import { paintModel } from './paint.js'
-export function Preview({ config, snapshot, source, width }:{ config:Config; snapshot:Snapshot; source:'live'|'sample'; width:number }){
-  const model = renderBar(config, snapshot, { surface:'band', width })
-  return <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="gray" paddingX={1}>
-    <Text color="gray">live preview · band · {width} cols · {source} data</Text>
-    {paintModel(model)}
-  </Box>
+import { Box, Text } from 'ink';
+import { render as renderBar } from '@ccstatus/core';
+import type { Config, Snapshot } from '@ccstatus/core';
+import { paintModel } from './paint.js';
+export function Preview({
+  config,
+  snapshot,
+  source,
+  width,
+}: {
+  config: Config;
+  snapshot: Snapshot;
+  source: 'live' | 'sample';
+  width: number;
+}) {
+  const model = renderBar(config, snapshot, { surface: 'band', width });
+  return (
+    <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="gray" paddingX={1}>
+      <Text color="gray">
+        live preview · band · {width} cols · {source} data
+      </Text>
+      {paintModel(model)}
+    </Box>
+  );
 }
 ```
 
@@ -535,58 +673,90 @@ export function Preview({ config, snapshot, source, width }:{ config:Config; sna
 
 ```tsx
 // packages/tui/src/app.tsx
-import { useState } from 'react'
-import { Box, Text, useApp, useInput } from 'ink'
-import { configPath, snapshotPath, loadConfigFile, saveConfigFile } from './config-store.js'
-import { readSnapshot } from './snapshot-source.js'
-import { Preview } from './preview.js'
-import { Menu } from './screens/menu.js'
-import type { Config } from '@ccstatus/core'
+import { useState } from 'react';
+import { Box, Text, useApp, useInput } from 'ink';
+import { configPath, snapshotPath, loadConfigFile, saveConfigFile } from './config-store.js';
+import { readSnapshot } from './snapshot-source.js';
+import { Preview } from './preview.js';
+import { Menu } from './screens/menu.js';
+import type { Config } from '@ccstatus/core';
 
-export function App(){
-  const { exit } = useApp()
-  const [config, setConfig] = useState<Config>(() => loadConfigFile(configPath()).config)
-  const [screen, setScreen] = useState('menu')
-  const snap = readSnapshot(snapshotPath())
-  const width = process.stdout.columns || 120
-  useInput((input)=>{ if (screen==='menu' && input==='q') exit() })
+export function App() {
+  const { exit } = useApp();
+  const [config, setConfig] = useState<Config>(() => loadConfigFile(configPath()).config);
+  const [screen, setScreen] = useState('menu');
+  const snap = readSnapshot(snapshotPath());
+  const width = process.stdout.columns || 120;
+  useInput((input) => {
+    if (screen === 'menu' && input === 'q') exit();
+  });
 
-  const save = () => { try { saveConfigFile(configPath(), config) } catch {/* surfaced in UI later */} }
-  const common = { config, setConfig, goHome: ()=>setScreen('menu') }
+  const save = () => {
+    try {
+      saveConfigFile(configPath(), config);
+    } catch {
+      /* surfaced in UI later */
+    }
+  };
+  const common = { config, setConfig, goHome: () => setScreen('menu') };
 
-  return <Box flexDirection="column" paddingX={1}>
-    {screen==='menu'
-      ? <Menu onSelect={(id)=>{ if(id==='quit') exit(); else if(id==='save'){ save(); exit() } else setScreen(id) }}/>
-      : <PlaceholderOrScreen id={screen} {...common}/>}
-    <Preview config={config} snapshot={snap.snapshot} source={snap.source} width={width}/>
-  </Box>
+  return (
+    <Box flexDirection="column" paddingX={1}>
+      {screen === 'menu' ? (
+        <Menu
+          onSelect={(id) => {
+            if (id === 'quit') exit();
+            else if (id === 'save') {
+              save();
+              exit();
+            } else setScreen(id);
+          }}
+        />
+      ) : (
+        <PlaceholderOrScreen id={screen} {...common} />
+      )}
+      <Preview config={config} snapshot={snap.snapshot} source={snap.source} width={width} />
+    </Box>
+  );
 }
 // PlaceholderOrScreen: switch on id → the real screen component once its task lands; else <Text>…</Text>.
 ```
+
 (Each later task swaps its placeholder for the real screen and asserts via the App or standalone.)
 
 ```tsx
 // packages/tui/src/screens/menu.tsx
-import { useState } from 'react'
-import { Box, Text, useInput } from 'ink'
+import { useState } from 'react';
+import { Box, Text, useInput } from 'ink';
 const ITEMS = [
-  ['items','Edit items'],['themes','Themes'],['powerline','Powerline & separators'],
-  ['surfaces','Surfaces'],['defaults','Global defaults'],['preview','Preview'],
-  ['import','Import from ccstatusline'],['save','Save & quit'],['quit','Quit without saving'],
-] as const
-export function Menu({ onSelect }:{ onSelect:(id:string)=>void }){
-  const [i,setI] = useState(0)
-  useInput((input,key)=>{
-    if(key.upArrow) setI(v=>Math.max(0,v-1))
-    else if(key.downArrow) setI(v=>Math.min(ITEMS.length-1,v+1))
-    else if(key.return) onSelect(ITEMS[i]![0])
-  })
-  return <Box flexDirection="column">
-    <Text bold>ccstatus · configurator</Text>
-    {ITEMS.map(([id,label],idx)=>(
-      <Text key={id} color={idx===i?'cyan':undefined}>{idx===i?'▸ ':'  '}{label}</Text>
-    ))}
-  </Box>
+  ['items', 'Edit items'],
+  ['themes', 'Themes'],
+  ['powerline', 'Powerline & separators'],
+  ['surfaces', 'Surfaces'],
+  ['defaults', 'Global defaults'],
+  ['preview', 'Preview'],
+  ['import', 'Import from ccstatusline'],
+  ['save', 'Save & quit'],
+  ['quit', 'Quit without saving'],
+] as const;
+export function Menu({ onSelect }: { onSelect: (id: string) => void }) {
+  const [i, setI] = useState(0);
+  useInput((input, key) => {
+    if (key.upArrow) setI((v) => Math.max(0, v - 1));
+    else if (key.downArrow) setI((v) => Math.min(ITEMS.length - 1, v + 1));
+    else if (key.return) onSelect(ITEMS[i]![0]);
+  });
+  return (
+    <Box flexDirection="column">
+      <Text bold>ccstatus · configurator</Text>
+      {ITEMS.map(([id, label], idx) => (
+        <Text key={id} color={idx === i ? 'cyan' : undefined}>
+          {idx === i ? '▸ ' : '  '}
+          {label}
+        </Text>
+      ))}
+    </Box>
+  );
 }
 ```
 
@@ -604,11 +774,13 @@ git commit -m "feat(tui): paint, pinned preview, app router, and main menu"
 ### Task 7: named-colors + Defaults screen
 
 **Files:**
+
 - Create: `packages/tui/src/named-colors.ts`, `src/screens/defaults.tsx`
 - Modify: `src/app.tsx` (route `defaults`)
 - Test: `packages/tui/src/screens/defaults.test.tsx`
 
 **Interfaces:**
+
 - Produces:
   - `NAMED_COLORS: string[]` — ordered foreground then background names derived from core `COLORS` (stable order for pickers), plus a leading `'(none)'` sentinel meaning "unset".
   - `Defaults({ config, setConfig, goHome })` — edits `defaults.separator` (powerline/space/none) and `defaults.padding` (0–4) with ←/→; shows `align` greyed with "stored, not yet applied"; `esc` returns home. Mutations call `setConfig` with an updated clone.
@@ -617,29 +789,33 @@ git commit -m "feat(tui): paint, pinned preview, app router, and main menu"
 
 ```tsx
 // packages/tui/src/screens/defaults.test.tsx
-import { expect, test, vi } from 'vitest'
-import { render } from 'ink-testing-library'
-import { Defaults } from './defaults.js'
-import { defaultConfig } from '@ccstatus/core'
+import { expect, test, vi } from 'vitest';
+import { render } from 'ink-testing-library';
+import { Defaults } from './defaults.js';
+import { defaultConfig } from '@ccstatus/core';
 
 test('Defaults shows separator/padding and greys align', () => {
   const { lastFrame, unmount } = render(
-    <Defaults config={defaultConfig} setConfig={()=>{}} goHome={()=>{}}/>)
-  const f = lastFrame()!
-  expect(f).toContain('separator')
-  expect(f).toContain('powerline')
-  expect(f).toContain('align')
-  expect(f).toContain('not yet applied')
-  unmount()
-})
+    <Defaults config={defaultConfig} setConfig={() => {}} goHome={() => {}} />
+  );
+  const f = lastFrame()!;
+  expect(f).toContain('separator');
+  expect(f).toContain('powerline');
+  expect(f).toContain('align');
+  expect(f).toContain('not yet applied');
+  unmount();
+});
 test('← / → changes padding via setConfig', () => {
-  const setConfig = vi.fn()
-  const { stdin, unmount } = render(<Defaults config={defaultConfig} setConfig={setConfig} goHome={()=>{}}/>)
-  stdin.write('\u001B[C') // right arrow → focus/adjust (screen moves focus to padding then adjusts; see impl)
-  unmount()
+  const setConfig = vi.fn();
+  const { stdin, unmount } = render(
+    <Defaults config={defaultConfig} setConfig={setConfig} goHome={() => {}} />
+  );
+  stdin.write('\u001B[C'); // right arrow → focus/adjust (screen moves focus to padding then adjusts; see impl)
+  unmount();
   // at least assert the component mounted & is interactive; detailed assertion in impl notes
-})
+});
 ```
+
 (Keep the interaction assertion light; the key behavior — padding changes produce a new config via setConfig — is asserted once the impl's focus model is fixed. Implementer: make `←/→` adjust the focused field and call setConfig, and assert setConfig was called with `defaults.padding` changed.)
 
 - [ ] **Step 2: Run to verify it fails** — `npm test -w @ccstatus/tui -- defaults` → FAIL.
@@ -660,11 +836,13 @@ git commit -m "feat(tui): named-color list and Defaults screen"
 ### Task 8: Edit items screen
 
 **Files:**
+
 - Create: `packages/tui/src/screens/items.tsx`
 - Modify: `src/app.tsx` (route `items`)
 - Test: `packages/tui/src/screens/items.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `registry` (widget catalog), `Item`, `WidgetType`, `Config` from core; `NAMED_COLORS`.
 - Produces: `Items({ config, setConfig, goHome })` — surface tabs (band/statusline/pane) via `tab`; a horizontal strip of the active line's items with a selection cursor; the selected item expands into an inline editor (type shown; `fg`/`bg` chosen from the named-color list; `raw`/`merge` toggles; `align`); keys: `←/→` move/reorder, `a` add (opens a widget-type picker from `Object.values(registry)`), `x` remove, `e` edit (focus the inline editor), `tab` cycle surface, `esc` home. Every mutation produces a new `Config` via `setConfig` and must keep the config valid (shape matches `SurfaceLayout.lines: Item[][]`). IDs for new items: a short unique string (e.g. `` `${type}-${Date.now().toString(36)}` ``).
 
@@ -672,23 +850,24 @@ git commit -m "feat(tui): named-color list and Defaults screen"
 
 ```tsx
 // packages/tui/src/screens/items.test.tsx
-import { expect, test, vi } from 'vitest'
-import { render } from 'ink-testing-library'
-import { Items } from './items.js'
-import { defaultConfig } from '@ccstatus/core'
+import { expect, test, vi } from 'vitest';
+import { render } from 'ink-testing-library';
+import { Items } from './items.js';
+import { defaultConfig } from '@ccstatus/core';
 
 test('lists the band items and can remove one', () => {
-  const setConfig = vi.fn()
+  const setConfig = vi.fn();
   const { lastFrame, stdin, unmount } = render(
-    <Items config={defaultConfig} setConfig={setConfig} goHome={()=>{}}/>)
-  expect(lastFrame()).toContain('version')
-  expect(lastFrame()).toContain('model')
-  stdin.write('x') // remove the selected (first) item
-  expect(setConfig).toHaveBeenCalled()
-  const next = setConfig.mock.calls.at(-1)![0]
-  expect(next.surfaces.band.lines[0].length).toBe(defaultConfig.surfaces.band.lines[0].length - 1)
-  unmount()
-})
+    <Items config={defaultConfig} setConfig={setConfig} goHome={() => {}} />
+  );
+  expect(lastFrame()).toContain('version');
+  expect(lastFrame()).toContain('model');
+  stdin.write('x'); // remove the selected (first) item
+  expect(setConfig).toHaveBeenCalled();
+  const next = setConfig.mock.calls.at(-1)![0];
+  expect(next.surfaces.band.lines[0].length).toBe(defaultConfig.surfaces.band.lines[0].length - 1);
+  unmount();
+});
 ```
 
 - [ ] **Step 2: Run to verify it fails** — `npm test -w @ccstatus/tui -- items` → FAIL.
@@ -709,10 +888,12 @@ git commit -m "feat(tui): Edit items screen (strip + inline editor)"
 ### Task 9: Themes screen
 
 **Files:**
+
 - Create: `packages/tui/src/screens/themes.tsx`, and (if not already in core) built-in themes.
 - Test: `packages/tui/src/screens/themes.test.tsx`
 
 **Interfaces:**
+
 - **Decision to resolve in-task:** the 9 ccstatusline built-in themes (Default, Classic, Nord, Dracula, Gruvbox, Monokai, One Dark, Solarized, Tokyo Night) need concrete per-widget color values. Add them as `builtinThemes: Record<string, Theme>` in **core** (`packages/core/src/theme/themes.ts`, re-exported) so both the TUI and the mod share them, and set `defaultConfig.themes` to include them. Derive each theme's widget colors from ccstatusline's palettes (named terminal colors only). This is a core addition — do it here with its own core test (each theme is a valid `Theme` with known colors) and rebuild the plugin bundle.
 - Produces: `Themes({ config, setConfig, goHome })` — lists the themes (active = `config.theme`), `⏎` activates a theme (sets `config.theme`), shows the active theme's per-widget colors, and a named-color-list picker to edit a widget's fg/bg within the selected theme; `n` new, `d` duplicate.
 
@@ -736,10 +917,12 @@ git commit -m "feat: ship ccstatusline's 9 built-in themes and the Themes screen
 ### Task 10: Powerline screen
 
 **Files:**
+
 - Create: `packages/tui/src/screens/powerline.tsx`, `src/separators.ts`
 - Test: `packages/tui/src/screens/powerline.test.tsx`
 
 **Interfaces:**
+
 - Produces:
   - `SEPARATOR_PRESETS: { char: string; name: string; code: string }[]` — ccstatusline's presets: Triangle Right ``, Triangle Left ``, Round Right ``, Round Left ``, Lower Triangle ``, Diagonal `` (each with its `U+E0Bx` label).
   - `Powerline({ config, setConfig, goHome })` — `←/→` cycles `defaults.separator` (powerline/space/none); a glyph list of the presets plus a **Custom…** entry (type any character; display `Custom (U+XXXX)`); selecting sets `defaults.glyph`; an `invert` toggle setting `defaults.invert` (stored-only; shown with a "not applied" hint). The pinned preview reflects the chosen glyph live.
@@ -753,10 +936,12 @@ git commit -m "feat: ship ccstatusline's 9 built-in themes and the Themes screen
 ### Task 11: Surfaces screen (+ inline toast rules)
 
 **Files:**
+
 - Create: `packages/tui/src/screens/surfaces.tsx`, `src/toast-presets.ts`
 - Test: `packages/tui/src/screens/surfaces.test.tsx`
 
 **Interfaces:**
+
 - Produces:
   - `TOAST_PRESETS: { label: string; when: string; text: string }[]` — Context high (`ctxPct>80`), Context critical (`ctxPct>95`), Session limit near (`fivePct>90`), Weekly limit near (`weekPct>80`).
   - `Surfaces({ config, setConfig, goHome })` — toggles `surfaces.{band,statusline,pane,toasts}.enabled` with `space`; edits `surfaces.toasts.rules` inline: `a` adds a rule (pick a preset or Custom), each rule's `when` is an editable mini-expression (`field op number`), `text` and `once` editable, `x` removes. Validates `when` against the field/op grammar (`ctxPct|fivePct|weekPct|ctxTokens|total|cost` and `> >= < <= ==`), marking an invalid expression but never crashing.
@@ -770,10 +955,12 @@ git commit -m "feat: ship ccstatusline's 9 built-in themes and the Themes screen
 ### Task 12: Import screen
 
 **Files:**
+
 - Create: `packages/tui/src/screens/import.tsx`
 - Test: `packages/tui/src/screens/import.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `importCcstatusline` from core; `node:fs`, `node:os`.
 - Produces: `Import({ config, setConfig, goHome })` — source selector: the auto-detected default ccstatusline path (`$XDG_CONFIG_HOME|~/.config` → `ccstatusline/settings.json`) plus a **custom path** text entry; reads the chosen file, runs `importCcstatusline(JSON.parse(text))`, shows the map/dropped summary (warnings), and on `⏎` **replaces** `config.surfaces.band` with the imported band and calls `setConfig`. A missing/foreign/bad file shows the warning and never throws.
 
@@ -781,10 +968,10 @@ git commit -m "feat: ship ccstatusline's 9 built-in themes and the Themes screen
 
 ```tsx
 // packages/tui/src/screens/import.test.tsx
-import { expect, test, vi } from 'vitest'
-import { render } from 'ink-testing-library'
-import { Import } from './import.js'
-import { defaultConfig } from '@ccstatus/core'
+import { expect, test, vi } from 'vitest';
+import { render } from 'ink-testing-library';
+import { Import } from './import.js';
+import { defaultConfig } from '@ccstatus/core';
 
 test('maps a ccstatusline file into the band and replaces it', () => {
   // The screen reads a path; drive it with a custom path pointing at a temp file,
@@ -792,9 +979,10 @@ test('maps a ccstatusline file into the band and replaces it', () => {
   // expose a seam (e.g. an optional `readFile` prop defaulting to fs) so the test
   // can supply `{ version:1, lines:[[{id:'v',type:'version'}]] }` and assert
   // setConfig is called with surfaces.band.lines[0] mapped to a 'version' item.
-  expect(typeof Import).toBe('function')
-})
+  expect(typeof Import).toBe('function');
+});
 ```
+
 (Implementer: add a small injectable `readFile(path):string|null` prop, default `fs`-based, so the import mapping is unit-testable without touching the real home dir. Then assert the mapping + band replacement concretely.)
 
 - [ ] **Step 2–5:** fail → implement `import.tsx` (detect + custom path + map + replace band) → route → pass → commit `feat(tui): Import from ccstatusline (detect + custom file, replace band)`.
@@ -804,10 +992,12 @@ test('maps a ccstatusline file into the band and replaces it', () => {
 ### Task 13: Final wiring + package polish + gate
 
 **Files:**
+
 - Modify: `packages/tui/src/app.tsx` (ensure all 8 ids route to real screens; `preview` id focuses the pinned preview / a fuller Preview screen with width + surface toggles), `packages/tui/package.json` (publish fields: `description`, `license`, `repository` placeholder, `engines.node >=20`).
 - Test: a final `app.test.tsx` case that every menu entry routes without crashing.
 
 **Interfaces:**
+
 - Produces: a complete TUI where every screen is reachable from the menu, saves round-trip through `core.loadConfig`, and the build emits a working `ccstatus` bin.
 
 - [ ] **Step 1: Write the failing test** — iterate the menu ids, select each, assert `lastFrame()` renders (no throw) and still shows `live preview`.

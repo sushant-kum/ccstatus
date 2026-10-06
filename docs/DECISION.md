@@ -47,19 +47,20 @@ open — no entry stays `Proposed` on `main`).
 
 ## Index
 
-| ID       | Date       | Title                                                 | Status   | Scope          |
-| -------- | ---------- | ----------------------------------------------------- | -------- | -------------- |
-| DEC-0001 | 2026-10-04 | Record decisions in DECISION.md and flows in FLOW.md  | Accepted | repo-wide      |
-| DEC-0002 | 2026-10-04 | Shared pure core; mod and TUI are thin painters       | Accepted | repo-wide      |
-| DEC-0003 | 2026-10-04 | Bundle core (zod inlined) into the plugin             | Accepted | plugin \| core |
-| DEC-0004 | 2026-10-04 | Config is external shared JSON at the XDG path        | Accepted | repo-wide      |
-| DEC-0005 | 2026-10-04 | Named terminal colors only in v1 (no hex)             | Accepted | repo-wide      |
-| DEC-0006 | 2026-10-04 | Default glyph and deferred render fields              | Accepted | repo-wide      |
-| DEC-0007 | 2026-10-04 | No AI-attribution in code, commits, or PRs            | Accepted | repo-wide      |
-| DEC-0008 | 2026-10-04 | Config items are a discriminated union keyed on `type` | Accepted | core           |
-| DEC-0009 | 2026-10-05 | Mod-side config writes are atomic via `$.process.run` + `mv` | Accepted | plugin         |
-| DEC-0010 | 2026-10-05 | Distribution: unscoped `ccstatus` bin, private bundled core, committed plugin bundle | Accepted | repo-wide |
-| DEC-0011 | 2026-10-05 | TUI detects the mod and offers to install it on first run | Accepted | tui |
+| ID       | Date       | Title                                                                                | Status   | Scope          |
+| -------- | ---------- | ------------------------------------------------------------------------------------ | -------- | -------------- |
+| DEC-0001 | 2026-10-04 | Record decisions in DECISION.md and flows in FLOW.md                                 | Accepted | repo-wide      |
+| DEC-0002 | 2026-10-04 | Shared pure core; mod and TUI are thin painters                                      | Accepted | repo-wide      |
+| DEC-0003 | 2026-10-04 | Bundle core (zod inlined) into the plugin                                            | Accepted | plugin \| core |
+| DEC-0004 | 2026-10-04 | Config is external shared JSON at the XDG path                                       | Accepted | repo-wide      |
+| DEC-0005 | 2026-10-04 | Named terminal colors only in v1 (no hex)                                            | Accepted | repo-wide      |
+| DEC-0006 | 2026-10-04 | Default glyph and deferred render fields                                             | Accepted | repo-wide      |
+| DEC-0007 | 2026-10-04 | No AI-attribution in code, commits, or PRs                                           | Accepted | repo-wide      |
+| DEC-0008 | 2026-10-04 | Config items are a discriminated union keyed on `type`                               | Accepted | core           |
+| DEC-0009 | 2026-10-05 | Mod-side config writes are atomic via `$.process.run` + `mv`                         | Accepted | plugin         |
+| DEC-0010 | 2026-10-05 | Distribution: unscoped `ccstatus` bin, private bundled core, committed plugin bundle | Accepted | repo-wide      |
+| DEC-0011 | 2026-10-05 | TUI detects the mod and offers to install it on first run                            | Accepted | tui            |
+| DEC-0012 | 2026-10-05 | Adopt an arant-design-inspired lint/format/quality toolchain                         | Accepted | repo-wide      |
 
 ---
 
@@ -515,3 +516,67 @@ instructions and no keypress action — and never blocks or crashes the TUI.
   take an injected `RunCmd`; `App` takes an optional `modProbe`.
 - A successful install still needs a Claude Code restart / `/reload-plugins`; the
   success message says so.
+
+## DEC-0012 — Adopt an arant-design-inspired lint/format/quality toolchain
+
+- **Date:** 2026-10-05
+- **Status:** Accepted
+- **Scope:** repo-wide
+- **Related:** DEC-0003, DEC-0007, DEC-0010, [FLOW-0003](./FLOW.md#flow-0003--bundle-core-into-the-plugin), [FLOW-0006](./FLOW.md#flow-0006--lint-format--commit-quality-pipeline)
+
+### Context
+
+The repo shipped with no linter, formatter, or static-quality gates — style was
+by-hand and inconsistent (no semicolons, variable line widths). We wanted the same
+strict, opinionated toolchain the author runs on
+[`sushant-kum/arant-design`](https://github.com/sushant-kum/arant-design), adapted to
+this repo.
+
+### Decision
+
+Add a root-level toolchain covering all workspaces **and** the plugin (which is not an
+npm workspace): **ESLint** (flat config — `@eslint/js` + `typescript-eslint`
+recommended+stylistic, `import-x` ordering, `unused-imports`, `jsdoc`
+`flat/recommended-typescript`, `no-secrets`, `react-hooks` scoped to the TUI, Prettier
+integration, and a `warnToError` pass that escalates every preset `warn` to `error`),
+**Prettier** (`singleQuote`, `printWidth 100`, `trailingComma es5`), **stylelint**,
+**secretlint**, **cspell**, **knip**, **husky + lint-staged** pre-commit, and
+**commitlint + commitizen** (Conventional Commits). Mirrors arant's configs, adapted
+from pnpm `catalog:` to npm workspaces and with the Python/CSS-pipeline-only pieces
+dropped. A one-time repo-wide reformat (added semicolons, reflowed to 100 cols) and the
+accompanying strict-lint fixes (explicit return types, JSDoc on every function, no `any`,
+no non-null `!`) were applied across the codebase.
+
+### Alternatives considered
+
+- **A lighter pragmatic rule subset** (mostly autofixable, low churn) — rejected: the
+  goal was parity with arant's strict set.
+- **Keep the existing no-semicolon / wide-line style** — rejected in favor of arant's
+  Prettier profile.
+- **Plain `jsdoc/flat/recommended`** — rejected: it demands redundant `{type}` tags on
+  every `@param`/`@returns`; `flat/recommended-typescript` keeps the "document
+  everything" requirement (descriptions + returns) while letting TypeScript carry the
+  types.
+- **ESLint 10** (the latest) — rejected: `eslint-import-resolver-typescript` pulls in
+  `eslint-plugin-import`, whose peer range caps at ESLint 9, so the install fails to
+  resolve. Pinned ESLint to `^9`.
+
+### Consequences
+
+- CI gains a `quality` job (`format:check`, `lint:error`, `stylelint:error`,
+  `secretlint`, `cspell`, `knip`) — see [FLOW-0006](./FLOW.md#flow-0006--lint-format--commit-quality-pipeline).
+- A `git commit` now runs lint-staged + knip (pre-commit) and commitlint (commit-msg):
+  **commit messages must be Conventional Commits** going forward (existing history is
+  not, and is not rewritten).
+- Every function carries JSDoc and an explicit return type; `any` and non-null `!` are
+  lint errors. New code must comply or it fails CI and the pre-commit hook.
+- The generated plugin bundle `plugin/hooks/core.js` / `core.d.ts` is excluded from
+  Prettier, ESLint, and cspell (it is tsup output); it stays guarded by the existing
+  "Core bundle is fresh" drift check (DEC-0003, DEC-0010). The reformat of core source
+  therefore requires regenerating and committing the bundle.
+- `stylelint` is currently a configured no-op — the repo has no CSS/SCSS — but is ready
+  if styling is ever added (runs with `--allow-empty-input`).
+- Root TypeScript is pinned to the 5.x line (typescript-eslint 8 targets it; the
+  workspaces were already on 5.5), even though 6.x exists.
+- `cspell.json` carries a project dictionary that must grow with new domain terms, and
+  `knip.json` must track entry points — both can fail CI if left stale.

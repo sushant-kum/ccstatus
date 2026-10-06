@@ -1,15 +1,15 @@
 type Align = 'left' | 'center' | 'right';
 type SeparatorMode = 'powerline' | 'space' | 'none';
 declare const WIDGET_TYPES: readonly ["model", "version", "context-length", "context-percentage", "tokens-input", "tokens-output", "tokens-cached", "tokens-total", "session-clock", "cwd", "git-branch", "git-changes", "git-worktree", "git-root-dir", "cost", "rate-limit-5h", "rate-limit-week", "block-timer", "custom-text", "custom-command", "flex-separator"];
-type WidgetType = typeof WIDGET_TYPES[number];
+type WidgetType = (typeof WIDGET_TYPES)[number];
 type DataWidgetType = Exclude<WidgetType, 'custom-text' | 'custom-command' | 'flex-separator'>;
-type ItemStyle = {
+interface ItemStyle {
     fg?: string;
     bg?: string;
     merge?: boolean;
     align?: Align;
     rawValue?: boolean;
-};
+}
 type DataItem = ItemStyle & {
     id: string;
     type: DataWidgetType;
@@ -24,37 +24,37 @@ type CustomCommandItem = ItemStyle & {
     type: 'custom-command';
     command: string;
 };
-type FlexSeparatorItem = {
+interface FlexSeparatorItem {
     id: string;
     type: 'flex-separator';
-};
+}
 type Item = DataItem | CustomTextItem | CustomCommandItem | FlexSeparatorItem;
 type StylableItem = DataItem | CustomTextItem | CustomCommandItem;
-type SurfaceLayout = {
+interface SurfaceLayout {
     enabled: boolean;
     lines: Item[][];
-};
-type ToastRule = {
+}
+interface ToastRule {
     when: string;
     text: string;
     once?: boolean;
-};
-type ToastSurface = {
+}
+interface ToastSurface {
     enabled: boolean;
     rules: ToastRule[];
-};
+}
 type Theme = Record<string, {
     fg?: string;
     bg?: string;
 }>;
-type Defaults = {
+interface Defaults {
     separator: SeparatorMode;
     padding: number;
     align: Align;
     glyph: string;
     invert: boolean;
-};
-type Config = {
+}
+interface Config {
     version: 1;
     theme: string;
     themes: Record<string, Theme>;
@@ -65,23 +65,23 @@ type Config = {
         pane: SurfaceLayout;
         toasts: ToastSurface;
     };
-};
+}
 
 type SegmentKind = 'cell' | 'separator' | 'cap' | 'flex';
-type Segment = {
+interface Segment {
     text: string;
     fg?: string;
     bg?: string;
     kind: SegmentKind;
-};
-type RenderLine = {
+}
+interface RenderLine {
     segments: Segment[];
-};
-type RenderModel = {
+}
+interface RenderModel {
     lines: RenderLine[];
-};
+}
 
-type Snapshot = {
+interface Snapshot {
     version: string;
     model: string;
     effort: string | null;
@@ -108,17 +108,40 @@ type Snapshot = {
     blockReset: string | null;
     terminalWidth: number;
     now: number;
-};
+}
 
-type RenderOptions = {
+interface RenderOptions {
     surface: 'band' | 'statusline' | 'pane';
     width: number;
     commandOutputs?: Record<string, string>;
-};
+}
+/**
+ * Renders a config and snapshot into a surface-agnostic model of styled segments.
+ *
+ * This is the single place where layout, powerline, and color are decided; every
+ * host paints the resulting model.
+ * @param config   - The active config describing the surfaces and styling.
+ * @param snapshot - The live snapshot the widgets format from.
+ * @param opts     - The surface to render, its width, and any cached command outputs.
+ * @returns        The render model for the requested surface, or empty lines when it is disabled.
+ */
 declare function render(config: Config, snapshot: Snapshot, opts: RenderOptions): RenderModel;
 
+/**
+ * Serializes a render model into an ANSI string for the native status line.
+ * @param model - The render model whose lines and segments are serialized.
+ * @returns     The rendered lines joined by newlines, with each segment wrapped in ANSI color codes.
+ */
 declare function toAnsi(model: RenderModel): string;
 
+/**
+ * Validates, migrates, and fills defaults for an untrusted config, never throwing.
+ *
+ * Invalid items, colors, and toast rules are dropped with warnings; a wholly
+ * invalid config falls back to the defaults.
+ * @param raw - The untrusted, parsed config value.
+ * @returns   The safe, fully-populated config along with any warnings produced.
+ */
 declare function loadConfig(raw: unknown): {
     config: Config;
     warnings: string[];
@@ -126,30 +149,58 @@ declare function loadConfig(raw: unknown): {
 
 declare const defaultConfig: Config;
 
+/**
+ * Converts a ccstatusline config into a ccstatus config, mapping known widgets and dropping the rest.
+ * @param raw - The parsed ccstatusline config, or any value when the input is untrusted.
+ * @returns   The resulting ccstatus config along with warnings for anything that could not be mapped.
+ */
 declare function importCcstatusline(raw: unknown): {
     config: Config;
     warnings: string[];
 };
 
-type WidgetContext = {
+interface WidgetContext {
     snapshot: Snapshot;
     item: Item;
     commandOutputs: Record<string, string>;
-};
-type WidgetDef = {
+}
+interface WidgetDef {
     type: WidgetType;
     label: string;
     format: (ctx: WidgetContext) => string | null;
-};
+}
 
 declare const registry: Partial<Record<WidgetType, WidgetDef>>;
+/**
+ * Registers a widget definition into the shared registry, keyed by its type.
+ * @param def - The widget definition to register.
+ */
 declare function register(def: WidgetDef): void;
 
 declare const COLORS: ReadonlySet<string>;
+/**
+ * Checks whether a value is one of the supported named terminal colors.
+ * @param x - The value to test.
+ * @returns `true` when the value is a string naming a known color.
+ */
 declare function isColor(x: unknown): x is string;
 
 declare const TOAST_FIELDS: Record<string, (s: Snapshot) => number | null>;
+/**
+ * Reports whether a toast `when` rule parses and names a known snapshot field.
+ *
+ * Used everywhere a rule is authored or checked, so "valid in the TUI" matches
+ * "fires in the plugin".
+ * @param when - The `when` expression to validate.
+ * @returns    `true` when the expression is well-formed and references a known field.
+ */
 declare function isValidWhen(when: string): boolean;
+/**
+ * Evaluates a toast `when` rule against a snapshot.
+ * @param when     - The `when` expression to evaluate.
+ * @param snapshot - The snapshot providing the field values.
+ * @returns        `true` when the expression is valid and its comparison holds for the snapshot.
+ */
 declare function evalWhen(when: string, snapshot: Snapshot): boolean;
 
 declare const builtinThemes: Record<string, Theme>;

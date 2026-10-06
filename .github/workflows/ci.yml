@@ -5,6 +5,28 @@ on:
   pull_request:
 
 jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Prettier (format check)
+        run: npm run format:check
+      - name: ESLint
+        run: npm run lint:error
+      - name: Stylelint
+        run: npm run stylelint:error
+      - name: Secretlint
+        run: npm run secretlint
+      - name: cspell (spell check)
+        run: npm run cspell
+      - name: Knip (unused files, exports, dependencies)
+        run: npm run knip
+
   build-test:
     runs-on: ubuntu-latest
     steps:

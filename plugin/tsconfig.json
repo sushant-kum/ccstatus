@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "allowJs": false
+  },
+  "include": ["hooks", "types"],
+  "exclude": ["hooks/core.js", "hooks/core.d.ts"]
+}

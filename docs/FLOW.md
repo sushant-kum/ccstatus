@@ -41,13 +41,14 @@ already explains, or a sequence that exists only inside one file.
 
 ## Index
 
-| ID        | Title                                   | Scope        | Last verified |
-| --------- | --------------------------------------- | ------------ | ------------- |
-| FLOW-0001 | Mod renders the above-prompt band       | plugin       | 2026-10-04    |
-| FLOW-0002 | Config edit → shared file → mod reload  | tui \| plugin | 2026-10-04    |
-| FLOW-0003 | Bundle core into the plugin             | repo-wide    | 2026-10-04    |
-| FLOW-0004 | Release & distribution                  | repo-wide    | 2026-10-05    |
-| FLOW-0005 | TUI first-run mod detection & install   | tui          | 2026-10-05    |
+| ID        | Title                                  | Scope         | Last verified |
+| --------- | -------------------------------------- | ------------- | ------------- |
+| FLOW-0001 | Mod renders the above-prompt band      | plugin        | 2026-10-04    |
+| FLOW-0002 | Config edit → shared file → mod reload | tui \| plugin | 2026-10-04    |
+| FLOW-0003 | Bundle core into the plugin            | repo-wide     | 2026-10-04    |
+| FLOW-0004 | Release & distribution                 | repo-wide     | 2026-10-05    |
+| FLOW-0005 | TUI first-run mod detection & install  | tui           | 2026-10-05    |
+| FLOW-0006 | Lint, format & commit-quality pipeline | repo-wide     | 2026-10-05    |
 
 ---
 
@@ -99,14 +100,14 @@ cross-service assumptions.
 
 ### Participants
 
-| Piece              | File / endpoint                      | Role                                                        |
-| ------------------ | ------------------------------------ | ---------------------------------------------------------- |
-| register           | `plugin/hooks/register.tsx`          | hooks: session.start, clock tick, turn/tool, command, render |
-| config I/O         | `plugin/hooks/config-io.ts`          | `configPath`, `parseConfig`, `snapshotPath`, `shouldReload` |
-| git parse          | `plugin/hooks/git-parse.ts`          | `parseGit` — tab-delimited git output → fields              |
-| snapshot build     | `plugin/hooks/snapshot-build.ts`     | `buildSnapshot` — raw `$`/git values → `Snapshot` (pure)    |
-| paint              | `plugin/hooks/paint.tsx`             | `paintModel` — `RenderModel` → `$.ui.resolve` elements      |
-| bundled core       | `plugin/hooks/core.js` (generated)   | `render` / `loadConfig` (see [FLOW-0003](#flow-0003--bundle-core-into-the-plugin)) |
+| Piece          | File / endpoint                    | Role                                                                               |
+| -------------- | ---------------------------------- | ---------------------------------------------------------------------------------- |
+| register       | `plugin/hooks/register.tsx`        | hooks: session.start, clock tick, turn/tool, command, render                       |
+| config I/O     | `plugin/hooks/config-io.ts`        | `configPath`, `parseConfig`, `snapshotPath`, `shouldReload`                        |
+| git parse      | `plugin/hooks/git-parse.ts`        | `parseGit` — tab-delimited git output → fields                                     |
+| snapshot build | `plugin/hooks/snapshot-build.ts`   | `buildSnapshot` — raw `$`/git values → `Snapshot` (pure)                           |
+| paint          | `plugin/hooks/paint.tsx`           | `paintModel` — `RenderModel` → `$.ui.resolve` elements                             |
+| bundled core   | `plugin/hooks/core.js` (generated) | `render` / `loadConfig` (see [FLOW-0003](#flow-0003--bundle-core-into-the-plugin)) |
 
 ### Steps
 
@@ -159,15 +160,15 @@ rather than silently falling back to defaults.
 
 ### Participants
 
-| Piece          | File / endpoint                      | Role                                                       |
-| -------------- | ------------------------------------ | --------------------------------------------------------- |
-| TUI app        | `packages/tui/src/app.tsx`           | holds config state; Save → `saveConfigFile`               |
-| TUI screens    | `packages/tui/src/screens/*.tsx`     | call `setConfig` with an immutably-updated config          |
-| config store   | `packages/tui/src/config-store.ts`   | `configPath`, `loadConfigFile`, `saveConfigFile` (atomic)  |
+| Piece          | File / endpoint                        | Role                                                      |
+| -------------- | -------------------------------------- | --------------------------------------------------------- |
+| TUI app        | `packages/tui/src/app.tsx`             | holds config state; Save → `saveConfigFile`               |
+| TUI screens    | `packages/tui/src/screens/*.tsx`       | call `setConfig` with an immutably-updated config         |
+| config store   | `packages/tui/src/config-store.ts`     | `configPath`, `loadConfigFile`, `saveConfigFile` (atomic) |
 | core validate  | `packages/core/src/config/validate.ts` | `loadConfig` — validate/migrate/default, never throws     |
-| mod register   | `plugin/hooks/register.tsx`          | tick-time `reloadConfig` via mtime                         |
-| mod config I/O | `plugin/hooks/config-io.ts`          | `shouldReload(prevMtime, stat)`, `parseConfig`             |
-| shared file    | `~/.config/ccstatus/config.json`     | the single source both sides read/write                    |
+| mod register   | `plugin/hooks/register.tsx`            | tick-time `reloadConfig` via mtime                        |
+| mod config I/O | `plugin/hooks/config-io.ts`            | `shouldReload(prevMtime, stat)`, `parseConfig`            |
+| shared file    | `~/.config/ccstatus/config.json`       | the single source both sides read/write                   |
 
 ### Steps
 
@@ -219,17 +220,17 @@ with real numbers (else a bundled sample).
 
 ### Participants
 
-| Piece            | File / endpoint                    | Role                                                    |
-| ---------------- | ---------------------------------- | ------------------------------------------------------ |
-| root script      | `package.json` (`build:plugin-core`) | tsup entry that bundles core into the plugin           |
-| core entry       | `packages/core/src/index.ts`       | the public API surface that gets bundled                |
+| Piece            | File / endpoint                      | Role                                                                                     |
+| ---------------- | ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| root script      | `package.json` (`build:plugin-core`) | tsup entry that bundles core into the plugin                                             |
+| core entry       | `packages/core/src/index.ts`         | the public API surface that gets bundled                                                 |
 | plugin bundle    | `plugin/hooks/core.js` + `core.d.ts` | GENERATED; committed and kept fresh by CI (DEC-0010); imported by the mod as `./core.js` |
-| tui build config | `packages/tui/tsup.config.ts`      | `noExternal: ['@ccstatus/core']` bundles core into the bin |
+| tui build config | `packages/tui/tsup.config.ts`        | `noExternal: ['@ccstatus/core']` bundles core into the bin                               |
 
 ### Steps
 
 1. `npm run build:plugin-core` runs tsup with `--entry.core=packages/core/src/index.ts --format esm
-   --dts --out-dir plugin/hooks`, producing `plugin/hooks/core.js` + `core.d.ts` with zod inlined.
+--dts --out-dir plugin/hooks`, producing `plugin/hooks/core.js` + `core.d.ts` with zod inlined.
 2. The mod's modules import from `./core.js` (values) and `import type … from './core.js'` (types).
    Pure modules import **only** `./core.js`; `register.tsx` / `paint.tsx` additionally import
    `claude-code`.
@@ -239,7 +240,7 @@ with real numbers (else a bundled sample).
 ### Branches & failure modes
 
 - **Core changed but `build:plugin-core` not re-run** → the mod runs a stale core; `claude plugin
-  test plugin` exercises the bundle, so this surfaces there. Always rebuild after a core change.
+test plugin` exercises the bundle, so this surfaces there. Always rebuild after a core change.
 - **An `import` from `node_modules` added to a bundled-and-shipped core path** → fine for the TUI
   (normal Node), but the mod sandbox has no `node_modules`, so any such dependency must be bundled
   (as zod is) or it fails to load in the mod.
@@ -274,7 +275,7 @@ See [DEC-0010](./DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-privat
    (structural: manifest, hooks modules, committed bundle, marketplace entry) instead.
 3. **TUI → npm:** bump `packages/tui/package.json` `version`, then
    `npm publish -w ccstatus` (the package is unscoped + `publishConfig.access:
-   public`; core is bundled, so no private dependency is fetched). Requires npm
+public`; core is bundled, so no private dependency is fetched). Requires npm
    auth — **not performed in Phase 4.**
 4. **Mod → marketplace:** bump the `version` in `plugin/.claude-plugin/plugin.json`
    and `.claude-plugin/marketplace.json`, tag/release the repo. Users then run
@@ -313,3 +314,45 @@ See [DEC-0010](./DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-privat
 - **`claude plugin list` non-zero / non-JSON / non-array** → `'unknown'` (never throws).
 - **`i` outside the menu screen** → ignored (the handler early-returns unless `screen==='menu'`), so typing `i` in an editor never installs.
 - **marketplace-add or install step fails** → `installMod` returns `{ ok:false, message }` naming the failed step; the banner shows it; `modStatus` stays `'absent'`.
+
+## FLOW-0006 — Lint, format & commit-quality pipeline
+
+- **Scope:** repo-wide
+- **Trigger:** editing files during development, `git commit`, and CI on push to `main` / any pull request.
+- **Outcome:** code is Prettier-formatted, ESLint-clean, spell-checked, secret-free, and free of unused files/exports/deps; commit messages follow Conventional Commits.
+- **Last verified:** 2026-10-05
+- **Related:** [DEC-0012](./DECISION.md#dec-0012--adopt-an-arant-design-inspired-lintformatquality-toolchain), [DEC-0007](./DECISION.md#dec-0007--no-ai-attribution-in-code-commits-or-prs), [DEC-0003](./DECISION.md#dec-0003--bundle-core-zod-inlined-into-the-plugin), [FLOW-0004](#flow-0004--release--distribution)
+
+### Participants
+
+| Piece       | File / endpoint                            | Role                                                               |
+| ----------- | ------------------------------------------ | ------------------------------------------------------------------ |
+| ESLint      | `eslint.config.mjs`                        | flat config; type-aware per `packages/*` + `plugin` tsconfig       |
+| Prettier    | `.prettierrc.json`, `.prettierignore`      | formatting — `singleQuote`, `printWidth 100`, `trailingComma es5`  |
+| stylelint   | `.stylelintrc.json`, `.stylelintignore`    | CSS/SCSS lint (currently matches no files — `--allow-empty-input`) |
+| secretlint  | `.secretlintrc.json`                       | credential / secret scan                                           |
+| cspell      | `cspell.json`                              | spell check + project dictionary                                   |
+| knip        | `knip.json`                                | unused files, exports, dependencies                                |
+| lint-staged | `.lintstagedrc.json`                       | staged-file `eslint --fix` + `prettier --write` + `secretlint`     |
+| husky       | `.husky/pre-commit`, `.husky/commit-msg`   | git hooks (installed by the root `prepare` script)                 |
+| commitlint  | `commitlint.config.mjs`                    | Conventional Commits check on the commit message                   |
+| CI          | `.github/workflows/ci.yml` (`quality` job) | re-runs the checks on a clean checkout                             |
+
+### Steps
+
+1. **While developing:** `npm run format:fix` / `npm run lint:fix` (or editor integration) format and auto-fix.
+2. **On `git commit`:** `.husky/pre-commit` runs `lint-staged` → staged `*.{ts,tsx,mts,cts}` get `eslint --fix` + `prettier --write`; other text files get `prettier --write`; every staged file is passed through `secretlint`. If that passes, `knip` scans the whole working tree. Then `.husky/commit-msg` runs `commitlint --edit`.
+3. **In CI:** the `quality` job runs `format:check`, `lint:error`, `stylelint:error`, `secretlint`, `cspell`, and `knip` against a clean `npm ci` checkout, in parallel with `build-test` and `plugin`.
+
+### Branches & failure modes
+
+- **lint-staged fails** → the hook runs under `sh -e`, so the commit aborts before knip runs.
+- **knip sees the working tree, not the staged snapshot** → lint-staged has already restored unstaged changes by the time knip runs, so an unstaged edit can fail the commit. Run `npm run knip` for the full report.
+- **Non-Conventional commit message** → the commit-msg hook rejects the commit.
+- **Generated plugin bundle** (`plugin/hooks/core.js` / `core.d.ts`) is excluded from Prettier, ESLint, and cspell; its correctness is instead guarded by the `build-test` "Core bundle is fresh" drift check (see [FLOW-0003](#flow-0003--bundle-core-into-the-plugin) / [FLOW-0004](#flow-0004--release--distribution)).
+- **stylelint matches no files** (no CSS/SCSS in the repo) → passes via `--allow-empty-input`.
+
+### Notes
+
+- The toolchain is installed at the repo root and covers all workspaces **and** `plugin/` (which is not an npm workspace).
+- The engine-integration plugin tests still run only under the preview `claude plugin test` (see [FLOW-0004](#flow-0004--release--distribution)); the `quality` job does not run them.

@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - **No publishing in this phase.** No `npm publish`, no `claude plugin marketplace`/release side effects left behind; probes that mutate local state (e.g. `marketplace add`) must be reverted in the same task.
-- **`@ccstatus/core` stays private and is never published to npm** — it is a non-goal in the spec (`packages/core/package.json` keeps `"private": true`). Both consumers *bundle* core, they do not depend on a published core.
+- **`@ccstatus/core` stays private and is never published to npm** — it is a non-goal in the spec (`packages/core/package.json` keeps `"private": true`). Both consumers _bundle_ core, they do not depend on a published core.
 - **No AI attribution** anywhere in code, files, commits, or PRs — no "Generated with", no `Co-Authored-By: Claude`, no session links (DEC-0007).
 - **Node floor is `>=20`** (`packages/tui/package.json` `engines`); the published `ccstatus` and CI must honor it.
 - **Root `npm run typecheck` (`tsc -b`) is broken** (no root project references) — CI and all verification use the per-workspace `npm run typecheck -w <pkg>`, never the root one.
@@ -38,11 +38,13 @@ These are failure modes the spec implies but that no feature test exercises; eac
 Fills the `claude plugin validate` "No author information" warning and establishes the MIT license and repo identity used by both published halves.
 
 **Files:**
+
 - Create: `LICENSE`
 - Modify: `plugin/.claude-plugin/plugin.json`
 - Modify: `package.json` (root — add `repository`, `license`, `author`)
 
 **Interfaces:**
+
 - Produces: a committed `LICENSE` (MIT), and `plugin.json` with `author`/`homepage`/`license`/`keywords` fields consumed by Task 3's marketplace entry and Task 4's README badges.
 
 - [ ] **Step 1: Write `LICENSE` (MIT)**
@@ -119,11 +121,13 @@ git commit -m "chore(release): add MIT LICENSE and author/repository metadata"
 The published package must be named `ccstatus` (so `npx ccstatus` works), must not declare the private `@ccstatus/core` as a runtime dependency (it is bundled by tsup), and must ship only the built bin + README.
 
 **Files:**
+
 - Modify: `packages/tui/package.json`
 - Create: `packages/tui/README.md`
 - Verify against: `packages/tui/tsup.config.ts` (already `noExternal: ['@ccstatus/core']` — do not change)
 
 **Interfaces:**
+
 - Consumes: the existing tsup build that inlines `@ccstatus/core` into `dist/index.js`.
 - Produces: an npm package named `ccstatus`, bin `ccstatus` → `./dist/index.js`, with `@ccstatus/core` moved to `devDependencies`. Task 3/4/7 refer to the package as `ccstatus` (e.g. `npm test -w ccstatus`).
 
@@ -137,7 +141,11 @@ The published package must be named `ccstatus` (so `npx ccstatus` works), must n
   "license": "MIT",
   "author": "Sushant Kumar",
   "homepage": "https://github.com/sushant-kum/ccstatus#readme",
-  "repository": { "type": "git", "url": "git+https://github.com/sushant-kum/ccstatus.git", "directory": "packages/tui" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sushant-kum/ccstatus.git",
+    "directory": "packages/tui"
+  },
   "bugs": { "url": "https://github.com/sushant-kum/ccstatus/issues" },
   "keywords": ["claude-code", "statusline", "status-bar", "tui", "ink", "ccstatusline"],
   "engines": { "node": ">=20" },
@@ -166,7 +174,7 @@ The published package must be named `ccstatus` (so `npx ccstatus` works), must n
 
 - [ ] **Step 2: Write `packages/tui/README.md`** (shown on the npm page)
 
-```markdown
+````markdown
 # ccstatus
 
 Interactive configurator for the **ccstatus** status bar for Claude Code.
@@ -174,6 +182,7 @@ Interactive configurator for the **ccstatus** status bar for Claude Code.
 ```bash
 npx ccstatus
 ```
+````
 
 Edit one JSON config that drives four surfaces — the above-prompt band, the
 native status line, an openable pane, and threshold toasts — with a live
@@ -184,7 +193,8 @@ The companion mod is installed from the Claude Code marketplace — see the
 [project README](https://github.com/sushant-kum/ccstatus#readme).
 
 MIT © Sushant Kumar
-```
+
+````
 
 - [ ] **Step 3: Reinstall workspaces so the rename is linked, then build**
 
@@ -213,7 +223,8 @@ tar -xzf "/tmp/$TARBALL" -C "$WORK"
 # importing the entry must not throw "Cannot find module '@ccstatus/core'"
 node --input-type=module -e "import('$WORK/package/dist/index.js').then(()=>console.error('IMPORTED-OK')).catch(e=>{console.error('IMPORT-FAILED:',e.message);process.exit(1)})" 2>&1 | grep -E 'IMPORTED-OK|IMPORT-FAILED' || true
 rm -rf "$WORK" "/tmp/$TARBALL"
-```
+````
+
 Expected: prints `IMPORTED-OK`. (If the module tries to render Ink to a non-TTY it may warn, but it must not fail with a missing `@ccstatus/core`.) If it prints `IMPORT-FAILED: Cannot find module '@ccstatus/core'`, core is not bundled / still a runtime dep — fix Step 1 / tsup before continuing.
 
 - [ ] **Step 7: Commit**
@@ -230,9 +241,11 @@ git commit -m "feat(release): publish the TUI as the unscoped \`ccstatus\` npm p
 Exposes `plugin/` through a repo-root `.claude-plugin/marketplace.json` so users can `claude plugin marketplace add sushant-kum/ccstatus` and install.
 
 **Files:**
+
 - Create: `.claude-plugin/marketplace.json`
 
 **Interfaces:**
+
 - Consumes: `plugin/.claude-plugin/plugin.json` (Task 1) at `source: "./plugin"`.
 - Produces: a marketplace named `ccstatus` with one plugin entry `ccstatus`, referenced by Task 4's README install steps.
 
@@ -268,6 +281,7 @@ claude plugin marketplace add "$(pwd)" 2>&1 | tee /tmp/ccmp.txt
 grep -q "Successfully added marketplace: ccstatus" /tmp/ccmp.txt && echo "MARKETPLACE-OK"
 claude plugin marketplace remove ccstatus 2>&1 | grep -q "Successfully removed" && echo "CLEANED-UP"
 ```
+
 Expected: prints `MARKETPLACE-OK` then `CLEANED-UP`. (The probe must leave no `ccstatus` marketplace configured — confirm with `claude plugin marketplace list | grep -c ccstatus` → `0`.)
 
 - [ ] **Step 3: Commit**
@@ -284,9 +298,11 @@ git commit -m "feat(release): add root marketplace.json exposing the ccstatus mo
 The front door: what ccstatus is, install for both halves, the four surfaces, config location, and a demo placeholder.
 
 **Files:**
+
 - Create: `README.md` (repo root)
 
 **Interfaces:**
+
 - Consumes: the `npx ccstatus` package name (Task 2) and the marketplace name (Task 3).
 
 - [ ] **Step 1: Write `README.md`**
@@ -387,10 +403,12 @@ git commit -m "docs(release): add root README with install for both halves"
 A git/marketplace install reads `plugin/` as-is, but `plugin/hooks/core.js` and `core.d.ts` are generated and gitignored (DEC-0003), so an installed mod would have no core to import. Ship the bundle in the repo and make CI fail if it drifts from `@ccstatus/core`.
 
 **Files:**
+
 - Modify: `.gitignore` (un-ignore the two generated plugin files)
 - Add (now tracked): `plugin/hooks/core.js`, `plugin/hooks/core.d.ts`
 
 **Interfaces:**
+
 - Consumes: `npm run build:plugin-core` (root script, already present).
 - Produces: a committed, in-repo core bundle that marketplace installs can load; a reproducible `build:plugin-core` whose output is byte-identical on re-run (verified in CI, Task 6).
 
@@ -433,9 +451,11 @@ git commit -m "build(release): commit the plugin core bundle so marketplace inst
 Runs the real per-workspace commands on push/PR, plus plugin validation and the core-bundle drift check.
 
 **Files:**
+
 - Create: `.github/workflows/ci.yml`
 
 **Interfaces:**
+
 - Consumes: root `npm ci`, `npm test -w <pkg>`, `npm run typecheck -w <pkg>`, `npm run build -w ccstatus`, `npm run build:plugin-core`, `claude plugin validate plugin`.
 
 - [ ] **Step 1: Write `.github/workflows/ci.yml`**
@@ -497,6 +517,7 @@ jobs:
 - [ ] **Step 2: Verify the YAML parses and every command it runs works locally**
 
 Run:
+
 ```bash
 node -e "const y=require('fs').readFileSync('.github/workflows/ci.yml','utf8'); require('child_process'); console.log(/jobs:/.test(y)&&/build-test:/.test(y)&&/plugin:/.test(y)?'YAML-SHAPE-OK':'BAD')"
 npm run typecheck -w @ccstatus/core && npm test -w @ccstatus/core \
@@ -504,6 +525,7 @@ npm run typecheck -w @ccstatus/core && npm test -w @ccstatus/core \
   && npm run build:plugin-core && git diff --exit-code plugin/hooks/core.js plugin/hooks/core.d.ts \
   && claude plugin validate plugin >/dev/null && echo "ALL-CI-COMMANDS-GREEN"
 ```
+
 Expected: `YAML-SHAPE-OK` and `ALL-CI-COMMANDS-GREEN`. (If `actionlint` is installed, also run it; otherwise the shape check + local command run is the gate.)
 
 - [ ] **Step 3: Commit**
@@ -520,21 +542,25 @@ git commit -m "ci: add workspace test/typecheck/build + plugin validate + bundle
 Record the packaging decisions and release flow, and update the convention notes, in the same change as the code (repo policy).
 
 **Files:**
+
 - Modify: `docs/DECISION.md` (add DEC-0010; update DEC-0003's gitignore note with a pointer)
 - Modify: `docs/FLOW.md` (add FLOW-0004 — release/distribution)
 - Modify: `CLAUDE.md` (package rename in commands; `.gitignore` note; link DEC-0010/FLOW-0004)
 
 **Interfaces:**
+
 - Consumes: the facts established in Tasks 2, 3, 5, 6.
 
 - [ ] **Step 1: Add DEC-0010 to `docs/DECISION.md`** (append after DEC-0009; add the index-table row)
 
 Index row:
+
 ```
 | DEC-0010 | 2026-10-05 | Distribution: unscoped `ccstatus` bin, private bundled core, committed plugin bundle | Accepted | repo-wide |
 ```
 
 Entry body (append at end of file):
+
 ```markdown
 ---
 
@@ -589,11 +615,13 @@ Claude Code marketplace entry for the mod. Three choices had real alternatives.
 - [ ] **Step 2: Add FLOW-0004 to `docs/FLOW.md`** (append; add the index-table row)
 
 Index row:
+
 ```
 | FLOW-0004 | release & distribution | repo-wide | 2026-10-05 |
 ```
 
 Entry body (append at end of file):
+
 ```markdown
 ---
 
@@ -614,7 +642,7 @@ Entry body (append at end of file):
    `claude plugin test plugin`.
 3. **TUI → npm:** bump `packages/tui/package.json` `version`, then
    `npm publish -w ccstatus` (the package is unscoped + `publishConfig.access:
-   public`; core is bundled, so no private dependency is fetched). Requires npm
+public`; core is bundled, so no private dependency is fetched). Requires npm
    auth — **not performed in Phase 4.**
 4. **Mod → marketplace:** bump the `version` in `plugin/.claude-plugin/plugin.json`
    and `.claude-plugin/marketplace.json`, tag/release the repo. Users then run
@@ -640,11 +668,13 @@ Entry body (append at end of file):
 - [ ] **Step 4: Verify doc cross-links and index rows exist**
 
 Run:
+
 ```bash
 grep -q "DEC-0010" docs/DECISION.md && grep -q "FLOW-0004" docs/FLOW.md \
   && grep -q "DEC-0010" CLAUDE.md && grep -q "ccstatus" CLAUDE.md \
   && grep -q "npm test -w ccstatus\|test -w ccstatus" CLAUDE.md && echo "DOCS-OK"
 ```
+
 Expected: `DOCS-OK`.
 
 - [ ] **Step 5: Commit**

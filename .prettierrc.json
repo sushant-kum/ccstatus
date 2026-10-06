@@ -1,0 +1,14 @@
+{
+  "bracketSpacing": true,
+  "trailingComma": "es5",
+  "printWidth": 100,
+  "singleQuote": true,
+  "overrides": [
+    {
+      "files": ".czrc",
+      "options": {
+        "parser": "json"
+      }
+    }
+  ]
+}
