@@ -30,7 +30,7 @@ var mk = (rows) => {
   WIDGETS.forEach((w, i) => {
     const row = rows[i];
     if (!row) {
-      return;
+      throw new Error(`theme definition is missing a color row for widget "${w}"`);
     }
     const [fg2, bg2] = row;
     t[w] = { fg: fg2, bg: bg2 };

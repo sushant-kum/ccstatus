@@ -33,7 +33,7 @@ const mk = (rows: P[]): Theme => {
   WIDGETS.forEach((w, i) => {
     const row = rows[i];
     if (!row) {
-      return;
+      throw new Error(`theme definition is missing a color row for widget "${w}"`);
     }
     const [fg, bg] = row;
     t[w] = { fg, bg };
