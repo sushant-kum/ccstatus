@@ -75,7 +75,7 @@ const legacy = (raw: RawItem, key: 'text' | 'command'): string | undefined => {
  * This is the smart constructor for items; legacy configs stored custom text and
  * command under `metadata`, so those are migrated forward here.
  * @param raw  - The parsed item row to construct from.
- * @param warn - Callback invoked with a message when the item is dropped.
+ * @param warn - Callback invoked with a message when the item is dropped or a field is stripped.
  * @returns    The constructed item, or `null` when it has an unknown type.
  */
 function cleanItem(raw: RawItem, warn: (s: string) => void): Item | null {
