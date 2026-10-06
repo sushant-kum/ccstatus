@@ -32,6 +32,7 @@ test('unknown color is stripped with a warning', () => {
     surfaces: { band: { enabled: true, lines: [[{ id: 'a', type: 'model', fg: 'fuchsia' }]] } },
   };
   const { config, warnings } = loadConfig(raw);
+  expect(config.surfaces.band.lines[0]).toHaveLength(1);
   expect((config.surfaces.band.lines[0]?.[0] as { fg?: string } | undefined)?.fg).toBeUndefined();
   expect(warnings.some((w) => w.includes('fuchsia'))).toBe(true);
 });
