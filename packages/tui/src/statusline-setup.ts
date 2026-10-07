@@ -42,7 +42,13 @@ export function settingsPath(scope: SettingsScope, env: Env = process.env): stri
 
 // Default IO: atomic temp+rename with a .bak, mirroring saveConfigFile's discipline.
 const nodeIo: SettingsIo = {
-  read: (path) => (existsSync(path) ? readFileSync(path, 'utf8') : null),
+  read: (path) => {
+    try {
+      return existsSync(path) ? readFileSync(path, 'utf8') : null;
+    } catch {
+      return null;
+    }
+  },
   write: (path, data) => {
     mkdirSync(dirname(path), { recursive: true });
     if (existsSync(path)) {
@@ -63,11 +69,15 @@ const nodeIo: SettingsIo = {
  * @param sl - The raw `statusLine` value from settings.json.
  * @returns  True when its command invokes `ccstatus statusline`.
  */
-const isOurs = (sl: unknown): boolean =>
-  !!sl &&
-  typeof sl === 'object' &&
-  typeof (sl as { command?: unknown }).command === 'string' &&
-  (sl as { command: string }).command.includes('ccstatus statusline');
+const isOurs = (sl: unknown): boolean => {
+  if (!sl || typeof sl !== 'object') {
+    return false;
+  }
+  const c = (sl as { command?: unknown }).command;
+  return (
+    typeof c === 'string' && (c === STATUSLINE_COMMAND || /(^|\/)ccstatus statusline$/.test(c))
+  );
+};
 
 /**
  * Detects whether the chosen settings.json has our status line, another one,
@@ -92,7 +102,10 @@ export function detectStatusline(
   } catch {
     return { state: 'unknown' };
   }
-  const sl = (parsed as { statusLine?: unknown })?.statusLine;
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return { state: 'unknown' };
+  }
+  const sl = (parsed as { statusLine?: unknown }).statusLine;
   if (sl === undefined) {
     return { state: 'absent' };
   }
@@ -125,7 +138,7 @@ export function enableStatusline(
   if (text !== null) {
     try {
       const parsed: unknown = JSON.parse(text);
-      if (!parsed || typeof parsed !== 'object') {
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
         return { ok: false, message: 'settings.json is not a JSON object; left unchanged' };
       }
       settings = parsed as Record<string, unknown>;
@@ -162,7 +175,7 @@ export function disableStatusline(
   let settings: Record<string, unknown>;
   try {
     const parsed: unknown = JSON.parse(text);
-    if (!parsed || typeof parsed !== 'object') {
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       return { ok: false, message: 'settings.json is not a JSON object; left unchanged' };
     }
     settings = parsed as Record<string, unknown>;

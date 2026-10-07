@@ -106,3 +106,46 @@ describe('settingsPath', () => {
     expect(s).toBe('absent');
   });
 });
+
+describe('hardening', () => {
+  it('rejects array settings in enable/disable and reports unknown in detect', () => {
+    const f = fakeIo('[]');
+    expect(enableStatusline('user', {}, f.io, env).ok).toBe(false);
+    expect(f.written()).toBe('[]');
+    expect(disableStatusline('user', f.io, env).ok).toBe(false);
+    expect(detectStatusline('user', f.io, env).state).toBe('unknown');
+  });
+
+  it('reports unknown for non-object JSON', () => {
+    expect(detectStatusline('user', fakeIo('"str"').io, env).state).toBe('unknown');
+    expect(detectStatusline('user', fakeIo('42').io, env).state).toBe('unknown');
+  });
+
+  it('replaceExisting preserves other top-level keys', () => {
+    const f = fakeIo(JSON.stringify({ theme: 'dark', statusLine: { command: 'other.sh' } }));
+    expect(enableStatusline('user', { replaceExisting: true }, f.io, env).ok).toBe(true);
+    const out = JSON.parse(f.written() as string);
+    expect(out.theme).toBe('dark');
+    expect(out.statusLine.command).toBe(STATUSLINE_COMMAND);
+  });
+
+  it('disable on a missing file is ok and writes nothing', () => {
+    const f = fakeIo(null);
+    expect(disableStatusline('user', f.io, env).ok).toBe(true);
+    expect(f.written()).toBeNull();
+  });
+
+  it('re-enabling when already ours is idempotent', () => {
+    const f = fakeIo(null);
+    enableStatusline('user', {}, f.io, env);
+    expect(enableStatusline('user', {}, f.io, env).ok).toBe(true);
+    expect(JSON.parse(f.written() as string).statusLine.command).toBe(STATUSLINE_COMMAND);
+  });
+
+  it('does not treat a wrapper command as ours', () => {
+    const f = fakeIo(
+      JSON.stringify({ statusLine: { command: 'my-wrapper ccstatus statusline --x' } })
+    );
+    expect(detectStatusline('user', f.io, env).state).toBe('other');
+  });
+});
