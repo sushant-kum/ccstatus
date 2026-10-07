@@ -61,6 +61,7 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0010 | 2026-10-05 | Distribution: unscoped `ccstatus` bin, private bundled core, committed plugin bundle | Accepted | repo-wide      |
 | DEC-0011 | 2026-10-05 | TUI detects the mod and offers to install it on first run                            | Accepted | tui            |
 | DEC-0012 | 2026-10-05 | Adopt an arant-design-inspired lint/format/quality toolchain                         | Accepted | repo-wide      |
+| DEC-0013 | 2026-10-07 | Status line is rendered by a native settings.json command, not the mod               | Accepted | repo-wide      |
 
 ---
 
@@ -137,6 +138,7 @@ DECISION.md is append-only (reverse a decision with a new entry); FLOW.md is edi
 
 - **Date:** 2026-10-04
 - **Status:** Accepted
+- **Note:** Superseded in part by [DEC-0013](#dec-0013--status-line-is-rendered-by-a-native-settingsjson-command-not-the-mod) (the native status line is no longer piped through the mod).
 - **Scope:** repo-wide
 - **Related:** DEC-0003, [FLOW-0001](./FLOW.md#flow-0001--mod-renders-the-above-prompt-band)
 
@@ -239,6 +241,7 @@ preview with real numbers.
 
 - **Date:** 2026-10-04
 - **Status:** Accepted
+- **Note:** Superseded in part by [DEC-0013](#dec-0013--status-line-is-rendered-by-a-native-settingsjson-command-not-the-mod) (mod elements are Ink's and need the core color mapping).
 - **Scope:** repo-wide
 - **Related:** DEC-0002
 
@@ -580,3 +583,45 @@ no non-null `!`) were applied across the codebase.
   workspaces were already on 5.5), even though 6.x exists.
 - `cspell.json` carries a project dictionary that must grow with new domain terms, and
   `knip.json` must track entry points — both can fail CI if left stale.
+
+## DEC-0013 — Status line is rendered by a native settings.json command, not the mod
+
+- **Date:** 2026-10-07
+- **Status:** Accepted
+- **Scope:** repo-wide
+- **Related:** DEC-0002, DEC-0005, DEC-0011, [FLOW-0007](./FLOW.md#flow-0007--native-status-line-render-path), [spec](./superpowers/specs/2026-10-07-ccstatus-statusline-command-design.md)
+
+### Context
+
+The mod drove the native status line through `$.ui.status`. That API takes plain text and
+refuses control characters, so the ANSI from `toAnsi` could never colour it — the status
+line was monochrome. Separately, the band/pane colour bug had the same root: the engine's
+`Text` is Ink's, so core's chalk-style names (`brightYellow`) rendered uncoloured there too.
+
+### Decision
+
+Render the native status line with a Claude Code `settings.json` `statusLine` **command**,
+as [ccstatusline](https://github.com/sirmalloc/ccstatusline) does. A new
+`ccstatus statusline` subcommand reads the shared `config.json` + `snapshot.json` and prints
+`toAnsi(render(..., { surface: 'statusline' }))`; Claude Code renders that ANSI in colour.
+The TUI writes (and removes) the `statusLine` block — opt-in, scope-prompted (User vs
+Project), merging into existing settings, and backing up + confirming before replacing a
+different `statusLine`. The mod stops calling `$.ui.status` (it still paints band/pane/toasts
+and writes `snapshot.json`). The Ink colour mapping moves into core as
+`rendererColor`/`rendererBg` and is used by **both** the TUI and the mod paint modules.
+
+### Alternatives considered
+
+- **Keep `$.ui.status` with plain text** — rejected: loses all colour, the main point of the bar.
+- **Overlay live cost/context from the status-line stdin JSON** — deferred: the snapshot
+  is already fed by the mod on a 2s clock; revisit if staleness matters.
+
+### Consequences
+
+- The status line needs the mod running (for `snapshot.json`); with no live snapshot the
+  command prints nothing rather than sample data.
+- Enabling the status line is an explicit TUI action that edits the user's `settings.json`.
+- Supersedes in part DEC-0002 (the status-line pipe is no longer via the mod) and DEC-0005
+  (mod elements are Ink and need the colour mapping; `brightGray` still renders uncoloured).
+- Core colour changes now affect the mod paint, TUI paint and CLI together; regenerate the
+  plugin bundle after changing them.
