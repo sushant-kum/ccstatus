@@ -3,28 +3,12 @@ import { expect, mock, test } from 'claude-code/testing';
 
 import { shouldReload } from './config-io.js';
 import { defaultConfig } from './core.js';
-import type { Config } from './core.js';
 
 test('shouldReload on first stat and on mtime change', () => {
   expect(shouldReload(null, { mtimeMs: 10 })).toBe(true);
   expect(shouldReload(10, { mtimeMs: 10 })).toBe(false);
   expect(shouldReload(10, { mtimeMs: 20 })).toBe(true);
 });
-
-/**
- * Build a config with the status line surface enabled or disabled.
- * @param enabled - Whether the status line surface is enabled.
- * @returns       A config whose status line reuses the band's lines.
- */
-function withStatusline(enabled: boolean): Config {
-  return {
-    ...defaultConfig,
-    surfaces: {
-      ...defaultConfig.surfaces,
-      statusline: { enabled, lines: defaultConfig.surfaces.band.lines },
-    },
-  };
-}
 
 interface SetupWorld {
   text: string;
@@ -47,7 +31,7 @@ function setup($: any, on: any): SetupWorld {
   const clock = mock.clock(on, { now: 1_000_000 });
   mock.env(on, { HOME: '/h' });
   const w: SetupWorld = {
-    text: JSON.stringify(withStatusline(true)),
+    text: JSON.stringify(defaultConfig),
     mtime: 1,
     reads: 0,
     writes: [],
@@ -117,22 +101,26 @@ function setup($: any, on: any): SetupWorld {
   return w;
 }
 
-test('tick reloads config when the file mtime changes', async ($, on) => {
+test('tick reloads config only when the file mtime changes', async ($, on) => {
   const w = setup($, on);
   await $.session.start({ cwd: '', surface: 'terminal', isInteractive: true });
-  w.text = JSON.stringify(withStatusline(false));
+  await w.clock.advance(2100); // settle: first stat may load the config
+  const settled = w.reads;
   await w.clock.advance(2100); // same mtime: no reload
+  expect(w.reads).toBe(settled);
   w.mtime = 2;
   await w.clock.advance(2100);
+  expect(w.reads).toBeGreaterThan(settled);
 });
 
 test('/ccstatus reload forces a re-read', async ($, on) => {
   const w = setup($, on);
   await $.session.start({ cwd: '', surface: 'terminal', isInteractive: true });
-  w.text = JSON.stringify(withStatusline(false)); // mtime unchanged
+  await w.clock.advance(2100); // settle
+  const before = w.reads; // mtime stays unchanged from here
   const r = await $.command.run({ command: 'ccstatus', args: 'reload' } as any);
   expect(r.text).toContain('reload');
-  await w.clock.advance(2100);
+  expect(w.reads).toBeGreaterThan(before);
 });
 
 test('/ccstatus theme <name> writes the config back atomically (temp + mv, .bak kept)', async ($, on) => {
