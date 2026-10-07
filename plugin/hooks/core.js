@@ -4893,6 +4893,21 @@ function importCcstatusline(raw) {
   const loaded = loadConfig(draft);
   return { config: loaded.config, warnings: [...warnings, ...loaded.warnings] };
 }
+
+// packages/core/src/renderer-colors.ts
+var toInk = (n) => {
+  if (!n) {
+    return void 0;
+  }
+  return n.startsWith("bright") ? (n[6] ?? "").toLowerCase() + n.slice(7) + "Bright" : n;
+};
+var rendererColor = (fg2) => toInk(fg2);
+var rendererBg = (bg2) => {
+  if (!bg2) {
+    return void 0;
+  }
+  return toInk(bg2.startsWith("bg") ? (bg2[2] ?? "").toLowerCase() + bg2.slice(3) : bg2);
+};
 export {
   COLORS,
   TOAST_FIELDS,
@@ -4906,5 +4921,7 @@ export {
   register,
   registry,
   render,
+  rendererBg,
+  rendererColor,
   toAnsi
 };

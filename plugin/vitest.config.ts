@@ -15,6 +15,11 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['hooks/config-io.test.ts', 'hooks/snapshot-build.test.ts', 'hooks/toasts.test.ts'],
+    include: [
+      'hooks/config-io.test.ts',
+      'hooks/snapshot-build.test.ts',
+      'hooks/toasts.test.ts',
+      'hooks/paint.test.ts',
+    ],
   },
 });
