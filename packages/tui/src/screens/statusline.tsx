@@ -34,7 +34,7 @@ export function Statusline({
   enable = (s, o): EnableResult => enableDefault(s, o),
   disable = (s): EnableResult => disableDefault(s),
 }: ScreenProps & StatuslineDeps): ReactElement {
-  const [scope] = useState<SettingsScope>('user');
+  const [scope, setScope] = useState<SettingsScope>('user');
   const [info, setInfo] = useState<StatuslineInfo>(() => detect('user'));
   const [msg, setMsg] = useState<string | null>(null);
   const [pendingScope, setPendingScope] = useState<SettingsScope | null>(null);
@@ -45,6 +45,7 @@ export function Statusline({
    * @param replaceExisting - Whether replacing a different statusLine is already confirmed.
    */
   const doEnable = (s: SettingsScope, replaceExisting: boolean): void => {
+    setScope(s);
     const current = detect(s);
     if (current.state === 'other' && !replaceExisting) {
       setPendingScope(s);
@@ -69,6 +70,7 @@ export function Statusline({
     } else if (input === 'r' && pendingScope) {
       doEnable(pendingScope, true);
     } else if (input === 'd') {
+      setPendingScope(null);
       const r = disable(scope);
       setMsg(r.message);
       setInfo(detect(scope));
@@ -88,7 +90,9 @@ export function Statusline({
     <Box flexDirection="column">
       <Text bold>Native status line</Text>
       <Text>Current: {state}</Text>
-      <Text dimColor>u: enable (user) · p: enable (project) · d: disable · esc: back</Text>
+      <Text dimColor>
+        u: enable (user) · p: enable (project) · d: disable ({scope}) · esc: back
+      </Text>
       {pendingScope && <Text color="yellow">r: confirm replace</Text>}
       {msg && <Text color="cyan">{msg}</Text>}
     </Box>
