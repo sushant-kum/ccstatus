@@ -2,6 +2,8 @@ import { loadConfig } from '@ccstatus/core';
 import { render } from 'ink-testing-library';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { StatuslineInfo } from '../statusline-setup.js';
+
 import { Statusline } from './statusline.js';
 
 const noop = (): void => {
@@ -48,7 +50,7 @@ describe('Statusline screen', () => {
    * @param detect - Detector stub.
    * @returns      The spies and stdin.
    */
-  function setup(detect: () => { state: 'absent' | 'other'; command?: string }): {
+  function setup(detect: () => StatuslineInfo): {
     enable: ReturnType<typeof vi.fn>;
     disable: ReturnType<typeof vi.fn>;
     goHome: ReturnType<typeof vi.fn>;

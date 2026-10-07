@@ -12,15 +12,24 @@ type Env = Record<string, string | undefined>;
 
 export type SettingsScope = 'user' | 'project';
 export type StatuslineState = 'ours' | 'absent' | 'other' | 'unknown';
-export interface StatuslineInfo {
-  state: StatuslineState;
-  command?: string;
-}
+/**
+ * The detected status-line state. `command` is carried only by the `'other'`
+ * state (a different, non-ccstatus command); the discriminated union keeps the
+ * two from drifting apart so consumers need no `command` fallback.
+ */
+export type StatuslineInfo =
+  { state: 'ours' | 'absent' | 'unknown' } | { state: 'other'; command: string };
+/**
+ * Injectable settings.json IO. `read` returns `null` only when the file is
+ * absent and THROWS on a genuine read error (EACCES, a directory, transient
+ * I/O), so a caller can tell "no file yet" from "exists but unreadable" and
+ * never overwrite a settings file it could not read.
+ */
 export interface SettingsIo {
   read(path: string): string | null;
   write(path: string, data: string): void;
 }
-export interface EnableResult {
+export interface SettingsWriteResult {
   ok: boolean;
   message: string;
 }
@@ -42,13 +51,10 @@ export function settingsPath(scope: SettingsScope, env: Env = process.env): stri
 
 // Default IO: atomic temp+rename with a .bak, mirroring saveConfigFile's discipline.
 const nodeIo: SettingsIo = {
-  read: (path) => {
-    try {
-      return existsSync(path) ? readFileSync(path, 'utf8') : null;
-    } catch {
-      return null;
-    }
-  },
+  // `read` returns null only for an absent file; a real read error (EACCES, a
+  // directory, transient I/O) propagates so callers refuse rather than treat an
+  // unreadable settings.json as empty and overwrite it (cf. config-store.ts).
+  read: (path) => (existsSync(path) ? readFileSync(path, 'utf8') : null),
   write: (path, data) => {
     mkdirSync(dirname(path), { recursive: true });
     if (existsSync(path)) {
@@ -92,7 +98,13 @@ export function detectStatusline(
   io: SettingsIo = nodeIo,
   env: Env = process.env
 ): StatuslineInfo {
-  const text = io.read(settingsPath(scope, env));
+  let text: string | null;
+  try {
+    text = io.read(settingsPath(scope, env));
+  } catch {
+    // Exists but unreadable — distinct from absent, so callers never overwrite it.
+    return { state: 'unknown' };
+  }
   if (text === null) {
     return { state: 'absent' };
   }
@@ -113,7 +125,11 @@ export function detectStatusline(
     return { state: 'ours' };
   }
   const command = (sl as { command?: unknown } | null)?.command;
-  return { state: 'other', command: typeof command === 'string' ? command : undefined };
+  // A statusLine with no string command is malformed, not a usable 'other'.
+  if (typeof command !== 'string') {
+    return { state: 'unknown' };
+  }
+  return { state: 'other', command };
 }
 
 /**
@@ -131,9 +147,14 @@ export function enableStatusline(
   opts: { replaceExisting?: boolean } = {},
   io: SettingsIo = nodeIo,
   env: Env = process.env
-): EnableResult {
+): SettingsWriteResult {
   const path = settingsPath(scope, env);
-  const text = io.read(path);
+  let text: string | null;
+  try {
+    text = io.read(path);
+  } catch {
+    return { ok: false, message: 'settings.json exists but could not be read; left unchanged' };
+  }
   let settings: Record<string, unknown> = {};
   if (text !== null) {
     try {
@@ -166,9 +187,14 @@ export function disableStatusline(
   scope: SettingsScope,
   io: SettingsIo = nodeIo,
   env: Env = process.env
-): EnableResult {
+): SettingsWriteResult {
   const path = settingsPath(scope, env);
-  const text = io.read(path);
+  let text: string | null;
+  try {
+    text = io.read(path);
+  } catch {
+    return { ok: false, message: 'settings.json exists but could not be read; left unchanged' };
+  }
   if (text === null) {
     return { ok: true, message: 'no settings.json; nothing to disable' };
   }

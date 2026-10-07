@@ -1,3 +1,7 @@
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -70,7 +74,9 @@ describe('detectStatusline', () => {
       env
     );
     expect(other.state).toBe('other');
-    expect(other.command).toBe('x.sh');
+    if (other.state === 'other') {
+      expect(other.command).toBe('x.sh');
+    }
     expect(detectStatusline('user', fakeIo('{bad').io, env).state).toBe('unknown');
   });
 });
@@ -147,5 +153,71 @@ describe('hardening', () => {
       JSON.stringify({ statusLine: { command: 'my-wrapper ccstatus statusline --x' } })
     );
     expect(detectStatusline('user', f.io, env).state).toBe('other');
+  });
+
+  it('recognizes a path-form ccstatus command as ours', () => {
+    const f = fakeIo(
+      JSON.stringify({ statusLine: { command: '/usr/local/bin/ccstatus statusline' } })
+    );
+    expect(detectStatusline('user', f.io, env).state).toBe('ours');
+  });
+
+  it('reports unknown for a statusLine with no string command', () => {
+    const f = fakeIo(JSON.stringify({ statusLine: { type: 'command' } }));
+    expect(detectStatusline('user', f.io, env).state).toBe('unknown');
+  });
+});
+
+describe('unreadable settings.json (read throws)', () => {
+  /**
+   * An IO whose read always throws (EACCES etc.) and records any write attempt.
+   * @returns The injectable io and a flag set true if write was called.
+   */
+  function throwingIo(): { io: SettingsIo; wrote: () => boolean } {
+    let w = false;
+    const io: SettingsIo = {
+      read: () => {
+        throw new Error('EACCES');
+      },
+      write: () => {
+        w = true;
+      },
+    };
+    return { io, wrote: () => w };
+  }
+
+  it('refuses to enable and never overwrites an unreadable file', () => {
+    const t = throwingIo();
+    expect(enableStatusline('user', {}, t.io, env).ok).toBe(false);
+    expect(t.wrote()).toBe(false);
+  });
+
+  it('refuses to disable and reports unknown in detect', () => {
+    const t = throwingIo();
+    expect(disableStatusline('user', t.io, env).ok).toBe(false);
+    expect(t.wrote()).toBe(false);
+    expect(detectStatusline('user', t.io, env).state).toBe('unknown');
+  });
+});
+
+describe('default nodeIo (real fs)', () => {
+  it('writes atomically and keeps a .bak of the prior file', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ccstatus-sl-'));
+    try {
+      const env2 = { HOME: dir };
+      const path = `${dir}/.claude/settings.json`;
+      expect(enableStatusline('user', {}, undefined, env2).ok).toBe(true);
+      expect(JSON.parse(readFileSync(path, 'utf8')).statusLine.command).toBe(STATUSLINE_COMMAND);
+      // Replace with other content, then re-enable: prior content goes to .bak, keys merge.
+      writeFileSync(path, JSON.stringify({ theme: 'x' }));
+      expect(enableStatusline('user', {}, undefined, env2).ok).toBe(true);
+      const out = JSON.parse(readFileSync(path, 'utf8'));
+      expect(out.theme).toBe('x');
+      expect(out.statusLine.command).toBe(STATUSLINE_COMMAND);
+      expect(existsSync(path + '.bak')).toBe(true);
+      expect(JSON.parse(readFileSync(path + '.bak', 'utf8')).theme).toBe('x');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

@@ -7,15 +7,15 @@ import {
   detectStatusline as detectDefault,
   disableStatusline as disableDefault,
   enableStatusline as enableDefault,
-  type EnableResult,
   type SettingsScope,
+  type SettingsWriteResult,
   type StatuslineInfo,
 } from '../statusline-setup.js';
 
 interface StatuslineDeps {
   detect?: (scope: SettingsScope) => StatuslineInfo;
-  enable?: (scope: SettingsScope, opts?: { replaceExisting?: boolean }) => EnableResult;
-  disable?: (scope: SettingsScope) => EnableResult;
+  enable?: (scope: SettingsScope, opts?: { replaceExisting?: boolean }) => SettingsWriteResult;
+  disable?: (scope: SettingsScope) => SettingsWriteResult;
 }
 
 /**
@@ -31,8 +31,8 @@ interface StatuslineDeps {
 export function Statusline({
   goHome,
   detect = (s): StatuslineInfo => detectDefault(s),
-  enable = (s, o): EnableResult => enableDefault(s, o),
-  disable = (s): EnableResult => disableDefault(s),
+  enable = (s, o): SettingsWriteResult => enableDefault(s, o),
+  disable = (s): SettingsWriteResult => disableDefault(s),
 }: ScreenProps & StatuslineDeps): ReactElement {
   const [scope, setScope] = useState<SettingsScope>('user');
   const [info, setInfo] = useState<StatuslineInfo>(() => detect('user'));
@@ -49,7 +49,7 @@ export function Statusline({
     const current = detect(s);
     if (current.state === 'other' && !replaceExisting) {
       setPendingScope(s);
-      setMsg(`A different statusLine is set (${current.command ?? '?'}). Press r to replace it.`);
+      setMsg(`A different statusLine is set (${current.command}). Press r to replace it.`);
       return;
     }
     const r = enable(s, { replaceExisting });
@@ -81,7 +81,7 @@ export function Statusline({
     info.state === 'ours'
       ? 'configured (ccstatus)'
       : info.state === 'other'
-        ? `another command: ${info.command ?? '?'}`
+        ? `another command: ${info.command}`
         : info.state === 'unknown'
           ? 'settings.json unreadable'
           : 'not configured';

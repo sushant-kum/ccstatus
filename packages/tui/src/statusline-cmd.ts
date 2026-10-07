@@ -23,23 +23,36 @@ export function renderStatuslineAnsi(config: Config, snapshot: Snapshot): string
 /**
  * Reads the shared config and live snapshot and writes the status line to stdout.
  * Prints nothing when the surface is disabled or no live snapshot exists. Always
- * resolves — a status-line command must never error the host.
+ * resolves — a status-line command must never error the host. When `CCSTATUS_DEBUG`
+ * is set, config warnings and a swallowed error are written to stderr (which the
+ * host ignores), so running the command by hand still yields a signal.
  * @param env - Environment used to resolve the config/snapshot paths.
  * @returns   A promise that resolves once output has been written.
  */
 export async function runStatusline(env: Env = process.env): Promise<void> {
+  const debug = Boolean(env['CCSTATUS_DEBUG']);
   try {
-    const { config } = loadConfigFile(configPath(env));
+    const { config, warnings } = loadConfigFile(configPath(env));
+    if (debug && warnings.length) {
+      process.stderr.write(`ccstatus statusline: ${warnings.join('; ')}\n`);
+    }
     const snap = readSnapshot(snapshotPath(env));
     // No live snapshot (mod not running) → print nothing rather than sample data.
     if (snap.source !== 'live') {
+      if (debug) {
+        process.stderr.write('ccstatus statusline: no live snapshot (is the mod running?)\n');
+      }
       return;
     }
     const line = renderStatuslineAnsi(config, snap.snapshot);
     if (line) {
       process.stdout.write(line);
     }
-  } catch {
-    /* never error the host */
+  } catch (e) {
+    // Never error the host: swallow and exit 0. The host reads the status from
+    // stdout, so surfacing the cause on stderr is safe — but only under the flag.
+    if (debug) {
+      process.stderr.write(`ccstatus statusline: ${e instanceof Error ? e.message : String(e)}\n`);
+    }
   }
 }
