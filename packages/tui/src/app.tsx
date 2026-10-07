@@ -19,6 +19,7 @@ import { Items } from './screens/items.js';
 import { Menu } from './screens/menu.js';
 import { Powerline } from './screens/powerline.js';
 import { PreviewScreen } from './screens/preview-screen.js';
+import { Statusline } from './screens/statusline.js';
 import { Surfaces } from './screens/surfaces.js';
 import { Themes } from './screens/themes.js';
 import { readSnapshot } from './snapshot-source.js';
@@ -72,6 +73,8 @@ function PlaceholderOrScreen({
       return <Items {...props} />;
     case 'surfaces':
       return <Surfaces {...props} />;
+    case 'statusline':
+      return <Statusline {...props} />;
     case 'import':
       return <Import {...props} />;
     case 'preview':

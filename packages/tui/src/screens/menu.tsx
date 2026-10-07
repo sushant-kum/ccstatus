@@ -6,6 +6,7 @@ const ITEMS = [
   ['themes', 'Themes'],
   ['powerline', 'Powerline & separators'],
   ['surfaces', 'Surfaces'],
+  ['statusline', 'Native status line'],
   ['defaults', 'Global defaults'],
   ['preview', 'Preview'],
   ['import', 'Import from ccstatusline'],
