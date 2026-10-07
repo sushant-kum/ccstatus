@@ -1,7 +1,7 @@
 # ccstatus — Multicolour Status Line via the Native `statusLine` Command — Design Spec
 
 **Date:** 2026-10-07
-**Status:** Draft — pending review
+**Status:** Approved for planning
 **Author:** sushant@workfabric.com
 
 ## Purpose
