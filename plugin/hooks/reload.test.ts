@@ -29,7 +29,6 @@ function withStatusline(enabled: boolean): Config {
 interface SetupWorld {
   text: string;
   mtime: number;
-  status: string | undefined;
   reads: number;
   writes: string[];
   baks: string[];
@@ -42,7 +41,7 @@ interface SetupWorld {
  * Wire up the engine mocks shared by the reload tests.
  * @param $  - The test engine interface.
  * @param on - The test hook registrar.
- * @returns  A mutable world object recording reads, writes, snapshots, and status.
+ * @returns  A mutable world object recording reads, writes, and snapshots.
  */
 function setup($: any, on: any): SetupWorld {
   const clock = mock.clock(on, { now: 1_000_000 });
@@ -50,7 +49,6 @@ function setup($: any, on: any): SetupWorld {
   const w: SetupWorld = {
     text: JSON.stringify(withStatusline(true)),
     mtime: 1,
-    status: undefined,
     reads: 0,
     writes: [],
     baks: [],
@@ -115,10 +113,6 @@ function setup($: any, on: any): SetupWorld {
         value: { context: { tokens: 1, percent: 5 }, rateLimits: [], startedAt: 0 },
       }) as any
   );
-  on('ui.status', async (_$: any, e: any) => {
-    w.status = e.text;
-    return { value: undefined } as any;
-  });
   w.clock = clock;
   return w;
 }
@@ -126,13 +120,10 @@ function setup($: any, on: any): SetupWorld {
 test('tick reloads config when the file mtime changes', async ($, on) => {
   const w = setup($, on);
   await $.session.start({ cwd: '', surface: 'terminal', isInteractive: true });
-  expect(w.status).toContain('v1.2.3');
   w.text = JSON.stringify(withStatusline(false));
   await w.clock.advance(2100); // same mtime: no reload
-  expect(w.status).toContain('v1.2.3');
   w.mtime = 2;
   await w.clock.advance(2100);
-  expect(w.status).toBeUndefined();
 });
 
 test('/ccstatus reload forces a re-read', async ($, on) => {
@@ -142,7 +133,6 @@ test('/ccstatus reload forces a re-read', async ($, on) => {
   const r = await $.command.run({ command: 'ccstatus', args: 'reload' } as any);
   expect(r.text).toContain('reload');
   await w.clock.advance(2100);
-  expect(w.status).toBeUndefined();
 });
 
 test('/ccstatus theme <name> writes the config back atomically (temp + mv, .bak kept)', async ($, on) => {

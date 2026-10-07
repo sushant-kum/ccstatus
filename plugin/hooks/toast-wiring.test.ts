@@ -29,7 +29,6 @@ test('once toast fires once while true, and again after re-crossing', async ($, 
       }) as any
   );
   on('turn.complete', async () => ({ text: '' }));
-  on('ui.status', async () => ({ value: undefined }) as any);
   on('ui.toast', async (_$, e) => {
     toasts.push((e as any).text);
     return { value: undefined } as any;

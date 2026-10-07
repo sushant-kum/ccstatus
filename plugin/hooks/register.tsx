@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code';
 import type { EngineInterface, Register } from 'claude-code';
 
 import { configPath, parseConfig, shouldReload, snapshotPath } from './config-io.js';
-import { render, toAnsi } from './core.js';
+import { render } from './core.js';
 import type { Config, Snapshot } from './core.js';
 import { parseGit } from './git-parse.js';
 import { paintModel } from './paint.js';
@@ -265,9 +265,10 @@ async function fireToasts($: EngineInterface, cfg: Config, snap: Snapshot): Prom
 }
 
 /**
- * Repaint the toast and status-line surfaces for a snapshot, never throwing.
+ * Fire any due toasts for a snapshot, never throwing. The native status line is
+ * rendered by the `ccstatus statusline` settings command, not the mod.
  * @param $    - The engine interface.
- * @param snap - The current snapshot to render.
+ * @param snap - The current snapshot to evaluate toasts against.
  */
 async function applySurfaces($: EngineInterface, snap: Snapshot): Promise<void> {
   try {
@@ -276,13 +277,6 @@ async function applySurfaces($: EngineInterface, snap: Snapshot): Promise<void> 
       return;
     }
     await fireToasts($, cfg, snap);
-    if (cfg.surfaces.statusline.enabled) {
-      await $.ui.status(
-        toAnsi(render(cfg, snap, { surface: 'statusline', width: snap.terminalWidth || 200 }))
-      );
-    } else {
-      await $.ui.status(undefined);
-    }
   } catch {
     /* never throw from a refresh */
   }
