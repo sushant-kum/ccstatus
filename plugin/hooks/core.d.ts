@@ -205,4 +205,17 @@ declare function evalWhen(when: string, snapshot: Snapshot): boolean;
 
 declare const builtinThemes: Record<string, Theme>;
 
-export { type Align, COLORS, type Config, type CustomCommandItem, type CustomTextItem, type DataItem, type DataWidgetType, type Defaults, type FlexSeparatorItem, type Item, type ItemStyle, type RenderLine, type RenderModel, type RenderOptions, type Segment, type SegmentKind, type SeparatorMode, type Snapshot, type StylableItem, type SurfaceLayout, TOAST_FIELDS, type Theme, type ToastRule, type ToastSurface, type WidgetContext, type WidgetDef, type WidgetType, builtinThemes, defaultConfig, evalWhen, importCcstatusline, isColor, isValidWhen, loadConfig, register, registry, render, toAnsi };
+/**
+ * Maps a core foreground colour name to the renderer's (Ink/chalk) colour name.
+ * @param fg - The core foreground colour name, if any.
+ * @returns  The renderer colour name, or undefined when no colour is given.
+ */
+declare const rendererColor: (fg?: string) => string | undefined;
+/**
+ * Maps a core background colour name to the renderer's base colour name.
+ * @param bg - The core background colour name, if any.
+ * @returns  The renderer background colour name, or undefined when no colour is given.
+ */
+declare const rendererBg: (bg?: string) => string | undefined;
+
+export { type Align, COLORS, type Config, type CustomCommandItem, type CustomTextItem, type DataItem, type DataWidgetType, type Defaults, type FlexSeparatorItem, type Item, type ItemStyle, type RenderLine, type RenderModel, type RenderOptions, type Segment, type SegmentKind, type SeparatorMode, type Snapshot, type StylableItem, type SurfaceLayout, TOAST_FIELDS, type Theme, type ToastRule, type ToastSurface, type WidgetContext, type WidgetDef, type WidgetType, builtinThemes, defaultConfig, evalWhen, importCcstatusline, isColor, isValidWhen, loadConfig, register, registry, render, rendererBg, rendererColor, toAnsi };

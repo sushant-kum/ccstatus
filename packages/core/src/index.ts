@@ -31,3 +31,4 @@ export type {
 } from './config/types.js';
 export type { WidgetContext, WidgetDef } from './widgets/types.js';
 export { builtinThemes } from './theme/themes.js';
+export { rendererBg, rendererColor } from './renderer-colors.js';

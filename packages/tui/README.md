@@ -3,7 +3,7 @@
 Interactive configurator for the **ccstatus** status bar for Claude Code.
 
 ```bash
-npx ccstatus
+npx @sushant-kum/ccstatus
 ```
 
 Edit one JSON config that drives four surfaces — the above-prompt band, the

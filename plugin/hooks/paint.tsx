@@ -1,4 +1,5 @@
 import type { RenderModel } from './core.js';
+import { rendererBg, rendererColor } from './core.js';
 
 /**
  * An element factory taking one props object (with `children` among the props).
@@ -26,7 +27,12 @@ export function paintModel(
       key: `l${li}`,
       flexDirection: 'row',
       children: line.segments.map((seg, si) =>
-        Text({ key: `s${li}-${si}`, color: seg.fg, backgroundColor: seg.bg, children: seg.text })
+        Text({
+          key: `s${li}-${si}`,
+          color: rendererColor(seg.fg),
+          backgroundColor: rendererBg(seg.bg),
+          children: seg.text,
+        })
       ),
     })
   );

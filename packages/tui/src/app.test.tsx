@@ -81,7 +81,7 @@ test('a failed save is surfaced and does not exit', async () => {
   try {
     const { stdin, lastFrame, unmount } = render(<App modProbe={probe('installed')} />);
     await tick();
-    for (let k = 0; k < 7; k++) {
+    for (let k = 0; k < 8; k++) {
       stdin.write('\u001B[B');
       await tick();
     } // → "Save & quit"
@@ -105,7 +105,7 @@ test('a failed save is surfaced and does not exit', async () => {
 test('preview screen shows w/s controls and cycles them', async () => {
   const { stdin, lastFrame, unmount } = render(<App modProbe={probe('installed')} />);
   await tick();
-  for (let k = 0; k < 5; k++) {
+  for (let k = 0; k < 6; k++) {
     stdin.write('\u001B[B');
     await tick();
   }

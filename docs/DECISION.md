@@ -61,6 +61,8 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0010 | 2026-10-05 | Distribution: unscoped `ccstatus` bin, private bundled core, committed plugin bundle | Accepted | repo-wide      |
 | DEC-0011 | 2026-10-05 | TUI detects the mod and offers to install it on first run                            | Accepted | tui            |
 | DEC-0012 | 2026-10-05 | Adopt an arant-design-inspired lint/format/quality toolchain                         | Accepted | repo-wide      |
+| DEC-0013 | 2026-10-07 | Status line is rendered by a native settings.json command, not the mod               | Accepted | repo-wide      |
+| DEC-0014 | 2026-10-09 | Publish the TUI under the scoped name `@sushant-kum/ccstatus`                        | Accepted | repo-wide      |
 
 ---
 
@@ -137,6 +139,7 @@ DECISION.md is append-only (reverse a decision with a new entry); FLOW.md is edi
 
 - **Date:** 2026-10-04
 - **Status:** Accepted
+- **Note:** Superseded in part by [DEC-0013](#dec-0013--status-line-is-rendered-by-a-native-settingsjson-command-not-the-mod) (the native status line is no longer piped through the mod).
 - **Scope:** repo-wide
 - **Related:** DEC-0003, [FLOW-0001](./FLOW.md#flow-0001--mod-renders-the-above-prompt-band)
 
@@ -239,6 +242,7 @@ preview with real numbers.
 
 - **Date:** 2026-10-04
 - **Status:** Accepted
+- **Note:** Superseded in part by [DEC-0013](#dec-0013--status-line-is-rendered-by-a-native-settingsjson-command-not-the-mod) (mod elements are Ink's and need the core color mapping).
 - **Scope:** repo-wide
 - **Related:** DEC-0002
 
@@ -427,6 +431,7 @@ in-memory `config` atom is updated before the write, so the live bar reflects th
 
 - **Date:** 2026-10-05
 - **Status:** Accepted
+- **Note:** The unscoped `ccstatus` name is unavailable on npm (rejected as too similar to `cc-status`); superseded in part by [DEC-0014](#dec-0014--publish-the-tui-under-the-scoped-name-sushant-kumccstatus) — the TUI publishes as the scoped `@sushant-kum/ccstatus`.
 - **Scope:** repo-wide
 - **Related:** DEC-0003, DEC-0004, [FLOW-0004](./FLOW.md#flow-0004--release--distribution)
 
@@ -580,3 +585,91 @@ no non-null `!`) were applied across the codebase.
   workspaces were already on 5.5), even though 6.x exists.
 - `cspell.json` carries a project dictionary that must grow with new domain terms, and
   `knip.json` must track entry points — both can fail CI if left stale.
+
+## DEC-0013 — Status line is rendered by a native settings.json command, not the mod
+
+- **Date:** 2026-10-07
+- **Status:** Accepted
+- **Note:** The status-line command string is now `npx @sushant-kum/ccstatus statusline` (the TUI publishes scoped — see [DEC-0014](#dec-0014--publish-the-tui-under-the-scoped-name-sushant-kumccstatus)).
+- **Scope:** repo-wide
+- **Related:** DEC-0002, DEC-0005, DEC-0011, [FLOW-0007](./FLOW.md#flow-0007--native-status-line-render-path), [spec](./superpowers/specs/2026-10-07-ccstatus-statusline-command-design.md)
+
+### Context
+
+The mod drove the native status line through `$.ui.status`. That API takes plain text and
+refuses control characters, so the ANSI from `toAnsi` could never colour it — the status
+line was monochrome. Separately, the band/pane colour bug had the same root: the engine's
+`Text` is Ink's, so core's chalk-style names (`brightYellow`) rendered uncoloured there too.
+
+### Decision
+
+Render the native status line with a Claude Code `settings.json` `statusLine` **command**,
+as [ccstatusline](https://github.com/sirmalloc/ccstatusline) does. A new
+`ccstatus statusline` subcommand reads the shared `config.json` + `snapshot.json` and prints
+`toAnsi(render(..., { surface: 'statusline' }))`; Claude Code renders that ANSI in colour.
+The TUI writes (and removes) the `statusLine` block — opt-in, scope-prompted (User vs
+Project), merging into existing settings, and backing up + confirming before replacing a
+different `statusLine`. The mod stops calling `$.ui.status` (it still paints band/pane/toasts
+and writes `snapshot.json`). The Ink colour mapping moves into core as
+`rendererColor`/`rendererBg` and is used by **both** the TUI and the mod paint modules.
+
+### Alternatives considered
+
+- **Keep `$.ui.status` with plain text** — rejected: loses all colour, the main point of the bar.
+- **Overlay live cost/context from the status-line stdin JSON** — deferred: the snapshot
+  is already fed by the mod on a 2s clock; revisit if staleness matters.
+
+### Consequences
+
+- The status line needs the mod running (for `snapshot.json`); with no live snapshot the
+  command prints nothing rather than sample data.
+- Enabling the status line is an explicit TUI action that edits the user's `settings.json`.
+- Supersedes in part DEC-0002 (the status-line pipe is no longer via the mod) and DEC-0005
+  (mod elements are Ink and need the colour mapping; `brightGray` still renders uncoloured).
+- Core colour changes now affect the mod paint, TUI paint and CLI together; regenerate the
+  plugin bundle after changing them.
+
+## DEC-0014 — Publish the TUI under the scoped name `@sushant-kum/ccstatus`
+
+- **Date:** 2026-10-09
+- **Status:** Accepted
+- **Scope:** repo-wide
+- **Related:** [DEC-0010](#dec-0010--distribution-unscoped-ccstatus-bin-private-bundled-core-committed-plugin-bundle), [DEC-0013](#dec-0013--status-line-is-rendered-by-a-native-settingsjson-command-not-the-mod), [FLOW-0004](./FLOW.md#flow-0004--release--distribution)
+
+### Context
+
+DEC-0010 chose the **unscoped** name `ccstatus` so `npx ccstatus` would work with
+no scope. npm rejects that name — it is "too similar to" the existing package
+`cc-status` (npm collapses hyphens when comparing), so the unscoped name is
+permanently unavailable.
+
+### Decision
+
+Publish the TUI as the **scoped** package `@sushant-kum/ccstatus` (the scope is the
+author's npm account, always available). The CLI is `npx @sushant-kum/ccstatus`
+(and `npx @sushant-kum/ccstatus statusline` for the native status line); the bin
+name stays `ccstatus`. This supersedes DEC-0010's unscoped-name choice and updates
+DEC-0013's status-line command string.
+
+### Alternatives considered
+
+- **A different unscoped name** (`ccstatus-bar`, `ccbar`, …) — keeps `npx <name>`
+  scope-free, but risks another npm similarity rejection and a less recognizable
+  name; rejected in favour of a guaranteed-available scope.
+- **Contest npm's block** for bare `ccstatus` — slow, not guaranteed; rejected.
+- **An org scope like `@ccstatus`** — not owned by the author; the personal scope
+  `@sushant-kum` is guaranteed.
+
+### Consequences
+
+- The npm workspace is now `@sushant-kum/ccstatus`, so workspace commands are
+  `npm <script> -w @sushant-kum/ccstatus` (CI, `index.test.ts`'s build step, and
+  the docs updated accordingly).
+- `STATUSLINE_COMMAND` is `npx @sushant-kum/ccstatus statusline`; the TUI writes
+  that into `settings.json`, and `isOurs` recognizes the exact command plus a
+  path-form `ccstatus statusline`.
+- The product identity is unchanged: `@ccstatus/core`, the `ccstatus`
+  mod/marketplace id, the `/ccstatus` command, and the `~/.config/ccstatus/` paths
+  all keep the `ccstatus` name.
+- Publishing a scoped public package needs `--access public` (already in the TUI's
+  `publishConfig`).

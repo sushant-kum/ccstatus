@@ -3,7 +3,6 @@ import { expect, mock, test } from 'claude-code/testing';
 
 import { shouldReload } from './config-io.js';
 import { defaultConfig } from './core.js';
-import type { Config } from './core.js';
 
 test('shouldReload on first stat and on mtime change', () => {
   expect(shouldReload(null, { mtimeMs: 10 })).toBe(true);
@@ -11,25 +10,9 @@ test('shouldReload on first stat and on mtime change', () => {
   expect(shouldReload(10, { mtimeMs: 20 })).toBe(true);
 });
 
-/**
- * Build a config with the status line surface enabled or disabled.
- * @param enabled - Whether the status line surface is enabled.
- * @returns       A config whose status line reuses the band's lines.
- */
-function withStatusline(enabled: boolean): Config {
-  return {
-    ...defaultConfig,
-    surfaces: {
-      ...defaultConfig.surfaces,
-      statusline: { enabled, lines: defaultConfig.surfaces.band.lines },
-    },
-  };
-}
-
 interface SetupWorld {
   text: string;
   mtime: number;
-  status: string | undefined;
   reads: number;
   writes: string[];
   baks: string[];
@@ -42,15 +25,14 @@ interface SetupWorld {
  * Wire up the engine mocks shared by the reload tests.
  * @param $  - The test engine interface.
  * @param on - The test hook registrar.
- * @returns  A mutable world object recording reads, writes, snapshots, and status.
+ * @returns  A mutable world object recording reads, writes, and snapshots.
  */
 function setup($: any, on: any): SetupWorld {
   const clock = mock.clock(on, { now: 1_000_000 });
   mock.env(on, { HOME: '/h' });
   const w: SetupWorld = {
-    text: JSON.stringify(withStatusline(true)),
+    text: JSON.stringify(defaultConfig),
     mtime: 1,
-    status: undefined,
     reads: 0,
     writes: [],
     baks: [],
@@ -115,34 +97,30 @@ function setup($: any, on: any): SetupWorld {
         value: { context: { tokens: 1, percent: 5 }, rateLimits: [], startedAt: 0 },
       }) as any
   );
-  on('ui.status', async (_$: any, e: any) => {
-    w.status = e.text;
-    return { value: undefined } as any;
-  });
   w.clock = clock;
   return w;
 }
 
-test('tick reloads config when the file mtime changes', async ($, on) => {
+test('tick reloads config only when the file mtime changes', async ($, on) => {
   const w = setup($, on);
   await $.session.start({ cwd: '', surface: 'terminal', isInteractive: true });
-  expect(w.status).toContain('v1.2.3');
-  w.text = JSON.stringify(withStatusline(false));
+  await w.clock.advance(2100); // settle: first stat may load the config
+  const settled = w.reads;
   await w.clock.advance(2100); // same mtime: no reload
-  expect(w.status).toContain('v1.2.3');
+  expect(w.reads).toBe(settled);
   w.mtime = 2;
   await w.clock.advance(2100);
-  expect(w.status).toBeUndefined();
+  expect(w.reads).toBeGreaterThan(settled);
 });
 
 test('/ccstatus reload forces a re-read', async ($, on) => {
   const w = setup($, on);
   await $.session.start({ cwd: '', surface: 'terminal', isInteractive: true });
-  w.text = JSON.stringify(withStatusline(false)); // mtime unchanged
+  await w.clock.advance(2100); // settle
+  const before = w.reads; // mtime stays unchanged from here
   const r = await $.command.run({ command: 'ccstatus', args: 'reload' } as any);
   expect(r.text).toContain('reload');
-  await w.clock.advance(2100);
-  expect(w.status).toBeUndefined();
+  expect(w.reads).toBeGreaterThan(before);
 });
 
 test('/ccstatus theme <name> writes the config back atomically (temp + mv, .bak kept)', async ($, on) => {
@@ -159,7 +137,7 @@ test('/ccstatus theme <name> writes the config back atomically (temp + mv, .bak 
   const bad = await $.command.run({ command: 'ccstatus', args: 'theme nope-x' } as any);
   expect(bad.text).toContain('unknown');
   const edit = await $.command.run({ command: 'ccstatus', args: 'edit' } as any);
-  expect(edit.text).toContain('npx ccstatus');
+  expect(edit.text).toContain('npx @sushant-kum/ccstatus');
 });
 
 test('a config with problems surfaces a warning toast on reload', async ($, on) => {

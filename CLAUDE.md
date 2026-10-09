@@ -15,8 +15,9 @@ npm-workspaces monorepo, three units:
 
 - **`packages/core`** (`@ccstatus/core`, private) — pure TS + zod. The single source of truth for _how the bar looks_.
 - **`plugin/`** — the `ccstatus` Claude Code mod (plugin of function hooks). Publishable via a marketplace.
-- **`packages/tui`** (npm package `ccstatus`) — the `npx ccstatus` Ink configurator. Published to npm
-  under the unscoped name `ccstatus` with core bundled in (see [DEC-0010](./docs/DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-private-bundled-core-committed-plugin-bundle)).
+- **`packages/tui`** (npm package `@sushant-kum/ccstatus`) — the `npx @sushant-kum/ccstatus` Ink configurator.
+  Published to npm under the **scoped** name `@sushant-kum/ccstatus` (unscoped `ccstatus` is blocked by npm — too
+  similar to `cc-status`) with core bundled in (see [DEC-0010](./docs/DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-private-bundled-core-committed-plugin-bundle) and [DEC-0014](./docs/DECISION.md#dec-0014--publish-the-tui-under-the-scoped-name-sushant-kumccstatus)).
 
 Design docs and the task-by-task implementation plans live under `docs/superpowers/{specs,plans}/`.
 
@@ -34,9 +35,9 @@ npm test -w @ccstatus/core -- render          # a single file/pattern
 npm run typecheck -w @ccstatus/core
 
 # tui (vitest + ink-testing-library)
-npm test -w ccstatus
-npm run typecheck -w ccstatus
-npm run build -w ccstatus                     # emits packages/tui/dist/index.js (the `ccstatus` bin, shebang'd)
+npm test -w @sushant-kum/ccstatus
+npm run typecheck -w @sushant-kum/ccstatus
+npm run build -w @sushant-kum/ccstatus        # emits packages/tui/dist/index.js (the `ccstatus` bin, shebang'd)
 
 # plugin (the mod) — NOT vitest; uses the claude CLI + claude-code/testing
 npm run build:plugin-core                     # REQUIRED after any core change: bundles core into plugin/hooks/core.js
@@ -83,11 +84,20 @@ invalid items/colors with warnings. Both hosts rely on this — the mod falls ba
 `saveConfigFile` **always rounds the in-memory config through `loadConfig` before writing** (atomic temp+rename, with
 a `.bak`), so the TUI can never persist an invalid config. See [DEC-0004](./docs/DECISION.md#dec-0004--config-is-external-shared-json-at-the-xdg-path) and [FLOW-0002](./docs/FLOW.md#flow-0002--config-edit--shared-file--mod-reload).
 
-**Color-name gotcha.** Core uses chalk/mod-style color names (`brightYellow`, `bgBrightYellow`). The mod's own
-elements accept these directly. **Ink/chalk (the TUI) do not** — they need `yellowBright` order and base bg names, so
-the TUI maps them in `packages/tui/src/paint.tsx` (`inkColor`/`inkBg`). Any TUI code that paints core colors must go
-through those mappers, or bright colors render uncolored. **Exception:** `brightGray`/`bgBrightGray` render uncolored
-even _through_ the mappers — Ink/chalk have `gray`/`bgGray` but no `grayBright`/`bgGrayBright`. See [DEC-0005](./docs/DECISION.md#dec-0005--named-terminal-colors-only-in-v1-no-hex).
+**Color-name gotcha.** Core uses chalk/mod-style color names (`brightYellow`, `bgBrightYellow`). **Ink/chalk do not
+accept them** — they need `yellowBright` order and base bg names — and the mod engine's `Text` is **Ink's too** (the
+band/pane originally skipped the mapping, which was the colour bug). Both hosts therefore map through the core
+helpers `rendererColor`/`rendererBg` (`packages/core/src/renderer-colors.ts`; the TUI via `packages/tui/src/paint.tsx`
+`inkColor`/`inkBg`). Any code that paints core colors with an Ink-based `Text` must go through them, or bright colors
+render uncolored. **Exception:** `brightGray`/`bgBrightGray` render uncolored even _through_ the mappers —
+Ink/chalk have `gray`/`bgGray` but no `grayBright`/`bgGrayBright`. See [DEC-0005](./docs/DECISION.md#dec-0005--named-terminal-colors-only-in-v1-no-hex) and [DEC-0013](./docs/DECISION.md#dec-0013--status-line-is-rendered-by-a-native-settingsjson-command-not-the-mod).
+
+**Native status line.** The status line is **not** drawn by the mod (`$.ui.status` is plain text and can't colour; the
+mod no longer calls it). Instead `npx @sushant-kum/ccstatus statusline` (`packages/tui/src/statusline-cmd.ts`, dispatched from
+`packages/tui/src/index.tsx`) reads `config.json` + `snapshot.json` and prints `toAnsi(render(..., surface:'statusline'))`,
+and the TUI writes/removes the `settings.json` `statusLine` block (`statusline-setup.ts`, `screens/statusline.tsx`:
+opt-in, User-vs-Project scope, backup + confirm before replacing a different one). It prints nothing without a live
+snapshot and always exits 0. See [DEC-0013](./docs/DECISION.md#dec-0013--status-line-is-rendered-by-a-native-settingsjson-command-not-the-mod) and [FLOW-0007](./docs/FLOW.md#flow-0007--native-status-line-render-path).
 
 **Snapshot handoff.** The mod gathers a live `Snapshot` (`$.session` + git) on a 2s clock and writes it to
 `~/.config/ccstatus/snapshot.json`; the TUI's `readSnapshot` reads it for the preview, falling back to a bundled

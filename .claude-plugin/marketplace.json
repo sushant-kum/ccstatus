@@ -9,7 +9,7 @@
     {
       "name": "ccstatus",
       "source": "./plugin",
-      "description": "A configurable status bar for Claude Code; configure it with npx ccstatus or /ccstatus.",
+      "description": "A configurable status bar for Claude Code; configure it with npx @sushant-kum/ccstatus or /ccstatus.",
       "version": "0.1.0",
       "author": { "name": "Sushant Kumar", "url": "https://github.com/sushant-kum" },
       "homepage": "https://github.com/sushant-kum/ccstatus",
