@@ -153,7 +153,7 @@ rather than silently falling back to defaults.
 ## FLOW-0002 — Config edit → shared file → mod reload
 
 - **Scope:** tui | plugin
-- **Trigger:** the user edits and saves config in `npx ccstatus` (or hand-edits
+- **Trigger:** the user edits and saves config in `npx @sushant-kum/ccstatus` (or hand-edits
   `~/.config/ccstatus/config.json`).
 - **Outcome:** the running mod picks up the new config and repaints within one tick.
 - **Last verified:** 2026-10-04
@@ -259,25 +259,25 @@ See [DEC-0010](./DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-privat
 
 - **Scope:** repo-wide
 - **Trigger:** cutting a public release of ccstatus (manual; not automated in v1).
-- **Outcome:** `npx ccstatus` installs the TUI from npm; `claude plugin marketplace add sushant-kum/ccstatus` + install adds the mod.
-- **Last verified:** 2026-10-05
-- **Related:** DEC-0010, [FLOW-0003](#flow-0003--bundle-core-into-the-plugin)
+- **Outcome:** `npx @sushant-kum/ccstatus` installs the TUI from npm; `claude plugin marketplace add sushant-kum/ccstatus` + install adds the mod.
+- **Last verified:** 2026-10-09
+- **Related:** DEC-0010, [DEC-0014](./DECISION.md#dec-0014--publish-the-tui-under-the-scoped-name-sushant-kumccstatus), [FLOW-0003](#flow-0003--bundle-core-into-the-plugin)
 
 ### Steps
 
 1. Ensure the core bundle is current: `npm run build:plugin-core` (CI also gates
    this via `git diff --exit-code`). Commit if it changed.
-2. Verify green: `npm test -w @ccstatus/core`, `npm test -w ccstatus`,
-   `npm run build -w ccstatus`, and — with the **preview** claude build —
+2. Verify green: `npm test -w @ccstatus/core`, `npm test -w @sushant-kum/ccstatus`,
+   `npm run build -w @sushant-kum/ccstatus`, and — with the **preview** claude build —
    `claude plugin validate plugin` + `claude plugin test plugin`. CI cannot run
    those two: the public npm `@anthropic-ai/claude-code` doesn't understand the
    function-hooks (`modules`) format (it errors on the hooks shape and warns on
    `types`), so the CI `plugin` job runs `node scripts/check-plugin.mjs`
    (structural: manifest, hooks modules, committed bundle, marketplace entry) instead.
 3. **TUI → npm:** bump `packages/tui/package.json` `version`, then
-   `npm publish -w ccstatus` (the package is unscoped + `publishConfig.access:
-public`; core is bundled, so no private dependency is fetched). Requires npm
-   auth — **not performed in Phase 4.**
+   `npm publish -w @sushant-kum/ccstatus` (scoped public — `publishConfig.access:
+public`, add `--access public` if npm asks; core is bundled, so no private
+   dependency is fetched). Requires npm auth.
 4. **Mod → marketplace:** bump the `version` in `plugin/.claude-plugin/plugin.json`
    and `.claude-plugin/marketplace.json`, tag/release the repo. Users then run
    `claude plugin marketplace add sushant-kum/ccstatus` and
@@ -297,7 +297,7 @@ public`; core is bundled, so no private dependency is fetched). Requires npm
 ## FLOW-0005 — TUI first-run mod detection & install
 
 - **Scope:** tui
-- **Trigger:** `npx ccstatus` launch.
+- **Trigger:** `npx @sushant-kum/ccstatus` launch.
 - **Outcome:** when the mod is absent the user is told and can install it with one keypress.
 - **Last verified:** 2026-10-05
 - **Related:** DEC-0011, [FLOW-0002](#flow-0002--config-edit--shared-file--mod-reload)
@@ -363,8 +363,8 @@ public`; core is bundled, so no private dependency is fetched). Requires npm
 - **Scope:** tui | plugin
 - **Trigger:** Claude Code repaints its status line and runs the configured `statusLine` command; separately, the user enables the status line from the TUI.
 - **Outcome:** the status line shows the configured bar in colour (ANSI), rendered by the same `core.render` as every other surface.
-- **Last verified:** 2026-10-07
-- **Related:** [DEC-0013](./DECISION.md#dec-0013--status-line-is-rendered-by-a-native-settingsjson-command-not-the-mod), [DEC-0002](./DECISION.md#dec-0002--shared-pure-core-mod-and-tui-are-thin-painters), [FLOW-0002](#flow-0002--config-edit--shared-file--mod-reload), [spec](./superpowers/specs/2026-10-07-ccstatus-statusline-command-design.md)
+- **Last verified:** 2026-10-09
+- **Related:** [DEC-0013](./DECISION.md#dec-0013--status-line-is-rendered-by-a-native-settingsjson-command-not-the-mod), [DEC-0014](./DECISION.md#dec-0014--publish-the-tui-under-the-scoped-name-sushant-kumccstatus), [DEC-0002](./DECISION.md#dec-0002--shared-pure-core-mod-and-tui-are-thin-painters), [FLOW-0002](#flow-0002--config-edit--shared-file--mod-reload), [spec](./superpowers/specs/2026-10-07-ccstatus-statusline-command-design.md)
 
 ### Participants
 
@@ -381,7 +381,7 @@ public`; core is bundled, so no private dependency is fetched). Requires npm
 
 **Render (every repaint):**
 
-1. Claude Code runs the `statusLine` command `npx ccstatus statusline`.
+1. Claude Code runs the `statusLine` command `npx @sushant-kum/ccstatus statusline`.
 2. `runStatusline` loads `config.json` (via `loadConfig`, never throws) and `snapshot.json`.
 3. If the snapshot is live and the `statusline` surface is enabled, it renders `toAnsi(render(config, snapshot, { surface: 'statusline', width }))` (width = `snapshot.terminalWidth`, else 200).
 4. The ANSI string is written to stdout; Claude Code paints it in colour.
@@ -391,7 +391,7 @@ public`; core is bundled, so no private dependency is fetched). Requires npm
 1. The user opens the status-line screen and picks a scope, User or Project.
 2. `detectStatusline` classifies the existing block: `ours`, `absent`, `other` or `unknown`.
 3. For `other` (a different `statusLine`), the TUI backs up the settings file and asks for confirmation before replacing it.
-4. `enableStatusline` merges `{ type: 'command', command: 'npx ccstatus statusline', padding: 0 }` into the settings, preserving every other key. Disable removes only our block.
+4. `enableStatusline` merges `{ type: 'command', command: 'npx @sushant-kum/ccstatus statusline', padding: 0 }` into the settings, preserving every other key. Disable removes only our block.
 
 ### Branches & failure modes
 

@@ -10,7 +10,7 @@ const BUILD_TIMEOUT_MS = 120_000;
 describe('ccstatus statusline bin', () => {
   beforeAll(() => {
     // Always rebuild so the test never runs against a stale or missing dist/.
-    execFileSync('npm', ['run', 'build', '-w', 'ccstatus'], {
+    execFileSync('npm', ['run', 'build', '-w', '@sushant-kum/ccstatus'], {
       cwd: repoRoot,
       stdio: 'ignore',
       timeout: BUILD_TIMEOUT_MS,

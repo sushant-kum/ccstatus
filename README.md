@@ -30,13 +30,13 @@ cover the rest.
 ### 2. The configurator (edits the config)
 
 ```bash
-npx ccstatus
+npx @sushant-kum/ccstatus
 ```
 
 An interactive TUI with a live band preview on every screen. Changes are saved
 to the shared config file and the running mod hot-reloads them.
 
-On launch, `npx ccstatus` checks whether the mod is installed; if it isn't, it
+On launch, `npx @sushant-kum/ccstatus` checks whether the mod is installed; if it isn't, it
 shows a banner and offers to install it for you (press `i`). A successful install
 takes effect after you restart Claude Code or run `/reload-plugins`.
 
@@ -65,14 +65,14 @@ _A demo gif will be added here (`docs/demo.gif`)._
 
 ## Development
 
-npm-workspaces monorepo: `@ccstatus/core` (pure engine), `ccstatus` (the TUI
-bin), and `plugin/` (the mod). See [`CLAUDE.md`](./CLAUDE.md) and the
+npm-workspaces monorepo: `@ccstatus/core` (pure engine), `@sushant-kum/ccstatus` (the
+TUI bin), and `plugin/` (the mod). See [`CLAUDE.md`](./CLAUDE.md) and the
 decision/flow records under [`docs/`](./docs).
 
 ```bash
 npm install
 npm test -w @ccstatus/core
-npm test -w ccstatus
+npm test -w @sushant-kum/ccstatus
 npm run build:plugin-core && claude plugin test plugin
 ```
 

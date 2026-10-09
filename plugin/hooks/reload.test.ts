@@ -137,7 +137,7 @@ test('/ccstatus theme <name> writes the config back atomically (temp + mv, .bak 
   const bad = await $.command.run({ command: 'ccstatus', args: 'theme nope-x' } as any);
   expect(bad.text).toContain('unknown');
   const edit = await $.command.run({ command: 'ccstatus', args: 'edit' } as any);
-  expect(edit.text).toContain('npx ccstatus');
+  expect(edit.text).toContain('npx @sushant-kum/ccstatus');
 });
 
 test('a config with problems surfaces a warning toast on reload', async ($, on) => {

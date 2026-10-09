@@ -81,7 +81,7 @@ async function reloadConfig($: EngineInterface, force: boolean): Promise<boolean
     if (warnings.length) {
       try {
         await $.ui.toast(
-          `ccstatus: config had ${warnings.length} problem(s); using defaults where needed — run \`npx ccstatus\` to fix`
+          `ccstatus: config had ${warnings.length} problem(s); using defaults where needed — run \`npx @sushant-kum/ccstatus\` to fix`
         );
       } catch {
         /* guarded: never throw from a reload */
@@ -392,7 +392,9 @@ export const register: Register = (on) => {
       }
       if (sub === 'edit') {
         return {
-          text: 'Edit your layout with the ccstatus editor: run `npx ccstatus` in a terminal. Changes are picked up automatically.',
+          text:
+            'Edit your layout with the ccstatus editor: run `npx @sushant-kum/ccstatus` in a terminal. ' +
+            'Changes are picked up automatically.',
         };
       }
       const now = !(await read($, visible));

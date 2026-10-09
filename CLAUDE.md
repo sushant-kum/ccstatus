@@ -15,8 +15,9 @@ npm-workspaces monorepo, three units:
 
 - **`packages/core`** (`@ccstatus/core`, private) — pure TS + zod. The single source of truth for _how the bar looks_.
 - **`plugin/`** — the `ccstatus` Claude Code mod (plugin of function hooks). Publishable via a marketplace.
-- **`packages/tui`** (npm package `ccstatus`) — the `npx ccstatus` Ink configurator. Published to npm
-  under the unscoped name `ccstatus` with core bundled in (see [DEC-0010](./docs/DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-private-bundled-core-committed-plugin-bundle)).
+- **`packages/tui`** (npm package `@sushant-kum/ccstatus`) — the `npx @sushant-kum/ccstatus` Ink configurator.
+  Published to npm under the **scoped** name `@sushant-kum/ccstatus` (unscoped `ccstatus` is blocked by npm — too
+  similar to `cc-status`) with core bundled in (see [DEC-0010](./docs/DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-private-bundled-core-committed-plugin-bundle) and [DEC-0014](./docs/DECISION.md#dec-0014--publish-the-tui-under-the-scoped-name-sushant-kumccstatus)).
 
 Design docs and the task-by-task implementation plans live under `docs/superpowers/{specs,plans}/`.
 
@@ -34,9 +35,9 @@ npm test -w @ccstatus/core -- render          # a single file/pattern
 npm run typecheck -w @ccstatus/core
 
 # tui (vitest + ink-testing-library)
-npm test -w ccstatus
-npm run typecheck -w ccstatus
-npm run build -w ccstatus                     # emits packages/tui/dist/index.js (the `ccstatus` bin, shebang'd)
+npm test -w @sushant-kum/ccstatus
+npm run typecheck -w @sushant-kum/ccstatus
+npm run build -w @sushant-kum/ccstatus        # emits packages/tui/dist/index.js (the `ccstatus` bin, shebang'd)
 
 # plugin (the mod) — NOT vitest; uses the claude CLI + claude-code/testing
 npm run build:plugin-core                     # REQUIRED after any core change: bundles core into plugin/hooks/core.js
@@ -92,7 +93,7 @@ render uncolored. **Exception:** `brightGray`/`bgBrightGray` render uncolored ev
 Ink/chalk have `gray`/`bgGray` but no `grayBright`/`bgGrayBright`. See [DEC-0005](./docs/DECISION.md#dec-0005--named-terminal-colors-only-in-v1-no-hex) and [DEC-0013](./docs/DECISION.md#dec-0013--status-line-is-rendered-by-a-native-settingsjson-command-not-the-mod).
 
 **Native status line.** The status line is **not** drawn by the mod (`$.ui.status` is plain text and can't colour; the
-mod no longer calls it). Instead `ccstatus statusline` (`packages/tui/src/statusline-cmd.ts`, dispatched from
+mod no longer calls it). Instead `npx @sushant-kum/ccstatus statusline` (`packages/tui/src/statusline-cmd.ts`, dispatched from
 `packages/tui/src/index.tsx`) reads `config.json` + `snapshot.json` and prints `toAnsi(render(..., surface:'statusline'))`,
 and the TUI writes/removes the `settings.json` `statusLine` block (`statusline-setup.ts`, `screens/statusline.tsx`:
 opt-in, User-vs-Project scope, backup + confirm before replacing a different one). It prints nothing without a live

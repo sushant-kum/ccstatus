@@ -42,9 +42,9 @@ jobs:
       - run: npm test -w @ccstatus/core
 
       # tui (published as `ccstatus`)
-      - run: npm run typecheck -w ccstatus
-      - run: npm test -w ccstatus
-      - run: npm run build -w ccstatus
+      - run: npm run typecheck -w @sushant-kum/ccstatus
+      - run: npm test -w @sushant-kum/ccstatus
+      - run: npm run build -w @sushant-kum/ccstatus
 
       # plugin core bundle must be committed AND current
       - name: Core bundle is fresh

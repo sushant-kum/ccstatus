@@ -34,7 +34,7 @@ export interface SettingsWriteResult {
   message: string;
 }
 
-export const STATUSLINE_COMMAND = 'npx ccstatus statusline';
+export const STATUSLINE_COMMAND = 'npx @sushant-kum/ccstatus statusline';
 
 /**
  * Resolves the settings.json path for the given scope.
