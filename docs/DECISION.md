@@ -63,6 +63,7 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0012 | 2026-10-05 | Adopt an arant-design-inspired lint/format/quality toolchain                         | Accepted | repo-wide      |
 | DEC-0013 | 2026-10-07 | Status line is rendered by a native settings.json command, not the mod               | Accepted | repo-wide      |
 | DEC-0014 | 2026-10-09 | Publish the TUI under the scoped name `@sushant-kum/ccstatus`                        | Accepted | repo-wide      |
+| DEC-0015 | 2026-10-11 | ccstatusline widget parity: ported set and deferred set                              | Accepted | core \| plugin |
 
 ---
 
@@ -673,3 +674,56 @@ DEC-0013's status-line command string.
   all keep the `ccstatus` name.
 - Publishing a scoped public package needs `--access public` (already in the TUI's
   `publishConfig`).
+
+## DEC-0015 — ccstatusline widget parity: ported set and deferred set
+
+- **Date:** 2026-10-11
+- **Status:** Accepted
+- **Scope:** core | plugin
+- **Related:** [DEC-0002](#dec-0002--shared-pure-core-mod-and-tui-are-thin-painters), [DEC-0008](#dec-0008--config-items-are-a-discriminated-union-keyed-on-type), [spec](./superpowers/specs/2026-10-11-ccstatusline-widget-parity-design.md)
+
+### Context
+
+ccstatusline ships far more widgets than ccstatus. The importer used to drop
+unsupported types with one blanket reason, and the mod cannot source every
+datum those widgets need (it has `$.session` and git, nothing else).
+
+### Decision
+
+Port every ccstatusline widget whose data the mod can already source; defer the rest.
+
+- **Added (15):** usage/limit splits (`session-usage`, `weekly-usage`,
+  `reset-timer`, `weekly-reset-timer`); context (`context-bar`,
+  `context-remaining`, `context-window`); `thinking-effort`; git
+  (`git-insertions`, `git-deletions`, `git-sha`); `session-id`;
+  `session-cost-rate`; `output-style`; `terminal-width`.
+- **Snapshot:** four new fields (`sessionId`, `ctxWindow`, `gitSha`,
+  `outputStyle`). The previously dormant `cost` and `terminalWidth` fields are now
+  wired through `buildSnapshot` and `register.tsx`.
+- **Deferred (not implemented; the mod cannot source the data):**
+  - `worktree-*` — no `$.session` worktree object (`git-worktree` already covers git).
+  - Anthropic usage API: `weekly-sonnet-usage`, `weekly-opus-usage`,
+    `fable-weekly-usage`, `extra-usage-*`.
+  - Transcript parsing: `*-speed`, `cache-hit-rate`/`cache-read`/`cache-write`,
+    `compaction-counter`, `skills`, `session-name`.
+  - Deeper git: staged/unstaged/untracked, ahead-behind, conflicts, `origin-*`,
+    `upstream-*`, `is-fork`, `review`, `ci-status`.
+  - `jj-*` (Jujutsu).
+  - OS/network/config: `free-memory`, `claude-status`, `claude-account-email`, `cache-timer`.
+  - Engine state: `vim-mode`, `voice-status`, `sandbox-status`, `remote-control-status`.
+- **Importer:** `import-ccstatusline.ts` maps every supported type and drops the
+  rest with a specific "needs X" reason, replacing the blanket drop.
+
+### Alternatives considered
+
+- **Port everything with stubs that render nothing** — misleading in the TUI
+  picker; rejected in favour of explicit, reasoned drops.
+- **Add transcript/API readers to the mod now** — new I/O surface, auth and
+  failure modes; deferred until there is demand.
+
+### Consequences
+
+- New widgets are a `register(...)` in core and appear in the TUI picker automatically.
+- Core changed, so the plugin bundle must be regenerated (`npm run build:plugin-core`).
+- Un-deferring a group means sourcing its data in the mod first, then
+  registering the widget and updating the importer's reason table.
