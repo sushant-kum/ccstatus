@@ -34,7 +34,10 @@ const GIT =
   'm=$(printf "%s\\n" "$s"|grep -cE "^(M.|.M)");' +
   'd=$(printf "%s\\n" "$s"|grep -cE "^(D.|.D)");' +
   'h=$(git rev-parse --short HEAD 2>/dev/null);' +
-  'printf "YES\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s" "$(basename "$r")" "$b" "$w" "$a" "$m" "$d" "$h"';
+  'ns=$(git diff --numstat 2>/dev/null;git diff --cached --numstat 2>/dev/null);' +
+  'il=$(printf "%s\\n" "$ns"|awk \'{if($1!="-")i+=$1}END{print i+0}\');' +
+  'dl=$(printf "%s\\n" "$ns"|awk \'{if($2!="-")d+=$2}END{print d+0}\');' +
+  'printf "YES\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s" "$(basename "$r")" "$b" "$w" "$a" "$m" "$d" "$h" "$il" "$dl"';
 
 /**
  * Resolve the config file path using the engine's environment.

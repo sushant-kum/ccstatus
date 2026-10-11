@@ -18,6 +18,8 @@ const base: Snapshot = {
   added: 1,
   modified: 2,
   deleted: 0,
+  insertions: 124,
+  deletions: 37,
   ctxTokens: 0,
   ctxPct: 0,
   cached: 0,
@@ -69,8 +71,8 @@ test('worktree omits when empty', () => {
 });
 
 test('git-insertions/deletions show counts in a repo', () => {
-  expect(fmt('git-insertions', base)).toBe('+1');
-  expect(fmt('git-deletions', base)).toBe('-0');
+  expect(fmt('git-insertions', base)).toBe('+124');
+  expect(fmt('git-deletions', base)).toBe('-37');
 });
 
 test('git-insertions/deletions omit when not in a repo', () => {

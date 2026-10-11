@@ -11,6 +11,8 @@ const NUMBER_FIELDS = [
   'added',
   'modified',
   'deleted',
+  'insertions',
+  'deletions',
   'ctxTokens',
   'ctxPct',
   'cached',

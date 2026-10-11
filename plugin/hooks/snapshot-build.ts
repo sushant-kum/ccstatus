@@ -71,6 +71,8 @@ export function buildSnapshot(raw: {
     added: raw.git.added,
     modified: raw.git.modified,
     deleted: raw.git.deleted,
+    insertions: raw.git.insertions,
+    deletions: raw.git.deletions,
     ctxTokens: u.ctxTokens,
     ctxPct: u.ctxPct,
     cached: u.cached,

@@ -697,8 +697,11 @@ Port every ccstatusline widget whose data the mod can already source; defer the 
   `context-remaining`, `context-window`); `thinking-effort`; git
   (`git-insertions`, `git-deletions`, `git-sha`); `session-id`;
   `session-cost-rate`; `output-style`; `terminal-width`.
-- **Snapshot:** four new fields (`sessionId`, `ctxWindow`, `gitSha`,
-  `outputStyle`). The previously dormant `cost` and `terminalWidth` fields are now
+- **Line counts:** `git-insertions`/`git-deletions` report true line counts
+  (`insertions`/`deletions` snapshot fields from `git diff --numstat`, staged +
+  unstaged), distinct from the file counts (`added`/`modified`/`deleted`) shown by `git-changes`.
+- **Snapshot:** six new fields (`sessionId`, `ctxWindow`, `gitSha`,
+  `outputStyle`, `insertions`, `deletions`). The previously dormant `cost` and `terminalWidth` fields are now
   wired through `buildSnapshot` and `register.tsx`.
 - **Deferred (not implemented; the mod cannot source the data):**
   - `worktree-*` — no `$.session` worktree object (`git-worktree` already covers git).

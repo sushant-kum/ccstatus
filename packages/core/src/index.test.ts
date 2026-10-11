@@ -33,6 +33,8 @@ test('end-to-end: default config renders a band to ANSI', () => {
       added: 0,
       modified: 0,
       deleted: 0,
+      insertions: 0,
+      deletions: 0,
       ctxTokens: 1000,
       ctxPct: 5,
       cached: 0,

@@ -25,12 +25,12 @@ register({
 register({
   type: 'git-insertions',
   label: 'Insertions',
-  format: ({ snapshot }) => (snapshot.repo ? `+${snapshot.added}` : null),
+  format: ({ snapshot }) => (snapshot.repo ? `+${snapshot.insertions}` : null),
 });
 register({
   type: 'git-deletions',
   label: 'Deletions',
-  format: ({ snapshot }) => (snapshot.repo ? `-${snapshot.deleted}` : null),
+  format: ({ snapshot }) => (snapshot.repo ? `-${snapshot.deletions}` : null),
 });
 register({
   type: 'git-sha',

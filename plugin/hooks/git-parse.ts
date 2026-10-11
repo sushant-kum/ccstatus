@@ -6,6 +6,8 @@ export interface GitFields {
   added: number;
   modified: number;
   deleted: number;
+  insertions: number;
+  deletions: number;
   sha: string;
 }
 
@@ -17,6 +19,8 @@ const none: GitFields = {
   added: 0,
   modified: 0,
   deleted: 0,
+  insertions: 0,
+  deletions: 0,
   sha: '',
 };
 
@@ -39,5 +43,7 @@ export function parseGit(stdout: string): GitFields {
     modified: Number(t[5]) || 0,
     deleted: Number(t[6]) || 0,
     sha: t[7] ?? '',
+    insertions: Number(t[8]) || 0,
+    deletions: Number(t[9]) || 0,
   };
 }

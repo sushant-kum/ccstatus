@@ -16,6 +16,8 @@ const snap: Snapshot = {
   added: 0,
   modified: 0,
   deleted: 0,
+  insertions: 0,
+  deletions: 0,
   ctxTokens: 42000,
   ctxPct: 21,
   cached: 0,

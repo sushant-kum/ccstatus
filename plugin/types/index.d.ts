@@ -13,6 +13,8 @@ export interface CcstatusSnapshot {
   added: number;
   modified: number;
   deleted: number;
+  insertions: number;
+  deletions: number;
   ctxTokens: number;
   ctxPct: number;
   cached: number;
@@ -27,11 +29,11 @@ export interface CcstatusSnapshot {
   weekReset: string | null;
   blockReset: string | null;
   terminalWidth: number;
+  now: number;
   sessionId: string;
   ctxWindow: number;
   gitSha: string;
   outputStyle: string | null;
-  now: number;
 }
 
 declare module 'claude-code' {

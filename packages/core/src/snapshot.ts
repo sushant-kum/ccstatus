@@ -10,6 +10,8 @@ export interface Snapshot {
   added: number;
   modified: number;
   deleted: number;
+  insertions: number;
+  deletions: number;
   ctxTokens: number;
   ctxPct: number;
   cached: number;

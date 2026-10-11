@@ -12,6 +12,8 @@ test('parseGit reads the tab line', () => {
     added: 1,
     modified: 2,
     deleted: 3,
+    insertions: 0,
+    deletions: 0,
     sha: '',
   });
 });
@@ -24,6 +26,8 @@ test('parseGit handles no-repo', () => {
     added: 0,
     modified: 0,
     deleted: 0,
+    insertions: 0,
+    deletions: 0,
     sha: '',
   });
 });
@@ -36,6 +40,8 @@ test('buildSnapshot assembles totals and handles null usage', () => {
     added: 0,
     modified: 0,
     deleted: 0,
+    insertions: 0,
+    deletions: 0,
     sha: '',
   };
   const s = buildSnapshot({
@@ -65,6 +71,8 @@ test('buildSnapshot computes total from usage', () => {
     added: 0,
     modified: 0,
     deleted: 0,
+    insertions: 0,
+    deletions: 0,
     sha: '',
   };
   const usage = {
@@ -120,6 +128,8 @@ test('buildSnapshot carries sessionId, ctxWindow, gitSha, outputStyle, cost, ter
       added: 0,
       modified: 0,
       deleted: 0,
+      insertions: 0,
+      deletions: 0,
       sha: 'abc1234',
     },
     usage: {
@@ -143,4 +153,39 @@ test('buildSnapshot carries sessionId, ctxWindow, gitSha, outputStyle, cost, ter
   expect(s.cost).toBe(0.5);
   expect(s.ctxWindow).toBe(200000);
   expect(s.terminalWidth).toBe(120);
+});
+test('parseGit reads the numstat insertions/deletions columns and tolerates their absence', () => {
+  const full = parseGit('YES\troot\tmain\t\t1\t2\t3\tabc1234\t124\t37');
+  expect(full.insertions).toBe(124);
+  expect(full.deletions).toBe(37);
+  const short = parseGit('YES\troot\tmain\t\t1\t2\t3\tabc1234');
+  expect(short.insertions).toBe(0);
+  expect(short.deletions).toBe(0);
+});
+test('buildSnapshot carries insertions and deletions', () => {
+  const s = buildSnapshot({
+    version: '',
+    model: '',
+    effort: null,
+    cwd: '',
+    now: 0,
+    sessionId: '',
+    outputStyle: null,
+    terminalWidth: 0,
+    git: {
+      repo: true,
+      root: 'r',
+      branch: 'b',
+      worktree: '',
+      added: 0,
+      modified: 0,
+      deleted: 0,
+      insertions: 124,
+      deletions: 37,
+      sha: '',
+    },
+    usage: null,
+  });
+  expect(s.insertions).toBe(124);
+  expect(s.deletions).toBe(37);
 });
