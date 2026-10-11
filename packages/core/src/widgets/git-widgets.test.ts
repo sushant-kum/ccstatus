@@ -63,3 +63,14 @@ test('git widgets omit when not in a repo', () => {
 test('worktree omits when empty', () => {
   expect(fmt('git-worktree', { ...base, gitWorktree: '' })).toBeNull();
 });
+
+test('git-insertions/deletions show counts in a repo', () => {
+  expect(fmt('git-insertions', base)).toBe('+1');
+  expect(fmt('git-deletions', base)).toBe('-0');
+});
+
+test('git-insertions/deletions omit when not in a repo', () => {
+  const noRepo = { ...base, repo: false };
+  expect(fmt('git-insertions', noRepo)).toBeNull();
+  expect(fmt('git-deletions', noRepo)).toBeNull();
+});

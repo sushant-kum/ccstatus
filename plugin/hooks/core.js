@@ -339,6 +339,21 @@ register({
     return parts[parts.length - 1] ?? snapshot.cwd;
   }
 });
+register({
+  type: "context-bar",
+  label: "Ctx Bar",
+  format: ({ snapshot }) => bar(snapshot.ctxPct)
+});
+register({
+  type: "context-remaining",
+  label: "Ctx Left",
+  format: ({ snapshot, item }) => labeled(rawOf(item), "Ctx Left", pct(100 - snapshot.ctxPct))
+});
+register({
+  type: "thinking-effort",
+  label: "Effort",
+  format: ({ snapshot, item }) => snapshot.effort ? labeled(rawOf(item), "Effort", snapshot.effort) : null
+});
 
 // packages/core/src/widgets/git-widgets.ts
 register({
@@ -360,6 +375,16 @@ register({
   type: "git-worktree",
   label: "Worktree",
   format: ({ snapshot }) => snapshot.repo && snapshot.gitWorktree ? `\u2387 ${snapshot.gitWorktree}` : null
+});
+register({
+  type: "git-insertions",
+  label: "Insertions",
+  format: ({ snapshot }) => snapshot.repo ? `+${snapshot.added}` : null
+});
+register({
+  type: "git-deletions",
+  label: "Deletions",
+  format: ({ snapshot }) => snapshot.repo ? `-${snapshot.deleted}` : null
 });
 
 // packages/core/src/widgets/usage-widgets.ts
@@ -4732,6 +4757,11 @@ var WIDGET_TYPES = [
   "weekly-usage",
   "reset-timer",
   "weekly-reset-timer",
+  "context-bar",
+  "context-remaining",
+  "thinking-effort",
+  "git-insertions",
+  "git-deletions",
   "custom-text",
   "custom-command",
   "flex-separator"

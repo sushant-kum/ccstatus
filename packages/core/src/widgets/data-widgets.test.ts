@@ -67,3 +67,23 @@ test('session-clock', () => {
 test('cwd basename', () => {
   expect(fmt('cwd')).toBe('app');
 });
+
+test('context-bar renders a bar for ctxPct', () => {
+  expect(fmt('context-bar')).toBe('█░░░░');
+});
+test('context-remaining is 100 - ctxPct', () => {
+  expect(fmt('context-remaining')).toBe('Ctx Left: 79%');
+  expect(fmt('context-remaining', { rawValue: true })).toBe('79%');
+});
+test('thinking-effort shows effort, null when absent', () => {
+  expect(fmt('thinking-effort')).toBe('Effort: high');
+  expect(fmt('thinking-effort', { rawValue: true })).toBe('high');
+  const def = registry['thinking-effort'];
+  expect(
+    def?.format({
+      snapshot: { ...snap, effort: null },
+      item: item('thinking-effort'),
+      commandOutputs: {},
+    })
+  ).toBeNull();
+});
