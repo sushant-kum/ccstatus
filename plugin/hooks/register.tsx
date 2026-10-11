@@ -485,7 +485,7 @@ export const register: Register = (on) => {
       if (!width) {
         return next(e);
       } // not measured yet: let the engine draw
-      void update($, termWidth, () => width);
+      void update($, termWidth, () => width).catch(() => undefined);
       const model = render(cfg, snap, { surface: 'band', width });
       if (model.lines.length === 0) {
         return next(e);
