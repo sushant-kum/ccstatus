@@ -4950,21 +4950,100 @@ function loadConfig(raw) {
 // packages/core/src/config/import-ccstatusline.ts
 var clone2 = (v) => JSON.parse(JSON.stringify(v));
 var TYPE_MAP = {
-  version: "version",
   model: "model",
-  "thinking-effort": "model",
+  version: "version",
+  "thinking-effort": "thinking-effort",
   "context-length": "context-length",
   "context-percentage": "context-percentage",
-  "tokens-cached": "tokens-cached",
+  "context-window": "context-window",
+  "context-bar": "context-bar",
   "tokens-input": "tokens-input",
   "tokens-output": "tokens-output",
+  "tokens-cached": "tokens-cached",
   "tokens-total": "tokens-total",
   "git-root-dir": "git-root-dir",
   "git-branch": "git-branch",
   "git-worktree": "git-worktree",
   "git-changes": "git-changes",
-  "session-clock": "session-clock"
+  "git-insertions": "git-insertions",
+  "git-deletions": "git-deletions",
+  "git-sha": "git-sha",
+  "session-clock": "session-clock",
+  "session-id": "session-id",
+  "current-working-dir": "cwd",
+  cwd: "cwd",
+  "session-cost": "cost",
+  cost: "cost",
+  "session-cost-rate": "session-cost-rate",
+  "session-usage": "session-usage",
+  "weekly-usage": "weekly-usage",
+  "reset-timer": "reset-timer",
+  "weekly-reset-timer": "weekly-reset-timer",
+  "block-timer": "block-timer",
+  "terminal-width": "terminal-width",
+  "output-style": "output-style"
 };
+var UNSUPPORTED = {
+  "weekly-sonnet-usage": "the Anthropic usage API",
+  "weekly-opus-usage": "the Anthropic usage API",
+  "fable-weekly-usage": "the Anthropic usage API",
+  "extra-usage-utilization": "the Anthropic usage API",
+  "extra-usage-remaining": "the Anthropic usage API",
+  "extra-usage-used": "the Anthropic usage API",
+  "extra-usage-daily-budget": "the Anthropic usage API",
+  "input-speed": "transcript parsing",
+  "output-speed": "transcript parsing",
+  "total-speed": "transcript parsing",
+  "cache-hit-rate": "transcript parsing",
+  "cache-read": "transcript parsing",
+  "cache-write": "transcript parsing",
+  "compaction-counter": "transcript parsing",
+  skills: "transcript parsing",
+  "session-name": "transcript parsing",
+  "cache-timer": "cache-TTL tracking not available to the mod",
+  "free-memory": "OS access not available to the mod",
+  "claude-status": "a network status fetch",
+  "claude-account-email": "local Claude config access",
+  "claude-session-id": "use session-id",
+  "vim-mode": "engine state not exposed to the mod",
+  "voice-status": "engine state not exposed to the mod",
+  "sandbox-status": "engine state not exposed to the mod",
+  "remote-control-status": "engine state not exposed to the mod",
+  "worktree-mode": "Claude Code's worktree object (use git-worktree)",
+  "worktree-name": "Claude Code's worktree object (use git-worktree)",
+  "worktree-branch": "Claude Code's worktree object (use git-worktree)",
+  "worktree-original-branch": "Claude Code's worktree object (use git-worktree)",
+  "context-percentage-usable": "usable-window data not available to the mod",
+  "context-window-size": "use context-window",
+  "git-staged-files": "a deeper git probe",
+  "git-unstaged-files": "a deeper git probe",
+  "git-untracked-files": "a deeper git probe",
+  "git-clean-status": "a deeper git probe",
+  "git-status": "a deeper git probe",
+  "git-staged": "a deeper git probe",
+  "git-unstaged": "a deeper git probe",
+  "git-untracked": "a deeper git probe",
+  "git-ahead-behind": "a deeper git probe",
+  "git-conflicts": "a deeper git probe",
+  "git-origin-owner": "a deeper git probe",
+  "git-origin-repo": "a deeper git probe",
+  "git-origin-owner-repo": "a deeper git probe",
+  "git-upstream-owner": "a deeper git probe",
+  "git-upstream-repo": "a deeper git probe",
+  "git-upstream-owner-repo": "a deeper git probe",
+  "git-is-fork": "a deeper git probe",
+  "git-review": "the gh/glab CLI",
+  "git-ci-status": "the gh/glab CLI",
+  link: "OSC8 links not yet supported"
+};
+function baseStyle(raw, idFallback) {
+  return {
+    id: String(raw["id"] ?? `${idFallback}-${Math.random().toString(36).slice(2)}`),
+    bg: typeof raw["backgroundColor"] === "string" ? raw["backgroundColor"] : void 0,
+    rawValue: raw["rawValue"] === true || void 0,
+    merge: raw["merge"] === true || void 0
+  };
+}
 function importCcstatusline(raw) {
   const warnings = [];
   if (!raw || typeof raw !== "object" || !Array.isArray(raw.lines)) {
@@ -4979,19 +5058,52 @@ function importCcstatusline(raw) {
         return [];
       }
       const srcType = String(raw2["type"]);
+      switch (srcType) {
+        case "custom-text":
+          return [
+            {
+              ...baseStyle(raw2, srcType),
+              type: "custom-text",
+              text: String(raw2["customText"] ?? "")
+            }
+          ];
+        case "custom-symbol":
+          return [
+            {
+              ...baseStyle(raw2, srcType),
+              type: "custom-text",
+              text: String(raw2["customSymbol"] ?? "")
+            }
+          ];
+        case "custom-command":
+          return [
+            {
+              ...baseStyle(raw2, srcType),
+              type: "custom-command",
+              command: String(raw2["commandPath"] ?? "")
+            }
+          ];
+        case "flex-separator":
+          return [{ id: baseStyle(raw2, srcType).id, type: "flex-separator" }];
+        case "separator":
+          warnings.push(
+            'dropped "separator" \u2014 ccstatus uses a global separator (set it on the Powerline screen)'
+          );
+          return [];
+        default:
+      }
       const type = Object.hasOwn(TYPE_MAP, srcType) ? TYPE_MAP[srcType] : void 0;
-      if (!type) {
-        warnings.push(`dropped unmapped ccstatusline item "${srcType}"`);
+      if (type) {
+        return [{ ...baseStyle(raw2, type), type }];
+      }
+      if (Object.hasOwn(UNSUPPORTED, srcType)) {
+        warnings.push(
+          `dropped "${srcType}" \u2014 needs ${UNSUPPORTED[srcType]}, not available to the mod`
+        );
         return [];
       }
-      const mapped = {
-        id: String(raw2["id"] ?? `${type}-${Math.random().toString(36).slice(2)}`),
-        type,
-        bg: typeof raw2["backgroundColor"] === "string" ? raw2["backgroundColor"] : void 0,
-        rawValue: raw2["rawValue"] === true || void 0,
-        merge: raw2["merge"] === true || void 0
-      };
-      return [mapped];
+      warnings.push(`dropped unmapped ccstatusline item "${srcType}"`);
+      return [];
     })
   );
   const draft = { version: 1, surfaces: { band: { enabled: true, lines } } };
