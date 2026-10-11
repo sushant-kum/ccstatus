@@ -119,8 +119,8 @@ router is a `switch` in `app.tsx`.
   extensions. The shared compiler options live in `tsconfig.base.json`.
 - Every widget `format(ctx)` is pure and returns `string | null` (`null` = omit the item). New widgets register into
   `core`'s widget `registry` via a side-effect import; `render.ts` imports all widget modules so the registry is
-  populated. There are ~36 widget types (ccstatusline parity); a new widget is just a `register(...)` in core and the
-  TUI picker lists it automatically. Unsupported ccstatusline widgets are enumerated with reasons in
+  populated. There are ~36 widget types (ccstatusline parity); a new widget is a `register(...)` in core plus a `WIDGET_TYPES`
+  entry (which drives validation and the picker); the TUI picker then lists it automatically. Unsupported ccstatusline widgets are enumerated with reasons in
   `import-ccstatusline.ts` (see [DEC-0015](./docs/DECISION.md#dec-0015--ccstatusline-widget-parity-ported-set-and-deferred-set)).
 - `Item` is a **discriminated union on `type`** (`DataItem` / `CustomTextItem` with `text` / `CustomCommandItem` with
   `command` / `FlexSeparatorItem` with no styling) — custom data is typed, not a `metadata` bag. `WIDGET_TYPES`

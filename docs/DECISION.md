@@ -709,13 +709,17 @@ Port every ccstatusline widget whose data the mod can already source; defer the 
     `fable-weekly-usage`, `extra-usage-*`.
   - Transcript parsing: `*-speed`, `cache-hit-rate`/`cache-read`/`cache-write`,
     `compaction-counter`, `skills`, `session-name`.
-  - Deeper git: staged/unstaged/untracked, ahead-behind, conflicts, `origin-*`,
-    `upstream-*`, `is-fork`, `review`, `ci-status`.
-  - `jj-*` (Jujutsu).
-  - OS/network/config: `free-memory`, `claude-status`, `claude-account-email`, `cache-timer`.
+  - Deeper git probe: staged/unstaged/untracked, ahead-behind, conflicts, `origin-*`,
+    `upstream-*`, `is-fork`.
+  - Needs the `gh`/`glab` CLI specifically (not the git probe): `git-review`, `git-ci-status`.
+  - Cache-TTL tracking: `cache-timer`.
+  - OS/network/config: `free-memory`, `claude-status`, `claude-account-email`.
   - Engine state: `vim-mode`, `voice-status`, `sandbox-status`, `remote-control-status`.
-- **Importer:** `import-ccstatusline.ts` maps every supported type and drops the
-  rest with a specific "needs X" reason, replacing the blanket drop.
+- **Importer:** `import-ccstatusline.ts` maps every supported type, drops
+  known-unsupported types with a specific reason, and falls back to a generic
+  `dropped unmapped ccstatusline item "..."` message for anything unrecognized
+  (e.g. `jj-*`/Jujutsu, which is not enumerated). Custom items with an empty payload
+  are dropped with a warning rather than silently omitted at render.
 
 ### Alternatives considered
 

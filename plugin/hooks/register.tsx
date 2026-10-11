@@ -408,9 +408,12 @@ export const register: Register = (on) => {
 
   on('prompt.compose', async ($, e, next) => {
     const r = await next(e);
-    const name = (e as { outputStyle?: { name?: unknown } | null }).outputStyle?.name;
-    if (typeof name === 'string' && name) {
-      await update($, outputStyle, () => name).catch(() => undefined);
+    const ev = e as { outputStyle?: { name?: unknown } | null };
+    if ('outputStyle' in ev) {
+      // Present but nameless (null/empty) means the default style: reset so a stale name does not linger.
+      const name = ev.outputStyle?.name;
+      const value = typeof name === 'string' && name ? name : null;
+      await update($, outputStyle, () => value).catch(() => undefined);
     }
     return r;
   });

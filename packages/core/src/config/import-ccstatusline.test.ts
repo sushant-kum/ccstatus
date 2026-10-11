@@ -115,3 +115,21 @@ test('drops a separator with its note', () => {
   const { warnings } = importCcstatusline({ lines: [[{ type: 'separator' }]] });
   expect(warnings.some((w) => /separator/i.test(w) && /global/i.test(w))).toBe(true);
 });
+
+test('drops custom items with a missing payload and warns', () => {
+  const { config, warnings } = importCcstatusline({
+    lines: [
+      [
+        { type: 'custom-text' },
+        { type: 'custom-symbol', customSymbol: '' },
+        { type: 'custom-command' },
+      ],
+    ],
+  });
+  expect(config.surfaces.band.lines.flat()).toHaveLength(0);
+  expect(warnings).toEqual([
+    'dropped "custom-text" — no customText value',
+    'dropped "custom-symbol" — no customSymbol value',
+    'dropped "custom-command" — no commandPath value',
+  ]);
+});

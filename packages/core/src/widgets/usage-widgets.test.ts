@@ -126,3 +126,16 @@ test('session-cost-rate: null when cost null or elapsed < 1min, else $/hr', () =
     '$1.00/hr'
   );
 });
+
+test('session-cost-rate: 60_000 ms boundary is inclusive', () => {
+  expect(fmt('session-cost-rate', { ...base, cost: 1, startedAt: 0, now: 60_000 })).toBe(
+    '$60.00/hr'
+  );
+  expect(fmt('session-cost-rate', { ...base, cost: 1, startedAt: 0, now: 59_999 })).toBeNull();
+});
+
+test('session-cost-rate: zero cost renders $0.00/hr, not null', () => {
+  expect(fmt('session-cost-rate', { ...base, cost: 0, startedAt: 0, now: 120_000 })).toBe(
+    '$0.00/hr'
+  );
+});

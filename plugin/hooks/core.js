@@ -5004,17 +5004,17 @@ var UNSUPPORTED = {
   "free-memory": "reads OS memory, not available to the mod",
   "claude-status": "needs a network status fetch, not available to the mod",
   "claude-account-email": "needs local Claude config access, not available to the mod",
-  "claude-session-id": "renamed \u2014 use the session-id widget",
+  "claude-session-id": "renamed; use the session-id widget",
   "vim-mode": "engine state not exposed to the mod",
   "voice-status": "engine state not exposed to the mod",
   "sandbox-status": "engine state not exposed to the mod",
   "remote-control-status": "engine state not exposed to the mod",
-  "worktree-mode": "needs Claude Code's worktree object \u2014 use the git-worktree widget",
-  "worktree-name": "needs Claude Code's worktree object \u2014 use the git-worktree widget",
-  "worktree-branch": "needs Claude Code's worktree object \u2014 use the git-worktree widget",
-  "worktree-original-branch": "needs Claude Code's worktree object \u2014 use the git-worktree widget",
+  "worktree-mode": "needs Claude Code's worktree object; use the git-worktree widget",
+  "worktree-name": "needs Claude Code's worktree object; use the git-worktree widget",
+  "worktree-branch": "needs Claude Code's worktree object; use the git-worktree widget",
+  "worktree-original-branch": "needs Claude Code's worktree object; use the git-worktree widget",
   "context-percentage-usable": "needs usable-window data, not available to the mod",
-  "context-window-size": "renamed \u2014 use the context-window widget",
+  "context-window-size": "renamed; use the context-window widget",
   "git-staged-files": "needs a deeper git probe, not available to the mod",
   "git-unstaged-files": "needs a deeper git probe, not available to the mod",
   "git-untracked-files": "needs a deeper git probe, not available to the mod",
@@ -5060,29 +5060,18 @@ function importCcstatusline(raw) {
       const srcType = String(raw2["type"]);
       switch (srcType) {
         case "custom-text":
-          return [
-            {
-              ...baseStyle(raw2, srcType),
-              type: "custom-text",
-              text: String(raw2["customText"] ?? "")
-            }
-          ];
         case "custom-symbol":
+        case "custom-command": {
+          const field = srcType === "custom-text" ? "customText" : srcType === "custom-symbol" ? "customSymbol" : "commandPath";
+          const payload = raw2[field];
+          if (payload === void 0 || payload === null || String(payload) === "") {
+            warnings.push(`dropped "${srcType}" \u2014 no ${field} value`);
+            return [];
+          }
           return [
-            {
-              ...baseStyle(raw2, srcType),
-              type: "custom-text",
-              text: String(raw2["customSymbol"] ?? "")
-            }
+            srcType === "custom-command" ? { ...baseStyle(raw2, srcType), type: "custom-command", command: String(payload) } : { ...baseStyle(raw2, srcType), type: "custom-text", text: String(payload) }
           ];
-        case "custom-command":
-          return [
-            {
-              ...baseStyle(raw2, srcType),
-              type: "custom-command",
-              command: String(raw2["commandPath"] ?? "")
-            }
-          ];
+        }
         case "flex-separator":
           return [{ id: baseStyle(raw2, srcType).id, type: "flex-separator" }];
         case "separator":
