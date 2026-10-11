@@ -409,6 +409,32 @@ register({
     return reset === null ? null : `Block: ${fmtDur(reset)}`;
   }
 });
+register({
+  type: "session-usage",
+  label: "Session %",
+  format: ({ snapshot }) => snapshot.fivePct === null ? null : `Session: ${pct(snapshot.fivePct)}`
+});
+register({
+  type: "weekly-usage",
+  label: "Weekly %",
+  format: ({ snapshot }) => snapshot.weekPct === null ? null : `Weekly: ${pct(snapshot.weekPct)}`
+});
+register({
+  type: "reset-timer",
+  label: "Reset",
+  format: ({ snapshot }) => {
+    const r = until(snapshot.fiveReset, snapshot.now);
+    return r === null ? null : `Reset: ${fmtDur(r)}`;
+  }
+});
+register({
+  type: "weekly-reset-timer",
+  label: "Weekly Reset",
+  format: ({ snapshot }) => {
+    const r = until(snapshot.weekReset, snapshot.now);
+    return r === null ? null : `Weekly Reset: ${fmtDur(r)}`;
+  }
+});
 
 // packages/core/src/widgets/custom-widgets.ts
 register({
@@ -4702,6 +4728,10 @@ var WIDGET_TYPES = [
   "rate-limit-5h",
   "rate-limit-week",
   "block-timer",
+  "session-usage",
+  "weekly-usage",
+  "reset-timer",
+  "weekly-reset-timer",
   "custom-text",
   "custom-command",
   "flex-separator"

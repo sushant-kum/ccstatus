@@ -4,7 +4,7 @@ import type { Item } from '../config/types.js';
 import type { Snapshot } from '../snapshot.js';
 
 import { registry } from './registry.js';
-import './usage-widgets.js';
+import { until } from './usage-widgets.js';
 
 const now = 1_000_000;
 const base: Snapshot = {
@@ -83,4 +83,32 @@ test('block-timer past', () => {
   expect(
     fmt('block-timer', { ...base, blockReset: new Date(now - 1000).toISOString() })
   ).toBeNull();
+});
+test('session-usage shows the 5h percentage, or null when unknown', () => {
+  expect(fmt('session-usage', { ...base, fivePct: 42 })).toBe('Session: 42%');
+  expect(fmt('session-usage', { ...base, fivePct: null })).toBeNull();
+});
+test('weekly-usage shows the weekly percentage, or null when unknown', () => {
+  expect(fmt('weekly-usage', { ...base, weekPct: 10 })).toBe('Weekly: 10%');
+  expect(fmt('weekly-usage', { ...base, weekPct: null })).toBeNull();
+});
+test('reset-timer shows the 5h countdown, null when absent or past', () => {
+  expect(fmt('reset-timer', base)).toBe('Reset: 1h 2m');
+  expect(fmt('reset-timer', { ...base, fiveReset: null })).toBeNull();
+  expect(fmt('reset-timer', { ...base, fiveReset: new Date(now - 1000).toISOString() })).toBeNull();
+});
+test('weekly-reset-timer shows the weekly countdown, null when absent or past', () => {
+  expect(
+    fmt('weekly-reset-timer', { ...base, weekReset: new Date(now + 3_720_000).toISOString() })
+  ).toBe('Weekly Reset: 1h 2m');
+  expect(fmt('weekly-reset-timer', base)).toBeNull();
+  expect(
+    fmt('weekly-reset-timer', { ...base, weekReset: new Date(now - 1000).toISOString() })
+  ).toBeNull();
+});
+test('until returns remaining ms, or null when unknown, invalid, or past', () => {
+  expect(until(new Date(now + 5000).toISOString(), now)).toBe(5000);
+  expect(until(null, now)).toBeNull();
+  expect(until('garbage', now)).toBeNull();
+  expect(until(new Date(now - 1).toISOString(), now)).toBeNull();
 });
