@@ -91,3 +91,40 @@ test('thinking-effort shows effort, null when absent', () => {
     })
   ).toBeNull();
 });
+
+const fmtSnap = (
+  type: Item['type'],
+  over: Partial<Snapshot>,
+  extra: Record<string, unknown> = {}
+): string | null => {
+  const def = registry[type];
+  if (!def) {
+    throw new Error(`widget "${type}" not registered`);
+  }
+  return def.format({
+    snapshot: { ...snap, ...over },
+    item: item(type, extra),
+    commandOutputs: {},
+  });
+};
+
+test('session-id shows first 8 chars, full when raw, null when empty', () => {
+  expect(fmtSnap('session-id', { sessionId: 'abcdef1234567' })).toBe('abcdef12');
+  expect(fmtSnap('session-id', { sessionId: 'abcdef1234567' }, { rawValue: true })).toBe(
+    'abcdef1234567'
+  );
+  expect(fmtSnap('session-id', { sessionId: '' })).toBeNull();
+});
+test('context-window shows the window size, null when 0', () => {
+  expect(fmtSnap('context-window', { ctxWindow: 200000 })).toBe('Window: 200k');
+  expect(fmtSnap('context-window', { ctxWindow: 200000 }, { rawValue: true })).toBe('200k');
+  expect(fmtSnap('context-window', { ctxWindow: 0 })).toBeNull();
+});
+test('output-style shows the style, null when none', () => {
+  expect(fmtSnap('output-style', { outputStyle: 'concise' })).toBe('Style: concise');
+  expect(fmtSnap('output-style', { outputStyle: null })).toBeNull();
+});
+test('terminal-width shows width when known', () => {
+  expect(fmtSnap('terminal-width', { terminalWidth: 120 })).toBe('Width: 120');
+  expect(fmtSnap('terminal-width', { terminalWidth: 0 })).toBeNull();
+});

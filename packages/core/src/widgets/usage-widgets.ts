@@ -89,3 +89,18 @@ register({
     return r === null ? null : `Weekly Reset: ${fmtDur(r)}`;
   },
 });
+
+register({
+  type: 'session-cost-rate',
+  label: 'Cost/hr',
+  format: ({ snapshot }) => {
+    if (snapshot.cost === null) {
+      return null;
+    }
+    const ms = snapshot.now - snapshot.startedAt;
+    if (ms < 60_000) {
+      return null;
+    }
+    return `$${(snapshot.cost / (ms / 3_600_000)).toFixed(2)}/hr`;
+  },
+});

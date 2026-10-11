@@ -81,3 +81,30 @@ register({
   format: ({ snapshot, item }) =>
     snapshot.effort ? labeled(rawOf(item), 'Effort', snapshot.effort) : null,
 });
+
+register({
+  type: 'session-id',
+  label: 'Session ID',
+  format: ({ snapshot, item }) =>
+    snapshot.sessionId ? (rawOf(item) ? snapshot.sessionId : snapshot.sessionId.slice(0, 8)) : null,
+});
+register({
+  type: 'context-window',
+  label: 'Ctx Window',
+  format: ({ snapshot, item }) =>
+    snapshot.ctxWindow > 0 ? labeled(rawOf(item), 'Window', fmtNum(snapshot.ctxWindow)) : null,
+});
+register({
+  type: 'output-style',
+  label: 'Style',
+  format: ({ snapshot, item }) =>
+    snapshot.outputStyle ? labeled(rawOf(item), 'Style', snapshot.outputStyle) : null,
+});
+register({
+  type: 'terminal-width',
+  label: 'Width',
+  format: ({ snapshot, item }) =>
+    snapshot.terminalWidth > 0
+      ? labeled(rawOf(item), 'Width', String(snapshot.terminalWidth))
+      : null,
+});

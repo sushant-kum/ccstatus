@@ -78,3 +78,9 @@ test('git-insertions/deletions omit when not in a repo', () => {
   expect(fmt('git-insertions', noRepo)).toBeNull();
   expect(fmt('git-deletions', noRepo)).toBeNull();
 });
+
+test('git-sha shows the sha in a repo, null otherwise', () => {
+  expect(fmt('git-sha', { ...base, gitSha: 'a1b2c3d' })).toBe('a1b2c3d');
+  expect(fmt('git-sha', { ...base, repo: false, gitSha: 'a1b2c3d' })).toBeNull();
+  expect(fmt('git-sha', { ...base, gitSha: '' })).toBeNull();
+});

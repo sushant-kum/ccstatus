@@ -32,3 +32,8 @@ register({
   label: 'Deletions',
   format: ({ snapshot }) => (snapshot.repo ? `-${snapshot.deleted}` : null),
 });
+register({
+  type: 'git-sha',
+  label: 'SHA',
+  format: ({ snapshot }) => (snapshot.repo && snapshot.gitSha ? snapshot.gitSha : null),
+});

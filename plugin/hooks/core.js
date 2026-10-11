@@ -354,6 +354,26 @@ register({
   label: "Effort",
   format: ({ snapshot, item }) => snapshot.effort ? labeled(rawOf(item), "Effort", snapshot.effort) : null
 });
+register({
+  type: "session-id",
+  label: "Session ID",
+  format: ({ snapshot, item }) => snapshot.sessionId ? rawOf(item) ? snapshot.sessionId : snapshot.sessionId.slice(0, 8) : null
+});
+register({
+  type: "context-window",
+  label: "Ctx Window",
+  format: ({ snapshot, item }) => snapshot.ctxWindow > 0 ? labeled(rawOf(item), "Window", fmtNum(snapshot.ctxWindow)) : null
+});
+register({
+  type: "output-style",
+  label: "Style",
+  format: ({ snapshot, item }) => snapshot.outputStyle ? labeled(rawOf(item), "Style", snapshot.outputStyle) : null
+});
+register({
+  type: "terminal-width",
+  label: "Width",
+  format: ({ snapshot, item }) => snapshot.terminalWidth > 0 ? labeled(rawOf(item), "Width", String(snapshot.terminalWidth)) : null
+});
 
 // packages/core/src/widgets/git-widgets.ts
 register({
@@ -385,6 +405,11 @@ register({
   type: "git-deletions",
   label: "Deletions",
   format: ({ snapshot }) => snapshot.repo ? `-${snapshot.deleted}` : null
+});
+register({
+  type: "git-sha",
+  label: "SHA",
+  format: ({ snapshot }) => snapshot.repo && snapshot.gitSha ? snapshot.gitSha : null
 });
 
 // packages/core/src/widgets/usage-widgets.ts
@@ -458,6 +483,20 @@ register({
   format: ({ snapshot }) => {
     const r = until(snapshot.weekReset, snapshot.now);
     return r === null ? null : `Weekly Reset: ${fmtDur(r)}`;
+  }
+});
+register({
+  type: "session-cost-rate",
+  label: "Cost/hr",
+  format: ({ snapshot }) => {
+    if (snapshot.cost === null) {
+      return null;
+    }
+    const ms = snapshot.now - snapshot.startedAt;
+    if (ms < 6e4) {
+      return null;
+    }
+    return `$${(snapshot.cost / (ms / 36e5)).toFixed(2)}/hr`;
   }
 });
 
@@ -4762,6 +4801,12 @@ var WIDGET_TYPES = [
   "thinking-effort",
   "git-insertions",
   "git-deletions",
+  "session-id",
+  "context-window",
+  "session-cost-rate",
+  "git-sha",
+  "output-style",
+  "terminal-width",
   "custom-text",
   "custom-command",
   "flex-separator"

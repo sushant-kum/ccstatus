@@ -116,3 +116,11 @@ test('until returns remaining ms, or null when unknown, invalid, or past', () =>
   expect(until('garbage', now)).toBeNull();
   expect(until(new Date(now - 1).toISOString(), now)).toBeNull();
 });
+
+test('session-cost-rate: null when cost null or elapsed < 1min, else $/hr', () => {
+  expect(fmt('session-cost-rate', { ...base, cost: null, now: 3_600_000 })).toBeNull();
+  expect(fmt('session-cost-rate', { ...base, cost: 1, startedAt: 0, now: 30_000 })).toBeNull();
+  expect(fmt('session-cost-rate', { ...base, cost: 1, startedAt: 0, now: 3_600_000 })).toBe(
+    '$1.00/hr'
+  );
+});
