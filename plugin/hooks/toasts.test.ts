@@ -29,6 +29,10 @@ const snap = (over: Partial<Snapshot> = {}): Snapshot => ({
   weekReset: null,
   blockReset: null,
   terminalWidth: 0,
+  sessionId: '',
+  ctxWindow: 0,
+  gitSha: '',
+  outputStyle: null,
   now: 0,
   ...over,
 });

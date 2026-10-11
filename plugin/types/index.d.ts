@@ -27,6 +27,10 @@ export interface CcstatusSnapshot {
   weekReset: string | null;
   blockReset: string | null;
   terminalWidth: number;
+  sessionId: string;
+  ctxWindow: number;
+  gitSha: string;
+  outputStyle: string | null;
   now: number;
 }
 

@@ -30,6 +30,10 @@ const snap: Snapshot = {
   weekReset: null,
   blockReset: null,
   terminalWidth: 120,
+  sessionId: '',
+  ctxWindow: 0,
+  gitSha: '',
+  outputStyle: null,
   now: 0,
 };
 

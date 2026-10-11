@@ -108,6 +108,10 @@ interface Snapshot {
     blockReset: string | null;
     terminalWidth: number;
     now: number;
+    sessionId: string;
+    ctxWindow: number;
+    gitSha: string;
+    outputStyle: string | null;
 }
 
 interface RenderOptions {

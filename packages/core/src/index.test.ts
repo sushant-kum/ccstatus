@@ -47,6 +47,10 @@ test('end-to-end: default config renders a band to ANSI', () => {
       weekReset: null,
       blockReset: null,
       terminalWidth: 100,
+      sessionId: '',
+      ctxWindow: 0,
+      gitSha: '',
+      outputStyle: null,
       now: 0,
     },
     { surface: 'band', width: 100 }

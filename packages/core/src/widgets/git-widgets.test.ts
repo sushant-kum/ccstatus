@@ -32,6 +32,10 @@ const base: Snapshot = {
   weekReset: null,
   blockReset: null,
   terminalWidth: 80,
+  sessionId: '',
+  ctxWindow: 0,
+  gitSha: '',
+  outputStyle: null,
   now: 0,
 };
 const fmt = (type: Item['type'], snapshot: Snapshot): string | null => {

@@ -32,6 +32,10 @@ const snap: Snapshot = {
   weekReset: null,
   blockReset: null,
   terminalWidth: 120,
+  sessionId: '',
+  ctxWindow: 0,
+  gitSha: '',
+  outputStyle: null,
   now: 65000,
 };
 const item = (type: Item['type'], extra: Record<string, unknown> = {}): Item =>
