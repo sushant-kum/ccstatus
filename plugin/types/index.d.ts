@@ -44,6 +44,8 @@ declare module 'claude-code' {
       paneOpen: boolean;
       configMtime: number | null;
       toastFired: Record<string, boolean>;
+      outputStyle: string | null;
+      termWidth: number;
     };
   }
 }

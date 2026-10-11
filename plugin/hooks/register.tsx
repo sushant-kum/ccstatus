@@ -22,6 +22,8 @@ const configMtime = atom(
   null as number | null
 );
 const effort = atom({ plugin: 'ccstatus', key: 'effort' } as const, null);
+const outputStyle = atom({ plugin: 'ccstatus', key: 'outputStyle' } as const, null);
+const termWidth = atom({ plugin: 'ccstatus', key: 'termWidth' } as const, 0);
 
 const GIT =
   'r=$(git rev-parse --show-toplevel 2>/dev/null)||{ printf NO;exit 0;};' +
@@ -31,7 +33,8 @@ const GIT =
   'a=$(printf "%s\\n" "$s"|grep -cE "^(A.|.A|\\?\\?)");' +
   'm=$(printf "%s\\n" "$s"|grep -cE "^(M.|.M)");' +
   'd=$(printf "%s\\n" "$s"|grep -cE "^(D.|.D)");' +
-  'printf "YES\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s" "$(basename "$r")" "$b" "$w" "$a" "$m" "$d"';
+  'h=$(git rev-parse --short HEAD 2>/dev/null);' +
+  'printf "YES\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s" "$(basename "$r")" "$b" "$w" "$a" "$m" "$d" "$h"';
 
 /**
  * Resolve the config file path using the engine's environment.
@@ -157,13 +160,22 @@ type UsageContext = NonNullable<UsageRaw>['context'];
 type UsageRateLimits = NonNullable<UsageRaw>['rateLimits'];
 
 /**
+ * Resolve the maximum context-window size from the raw context report.
+ * @param context - The raw context report, or `null`/`undefined` when absent.
+ * @returns       The context-window size in tokens, or 0 when unavailable.
+ */
+function contextWindow(context: UsageContext | null): number {
+  return context?.breakdown?.maxTokens ?? context?.maxTokens ?? 0;
+}
+
+/**
  * Reduce the context portion of the raw usage report into snapshot fields.
  * @param context - The raw context report, or `null`/`undefined` when absent.
  * @returns       The normalized context usage figures.
  */
 function extractContextUsage(
   context: UsageContext | null
-): Pick<RawUsage & object, 'ctxTokens' | 'ctxPct' | 'cached' | 'input' | 'output'> {
+): Pick<RawUsage & object, 'ctxTokens' | 'ctxPct' | 'cached' | 'input' | 'output' | 'ctxWindow'> {
   const b = context?.breakdown ?? null;
   const u = b?.apiUsage ?? null;
   return {
@@ -172,6 +184,7 @@ function extractContextUsage(
     cached: u ? u.cache_read_input_tokens + u.cache_creation_input_tokens : 0,
     input: u?.input_tokens ?? 0,
     output: u?.output_tokens ?? 0,
+    ctxWindow: contextWindow(context),
   };
 }
 
@@ -205,6 +218,7 @@ function extractUsage(usageRaw: UsageRaw | null): RawUsage {
     ...extractContextUsage(context),
     ...extractRateLimitUsage(rl),
     startedAt: usageRaw?.startedAt ?? 0,
+    cost: usageRaw?.cost ?? null,
   };
 }
 
@@ -215,18 +229,32 @@ function extractUsage(usageRaw: UsageRaw | null): RawUsage {
  * @returns   The assembled snapshot.
  */
 async function measure($: EngineInterface, eff: string | null): Promise<Snapshot> {
-  const [version, model, cwd, usageRaw] = await Promise.all([
+  const [version, model, cwd, sessionId, usageRaw] = await Promise.all([
     $.session
       .version()
       .then((v) => v.version)
       .catch(() => ''),
     $.session.model().catch(() => ''),
     $.session.cwd().catch(() => ''),
+    $.session.id().catch(() => ''),
     $.session.usage({ breakdown: 'summary' }).catch(() => null),
   ]);
   const git = await probeGit($, cwd);
   const usage = extractUsage(usageRaw);
-  return buildSnapshot({ version, model, effort: eff, cwd, now: await $.clock.now(), git, usage });
+  const style = await read($, outputStyle).catch(() => null);
+  const width = await read($, termWidth).catch(() => 0);
+  return buildSnapshot({
+    version,
+    model,
+    effort: eff,
+    cwd,
+    now: await $.clock.now(),
+    sessionId,
+    outputStyle: style,
+    terminalWidth: width,
+    git,
+    usage,
+  });
 }
 
 /**
@@ -375,6 +403,15 @@ export const register: Register = (on) => {
     return next(e);
   });
 
+  on('prompt.compose', async ($, e, next) => {
+    const r = await next(e);
+    const name = (e as { outputStyle?: { name?: unknown } | null }).outputStyle?.name;
+    if (typeof name === 'string' && name) {
+      await update($, outputStyle, () => name).catch(() => undefined);
+    }
+    return r;
+  });
+
   on('command.run', { command: 'ccstatus' }, async ($, e) => {
     try {
       const args = String((e as { args?: unknown })?.args ?? '').trim();
@@ -448,6 +485,7 @@ export const register: Register = (on) => {
       if (!width) {
         return next(e);
       } // not measured yet: let the engine draw
+      void update($, termWidth, () => width);
       const model = render(cfg, snap, { surface: 'band', width });
       if (model.lines.length === 0) {
         return next(e);
