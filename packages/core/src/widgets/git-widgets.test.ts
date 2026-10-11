@@ -18,6 +18,8 @@ const base: Snapshot = {
   added: 1,
   modified: 2,
   deleted: 0,
+  insertions: 124,
+  deletions: 37,
   ctxTokens: 0,
   ctxPct: 0,
   cached: 0,
@@ -32,6 +34,10 @@ const base: Snapshot = {
   weekReset: null,
   blockReset: null,
   terminalWidth: 80,
+  sessionId: '',
+  ctxWindow: 0,
+  gitSha: '',
+  outputStyle: null,
   now: 0,
 };
 const fmt = (type: Item['type'], snapshot: Snapshot): string | null => {
@@ -62,4 +68,21 @@ test('git widgets omit when not in a repo', () => {
 
 test('worktree omits when empty', () => {
   expect(fmt('git-worktree', { ...base, gitWorktree: '' })).toBeNull();
+});
+
+test('git-insertions/deletions show counts in a repo', () => {
+  expect(fmt('git-insertions', base)).toBe('+124');
+  expect(fmt('git-deletions', base)).toBe('-37');
+});
+
+test('git-insertions/deletions omit when not in a repo', () => {
+  const noRepo = { ...base, repo: false };
+  expect(fmt('git-insertions', noRepo)).toBeNull();
+  expect(fmt('git-deletions', noRepo)).toBeNull();
+});
+
+test('git-sha shows the sha in a repo, null otherwise', () => {
+  expect(fmt('git-sha', { ...base, gitSha: 'a1b2c3d' })).toBe('a1b2c3d');
+  expect(fmt('git-sha', { ...base, repo: false, gitSha: 'a1b2c3d' })).toBeNull();
+  expect(fmt('git-sha', { ...base, gitSha: '' })).toBeNull();
 });

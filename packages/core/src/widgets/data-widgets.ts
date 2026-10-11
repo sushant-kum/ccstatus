@@ -1,5 +1,5 @@
 import type { Item } from '../config/types.js';
-import { fmtDur, fmtNum, pct } from '../format.js';
+import { bar, fmtDur, fmtNum, pct } from '../format.js';
 
 import { register } from './registry.js';
 import type { WidgetContext } from './types.js';
@@ -63,4 +63,48 @@ register({
     const parts = snapshot.cwd.split('/').filter(Boolean);
     return parts[parts.length - 1] ?? snapshot.cwd;
   },
+});
+
+register({
+  type: 'context-bar',
+  label: 'Ctx Bar',
+  format: ({ snapshot }) => bar(snapshot.ctxPct),
+});
+register({
+  type: 'context-remaining',
+  label: 'Ctx Left',
+  format: ({ snapshot, item }) => labeled(rawOf(item), 'Ctx Left', pct(100 - snapshot.ctxPct)),
+});
+register({
+  type: 'thinking-effort',
+  label: 'Effort',
+  format: ({ snapshot, item }) =>
+    snapshot.effort ? labeled(rawOf(item), 'Effort', snapshot.effort) : null,
+});
+
+register({
+  type: 'session-id',
+  label: 'Session ID',
+  format: ({ snapshot, item }) =>
+    snapshot.sessionId ? (rawOf(item) ? snapshot.sessionId : snapshot.sessionId.slice(0, 8)) : null,
+});
+register({
+  type: 'context-window',
+  label: 'Ctx Window',
+  format: ({ snapshot, item }) =>
+    snapshot.ctxWindow > 0 ? labeled(rawOf(item), 'Window', fmtNum(snapshot.ctxWindow)) : null,
+});
+register({
+  type: 'output-style',
+  label: 'Style',
+  format: ({ snapshot, item }) =>
+    snapshot.outputStyle ? labeled(rawOf(item), 'Style', snapshot.outputStyle) : null,
+});
+register({
+  type: 'terminal-width',
+  label: 'Width',
+  format: ({ snapshot, item }) =>
+    snapshot.terminalWidth > 0
+      ? labeled(rawOf(item), 'Width', String(snapshot.terminalWidth))
+      : null,
 });

@@ -1,6 +1,6 @@
 type Align = 'left' | 'center' | 'right';
 type SeparatorMode = 'powerline' | 'space' | 'none';
-declare const WIDGET_TYPES: readonly ["model", "version", "context-length", "context-percentage", "tokens-input", "tokens-output", "tokens-cached", "tokens-total", "session-clock", "cwd", "git-branch", "git-changes", "git-worktree", "git-root-dir", "cost", "rate-limit-5h", "rate-limit-week", "block-timer", "custom-text", "custom-command", "flex-separator"];
+declare const WIDGET_TYPES: readonly ["model", "version", "context-length", "context-percentage", "tokens-input", "tokens-output", "tokens-cached", "tokens-total", "session-clock", "cwd", "git-branch", "git-changes", "git-worktree", "git-root-dir", "cost", "rate-limit-5h", "rate-limit-week", "block-timer", "session-usage", "weekly-usage", "reset-timer", "weekly-reset-timer", "context-bar", "context-remaining", "thinking-effort", "git-insertions", "git-deletions", "session-id", "context-window", "session-cost-rate", "git-sha", "output-style", "terminal-width", "custom-text", "custom-command", "flex-separator"];
 type WidgetType = (typeof WIDGET_TYPES)[number];
 type DataWidgetType = Exclude<WidgetType, 'custom-text' | 'custom-command' | 'flex-separator'>;
 interface ItemStyle {
@@ -93,6 +93,8 @@ interface Snapshot {
     added: number;
     modified: number;
     deleted: number;
+    insertions: number;
+    deletions: number;
     ctxTokens: number;
     ctxPct: number;
     cached: number;
@@ -108,6 +110,10 @@ interface Snapshot {
     blockReset: string | null;
     terminalWidth: number;
     now: number;
+    sessionId: string;
+    ctxWindow: number;
+    gitSha: string;
+    outputStyle: string | null;
 }
 
 interface RenderOptions {

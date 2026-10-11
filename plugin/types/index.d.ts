@@ -13,6 +13,8 @@ export interface CcstatusSnapshot {
   added: number;
   modified: number;
   deleted: number;
+  insertions: number;
+  deletions: number;
   ctxTokens: number;
   ctxPct: number;
   cached: number;
@@ -28,6 +30,10 @@ export interface CcstatusSnapshot {
   blockReset: string | null;
   terminalWidth: number;
   now: number;
+  sessionId: string;
+  ctxWindow: number;
+  gitSha: string;
+  outputStyle: string | null;
 }
 
 declare module 'claude-code' {
@@ -40,6 +46,8 @@ declare module 'claude-code' {
       paneOpen: boolean;
       configMtime: number | null;
       toastFired: Record<string, boolean>;
+      outputStyle: string | null;
+      termWidth: number;
     };
   }
 }

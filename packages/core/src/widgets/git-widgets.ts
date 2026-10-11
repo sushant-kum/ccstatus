@@ -22,3 +22,18 @@ register({
   format: ({ snapshot }) =>
     snapshot.repo && snapshot.gitWorktree ? `⎇ ${snapshot.gitWorktree}` : null,
 });
+register({
+  type: 'git-insertions',
+  label: 'Insertions',
+  format: ({ snapshot }) => (snapshot.repo ? `+${snapshot.insertions}` : null),
+});
+register({
+  type: 'git-deletions',
+  label: 'Deletions',
+  format: ({ snapshot }) => (snapshot.repo ? `-${snapshot.deletions}` : null),
+});
+register({
+  type: 'git-sha',
+  label: 'SHA',
+  format: ({ snapshot }) => (snapshot.repo && snapshot.gitSha ? snapshot.gitSha : null),
+});

@@ -10,6 +10,8 @@ export interface Snapshot {
   added: number;
   modified: number;
   deleted: number;
+  insertions: number;
+  deletions: number;
   ctxTokens: number;
   ctxPct: number;
   cached: number;
@@ -25,4 +27,8 @@ export interface Snapshot {
   blockReset: string | null;
   terminalWidth: number;
   now: number;
+  sessionId: string;
+  ctxWindow: number;
+  gitSha: string;
+  outputStyle: string | null;
 }

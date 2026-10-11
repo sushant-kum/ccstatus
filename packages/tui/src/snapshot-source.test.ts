@@ -38,3 +38,20 @@ test('bad JSON falls back to sample, no throw', () => {
   writeFileSync(p, '{bad');
   expect(readSnapshot(p).source).toBe('sample');
 });
+
+test('keeps the new fields and drops wrong-typed ones', () => {
+  const p = join(mkdtempSync(join(tmpdir(), 'ccs-')), 'snapshot.json');
+  writeFileSync(p, JSON.stringify({ sessionId: 'x', gitSha: 'y', outputStyle: 'z', ctxWindow: 5 }));
+  const r = readSnapshot(p);
+  expect(r.snapshot.sessionId).toBe('x');
+  expect(r.snapshot.gitSha).toBe('y');
+  expect(r.snapshot.outputStyle).toBe('z');
+  expect(r.snapshot.ctxWindow).toBe(5);
+
+  const q = join(mkdtempSync(join(tmpdir(), 'ccs-')), 'snapshot.json');
+  writeFileSync(q, JSON.stringify({ sessionId: 7, ctxWindow: 'big', outputStyle: 3 }));
+  const bad = readSnapshot(q).snapshot;
+  expect(bad.sessionId).toBe(sampleSnapshot.sessionId);
+  expect(bad.ctxWindow).toBe(sampleSnapshot.ctxWindow);
+  expect(bad.outputStyle).toBe(sampleSnapshot.outputStyle);
+});

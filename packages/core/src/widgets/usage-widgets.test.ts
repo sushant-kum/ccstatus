@@ -4,7 +4,7 @@ import type { Item } from '../config/types.js';
 import type { Snapshot } from '../snapshot.js';
 
 import { registry } from './registry.js';
-import './usage-widgets.js';
+import { until } from './usage-widgets.js';
 
 const now = 1_000_000;
 const base: Snapshot = {
@@ -19,6 +19,8 @@ const base: Snapshot = {
   added: 0,
   modified: 0,
   deleted: 0,
+  insertions: 0,
+  deletions: 0,
   ctxTokens: 0,
   ctxPct: 0,
   cached: 0,
@@ -33,6 +35,10 @@ const base: Snapshot = {
   weekReset: null,
   blockReset: null,
   terminalWidth: 80,
+  sessionId: '',
+  ctxWindow: 0,
+  gitSha: '',
+  outputStyle: null,
   now,
 };
 const fmt = (type: Item['type'], snapshot: Snapshot): string | null => {
@@ -83,4 +89,53 @@ test('block-timer past', () => {
   expect(
     fmt('block-timer', { ...base, blockReset: new Date(now - 1000).toISOString() })
   ).toBeNull();
+});
+test('session-usage shows the 5h percentage, or null when unknown', () => {
+  expect(fmt('session-usage', { ...base, fivePct: 42 })).toBe('Session: 42%');
+  expect(fmt('session-usage', { ...base, fivePct: null })).toBeNull();
+});
+test('weekly-usage shows the weekly percentage, or null when unknown', () => {
+  expect(fmt('weekly-usage', { ...base, weekPct: 10 })).toBe('Weekly: 10%');
+  expect(fmt('weekly-usage', { ...base, weekPct: null })).toBeNull();
+});
+test('reset-timer shows the 5h countdown, null when absent or past', () => {
+  expect(fmt('reset-timer', base)).toBe('Reset: 1h 2m');
+  expect(fmt('reset-timer', { ...base, fiveReset: null })).toBeNull();
+  expect(fmt('reset-timer', { ...base, fiveReset: new Date(now - 1000).toISOString() })).toBeNull();
+});
+test('weekly-reset-timer shows the weekly countdown, null when absent or past', () => {
+  expect(
+    fmt('weekly-reset-timer', { ...base, weekReset: new Date(now + 3_720_000).toISOString() })
+  ).toBe('Weekly Reset: 1h 2m');
+  expect(fmt('weekly-reset-timer', base)).toBeNull();
+  expect(
+    fmt('weekly-reset-timer', { ...base, weekReset: new Date(now - 1000).toISOString() })
+  ).toBeNull();
+});
+test('until returns remaining ms, or null when unknown, invalid, or past', () => {
+  expect(until(new Date(now + 5000).toISOString(), now)).toBe(5000);
+  expect(until(null, now)).toBeNull();
+  expect(until('garbage', now)).toBeNull();
+  expect(until(new Date(now - 1).toISOString(), now)).toBeNull();
+});
+
+test('session-cost-rate: null when cost null or elapsed < 1min, else $/hr', () => {
+  expect(fmt('session-cost-rate', { ...base, cost: null, now: 3_600_000 })).toBeNull();
+  expect(fmt('session-cost-rate', { ...base, cost: 1, startedAt: 0, now: 30_000 })).toBeNull();
+  expect(fmt('session-cost-rate', { ...base, cost: 1, startedAt: 0, now: 3_600_000 })).toBe(
+    '$1.00/hr'
+  );
+});
+
+test('session-cost-rate: 60_000 ms boundary is inclusive', () => {
+  expect(fmt('session-cost-rate', { ...base, cost: 1, startedAt: 0, now: 60_000 })).toBe(
+    '$60.00/hr'
+  );
+  expect(fmt('session-cost-rate', { ...base, cost: 1, startedAt: 0, now: 59_999 })).toBeNull();
+});
+
+test('session-cost-rate: zero cost renders $0.00/hr, not null', () => {
+  expect(fmt('session-cost-rate', { ...base, cost: 0, startedAt: 0, now: 120_000 })).toBe(
+    '$0.00/hr'
+  );
 });

@@ -11,6 +11,8 @@ const NUMBER_FIELDS = [
   'added',
   'modified',
   'deleted',
+  'insertions',
+  'deletions',
   'ctxTokens',
   'ctxPct',
   'cached',
@@ -20,10 +22,26 @@ const NUMBER_FIELDS = [
   'startedAt',
   'terminalWidth',
   'now',
+  'ctxWindow',
 ] as const;
 const NULLABLE_NUMBER_FIELDS = ['cost', 'fivePct', 'weekPct'] as const;
-const STRING_FIELDS = ['version', 'model', 'cwd', 'gitRoot', 'gitBranch', 'gitWorktree'] as const;
-const NULLABLE_STRING_FIELDS = ['effort', 'fiveReset', 'weekReset', 'blockReset'] as const;
+const STRING_FIELDS = [
+  'version',
+  'model',
+  'cwd',
+  'gitRoot',
+  'gitBranch',
+  'gitWorktree',
+  'sessionId',
+  'gitSha',
+] as const;
+const NULLABLE_STRING_FIELDS = [
+  'effort',
+  'fiveReset',
+  'weekReset',
+  'blockReset',
+  'outputStyle',
+] as const;
 const BOOLEAN_FIELDS = ['repo'] as const;
 
 const isNum = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v);

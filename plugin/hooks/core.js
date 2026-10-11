@@ -339,6 +339,41 @@ register({
     return parts[parts.length - 1] ?? snapshot.cwd;
   }
 });
+register({
+  type: "context-bar",
+  label: "Ctx Bar",
+  format: ({ snapshot }) => bar(snapshot.ctxPct)
+});
+register({
+  type: "context-remaining",
+  label: "Ctx Left",
+  format: ({ snapshot, item }) => labeled(rawOf(item), "Ctx Left", pct(100 - snapshot.ctxPct))
+});
+register({
+  type: "thinking-effort",
+  label: "Effort",
+  format: ({ snapshot, item }) => snapshot.effort ? labeled(rawOf(item), "Effort", snapshot.effort) : null
+});
+register({
+  type: "session-id",
+  label: "Session ID",
+  format: ({ snapshot, item }) => snapshot.sessionId ? rawOf(item) ? snapshot.sessionId : snapshot.sessionId.slice(0, 8) : null
+});
+register({
+  type: "context-window",
+  label: "Ctx Window",
+  format: ({ snapshot, item }) => snapshot.ctxWindow > 0 ? labeled(rawOf(item), "Window", fmtNum(snapshot.ctxWindow)) : null
+});
+register({
+  type: "output-style",
+  label: "Style",
+  format: ({ snapshot, item }) => snapshot.outputStyle ? labeled(rawOf(item), "Style", snapshot.outputStyle) : null
+});
+register({
+  type: "terminal-width",
+  label: "Width",
+  format: ({ snapshot, item }) => snapshot.terminalWidth > 0 ? labeled(rawOf(item), "Width", String(snapshot.terminalWidth)) : null
+});
 
 // packages/core/src/widgets/git-widgets.ts
 register({
@@ -360,6 +395,21 @@ register({
   type: "git-worktree",
   label: "Worktree",
   format: ({ snapshot }) => snapshot.repo && snapshot.gitWorktree ? `\u2387 ${snapshot.gitWorktree}` : null
+});
+register({
+  type: "git-insertions",
+  label: "Insertions",
+  format: ({ snapshot }) => snapshot.repo ? `+${snapshot.insertions}` : null
+});
+register({
+  type: "git-deletions",
+  label: "Deletions",
+  format: ({ snapshot }) => snapshot.repo ? `-${snapshot.deletions}` : null
+});
+register({
+  type: "git-sha",
+  label: "SHA",
+  format: ({ snapshot }) => snapshot.repo && snapshot.gitSha ? snapshot.gitSha : null
 });
 
 // packages/core/src/widgets/usage-widgets.ts
@@ -407,6 +457,46 @@ register({
   format: ({ snapshot }) => {
     const reset = until(snapshot.blockReset, snapshot.now);
     return reset === null ? null : `Block: ${fmtDur(reset)}`;
+  }
+});
+register({
+  type: "session-usage",
+  label: "Session %",
+  format: ({ snapshot }) => snapshot.fivePct === null ? null : `Session: ${pct(snapshot.fivePct)}`
+});
+register({
+  type: "weekly-usage",
+  label: "Weekly %",
+  format: ({ snapshot }) => snapshot.weekPct === null ? null : `Weekly: ${pct(snapshot.weekPct)}`
+});
+register({
+  type: "reset-timer",
+  label: "Reset",
+  format: ({ snapshot }) => {
+    const r = until(snapshot.fiveReset, snapshot.now);
+    return r === null ? null : `Reset: ${fmtDur(r)}`;
+  }
+});
+register({
+  type: "weekly-reset-timer",
+  label: "Weekly Reset",
+  format: ({ snapshot }) => {
+    const r = until(snapshot.weekReset, snapshot.now);
+    return r === null ? null : `Weekly Reset: ${fmtDur(r)}`;
+  }
+});
+register({
+  type: "session-cost-rate",
+  label: "Cost/hr",
+  format: ({ snapshot }) => {
+    if (snapshot.cost === null) {
+      return null;
+    }
+    const ms = snapshot.now - snapshot.startedAt;
+    if (ms < 6e4) {
+      return null;
+    }
+    return `$${(snapshot.cost / (ms / 36e5)).toFixed(2)}/hr`;
   }
 });
 
@@ -4702,6 +4792,21 @@ var WIDGET_TYPES = [
   "rate-limit-5h",
   "rate-limit-week",
   "block-timer",
+  "session-usage",
+  "weekly-usage",
+  "reset-timer",
+  "weekly-reset-timer",
+  "context-bar",
+  "context-remaining",
+  "thinking-effort",
+  "git-insertions",
+  "git-deletions",
+  "session-id",
+  "context-window",
+  "session-cost-rate",
+  "git-sha",
+  "output-style",
+  "terminal-width",
   "custom-text",
   "custom-command",
   "flex-separator"
@@ -4845,21 +4950,100 @@ function loadConfig(raw) {
 // packages/core/src/config/import-ccstatusline.ts
 var clone2 = (v) => JSON.parse(JSON.stringify(v));
 var TYPE_MAP = {
-  version: "version",
   model: "model",
-  "thinking-effort": "model",
+  version: "version",
+  "thinking-effort": "thinking-effort",
   "context-length": "context-length",
   "context-percentage": "context-percentage",
-  "tokens-cached": "tokens-cached",
+  "context-window": "context-window",
+  "context-bar": "context-bar",
   "tokens-input": "tokens-input",
   "tokens-output": "tokens-output",
+  "tokens-cached": "tokens-cached",
   "tokens-total": "tokens-total",
   "git-root-dir": "git-root-dir",
   "git-branch": "git-branch",
   "git-worktree": "git-worktree",
   "git-changes": "git-changes",
-  "session-clock": "session-clock"
+  "git-insertions": "git-insertions",
+  "git-deletions": "git-deletions",
+  "git-sha": "git-sha",
+  "session-clock": "session-clock",
+  "session-id": "session-id",
+  "current-working-dir": "cwd",
+  cwd: "cwd",
+  "session-cost": "cost",
+  cost: "cost",
+  "session-cost-rate": "session-cost-rate",
+  "session-usage": "session-usage",
+  "weekly-usage": "weekly-usage",
+  "reset-timer": "reset-timer",
+  "weekly-reset-timer": "weekly-reset-timer",
+  "block-timer": "block-timer",
+  "terminal-width": "terminal-width",
+  "output-style": "output-style"
 };
+var UNSUPPORTED = {
+  "weekly-sonnet-usage": "needs the Anthropic usage API, not available to the mod",
+  "weekly-opus-usage": "needs the Anthropic usage API, not available to the mod",
+  "fable-weekly-usage": "needs the Anthropic usage API, not available to the mod",
+  "extra-usage-utilization": "needs the Anthropic usage API, not available to the mod",
+  "extra-usage-remaining": "needs the Anthropic usage API, not available to the mod",
+  "extra-usage-used": "needs the Anthropic usage API, not available to the mod",
+  "extra-usage-daily-budget": "needs the Anthropic usage API, not available to the mod",
+  "input-speed": "needs transcript parsing, not available to the mod",
+  "output-speed": "needs transcript parsing, not available to the mod",
+  "total-speed": "needs transcript parsing, not available to the mod",
+  "cache-hit-rate": "needs transcript parsing, not available to the mod",
+  "cache-read": "needs transcript parsing, not available to the mod",
+  "cache-write": "needs transcript parsing, not available to the mod",
+  "compaction-counter": "needs transcript parsing, not available to the mod",
+  skills: "needs transcript parsing, not available to the mod",
+  "session-name": "needs transcript parsing, not available to the mod",
+  "cache-timer": "needs cache-TTL tracking, not available to the mod",
+  "free-memory": "reads OS memory, not available to the mod",
+  "claude-status": "needs a network status fetch, not available to the mod",
+  "claude-account-email": "needs local Claude config access, not available to the mod",
+  "claude-session-id": "renamed; use the session-id widget",
+  "vim-mode": "engine state not exposed to the mod",
+  "voice-status": "engine state not exposed to the mod",
+  "sandbox-status": "engine state not exposed to the mod",
+  "remote-control-status": "engine state not exposed to the mod",
+  "worktree-mode": "needs Claude Code's worktree object; use the git-worktree widget",
+  "worktree-name": "needs Claude Code's worktree object; use the git-worktree widget",
+  "worktree-branch": "needs Claude Code's worktree object; use the git-worktree widget",
+  "worktree-original-branch": "needs Claude Code's worktree object; use the git-worktree widget",
+  "context-percentage-usable": "needs usable-window data, not available to the mod",
+  "context-window-size": "renamed; use the context-window widget",
+  "git-staged-files": "needs a deeper git probe, not available to the mod",
+  "git-unstaged-files": "needs a deeper git probe, not available to the mod",
+  "git-untracked-files": "needs a deeper git probe, not available to the mod",
+  "git-clean-status": "needs a deeper git probe, not available to the mod",
+  "git-status": "needs a deeper git probe, not available to the mod",
+  "git-staged": "needs a deeper git probe, not available to the mod",
+  "git-unstaged": "needs a deeper git probe, not available to the mod",
+  "git-untracked": "needs a deeper git probe, not available to the mod",
+  "git-ahead-behind": "needs a deeper git probe, not available to the mod",
+  "git-conflicts": "needs a deeper git probe, not available to the mod",
+  "git-origin-owner": "needs a deeper git probe, not available to the mod",
+  "git-origin-repo": "needs a deeper git probe, not available to the mod",
+  "git-origin-owner-repo": "needs a deeper git probe, not available to the mod",
+  "git-upstream-owner": "needs a deeper git probe, not available to the mod",
+  "git-upstream-repo": "needs a deeper git probe, not available to the mod",
+  "git-upstream-owner-repo": "needs a deeper git probe, not available to the mod",
+  "git-is-fork": "needs a deeper git probe, not available to the mod",
+  "git-review": "needs the gh/glab CLI, not available to the mod",
+  "git-ci-status": "needs the gh/glab CLI, not available to the mod",
+  link: "OSC8 links are not yet supported"
+};
+function baseStyle(raw, idFallback) {
+  return {
+    id: String(raw["id"] ?? `${idFallback}-${Math.random().toString(36).slice(2)}`),
+    bg: typeof raw["backgroundColor"] === "string" ? raw["backgroundColor"] : void 0,
+    rawValue: raw["rawValue"] === true || void 0,
+    merge: raw["merge"] === true || void 0
+  };
+}
 function importCcstatusline(raw) {
   const warnings = [];
   if (!raw || typeof raw !== "object" || !Array.isArray(raw.lines)) {
@@ -4874,19 +5058,39 @@ function importCcstatusline(raw) {
         return [];
       }
       const srcType = String(raw2["type"]);
+      switch (srcType) {
+        case "custom-text":
+        case "custom-symbol":
+        case "custom-command": {
+          const field = srcType === "custom-text" ? "customText" : srcType === "custom-symbol" ? "customSymbol" : "commandPath";
+          const payload = raw2[field];
+          if (payload === void 0 || payload === null || String(payload) === "") {
+            warnings.push(`dropped "${srcType}" \u2014 no ${field} value`);
+            return [];
+          }
+          return [
+            srcType === "custom-command" ? { ...baseStyle(raw2, srcType), type: "custom-command", command: String(payload) } : { ...baseStyle(raw2, srcType), type: "custom-text", text: String(payload) }
+          ];
+        }
+        case "flex-separator":
+          return [{ id: baseStyle(raw2, srcType).id, type: "flex-separator" }];
+        case "separator":
+          warnings.push(
+            'dropped "separator" \u2014 ccstatus uses a global separator (set it on the Powerline screen)'
+          );
+          return [];
+        default:
+      }
       const type = Object.hasOwn(TYPE_MAP, srcType) ? TYPE_MAP[srcType] : void 0;
-      if (!type) {
-        warnings.push(`dropped unmapped ccstatusline item "${srcType}"`);
+      if (type) {
+        return [{ ...baseStyle(raw2, type), type }];
+      }
+      if (Object.hasOwn(UNSUPPORTED, srcType)) {
+        warnings.push(`dropped "${srcType}" \u2014 ${UNSUPPORTED[srcType]}`);
         return [];
       }
-      const mapped = {
-        id: String(raw2["id"] ?? `${type}-${Math.random().toString(36).slice(2)}`),
-        type,
-        bg: typeof raw2["backgroundColor"] === "string" ? raw2["backgroundColor"] : void 0,
-        rawValue: raw2["rawValue"] === true || void 0,
-        merge: raw2["merge"] === true || void 0
-      };
-      return [mapped];
+      warnings.push(`dropped unmapped ccstatusline item "${srcType}"`);
+      return [];
     })
   );
   const draft = { version: 1, surfaces: { band: { enabled: true, lines } } };

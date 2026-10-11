@@ -16,6 +16,8 @@ const snap: Snapshot = {
   added: 0,
   modified: 0,
   deleted: 0,
+  insertions: 0,
+  deletions: 0,
   ctxTokens: 10,
   ctxPct: 1,
   cached: 0,
@@ -30,6 +32,10 @@ const snap: Snapshot = {
   weekReset: null,
   blockReset: null,
   terminalWidth: 0,
+  sessionId: '',
+  ctxWindow: 0,
+  gitSha: '',
+  outputStyle: null,
   now: 0,
 };
 

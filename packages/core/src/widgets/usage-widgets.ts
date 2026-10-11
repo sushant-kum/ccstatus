@@ -8,7 +8,7 @@ import { register } from './registry.js';
  * @param now - The current time in milliseconds since the epoch.
  * @returns   The positive milliseconds remaining, or `null` when unknown, unparseable, or past.
  */
-function until(iso: string | null, now: number): number | null {
+export function until(iso: string | null, now: number): number | null {
   if (!iso) {
     return null;
   }
@@ -56,5 +56,51 @@ register({
   format: ({ snapshot }) => {
     const reset = until(snapshot.blockReset, snapshot.now);
     return reset === null ? null : `Block: ${fmtDur(reset)}`;
+  },
+});
+
+register({
+  type: 'session-usage',
+  label: 'Session %',
+  format: ({ snapshot }) =>
+    snapshot.fivePct === null ? null : `Session: ${pct(snapshot.fivePct)}`,
+});
+
+register({
+  type: 'weekly-usage',
+  label: 'Weekly %',
+  format: ({ snapshot }) => (snapshot.weekPct === null ? null : `Weekly: ${pct(snapshot.weekPct)}`),
+});
+
+register({
+  type: 'reset-timer',
+  label: 'Reset',
+  format: ({ snapshot }) => {
+    const r = until(snapshot.fiveReset, snapshot.now);
+    return r === null ? null : `Reset: ${fmtDur(r)}`;
+  },
+});
+
+register({
+  type: 'weekly-reset-timer',
+  label: 'Weekly Reset',
+  format: ({ snapshot }) => {
+    const r = until(snapshot.weekReset, snapshot.now);
+    return r === null ? null : `Weekly Reset: ${fmtDur(r)}`;
+  },
+});
+
+register({
+  type: 'session-cost-rate',
+  label: 'Cost/hr',
+  format: ({ snapshot }) => {
+    if (snapshot.cost === null) {
+      return null;
+    }
+    const ms = snapshot.now - snapshot.startedAt;
+    if (ms < 60_000) {
+      return null;
+    }
+    return `$${(snapshot.cost / (ms / 3_600_000)).toFixed(2)}/hr`;
   },
 });
