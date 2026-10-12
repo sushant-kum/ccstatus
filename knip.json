@@ -6,7 +6,8 @@
       "entry": [
         "plugin/hooks/register.tsx",
         "plugin/hooks/**/*.test.ts",
-        "plugin/types/index.d.ts"
+        "plugin/types/index.d.ts",
+        "scripts/sync-marketplace-version.mjs"
       ],
       "project": ["scripts/**", "plugin/**"],
       "ignore": ["plugin/hooks/core.js", "plugin/hooks/core.d.ts"]

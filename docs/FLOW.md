@@ -46,7 +46,7 @@ already explains, or a sequence that exists only inside one file.
 | FLOW-0001 | Mod renders the above-prompt band      | plugin        | 2026-10-04    |
 | FLOW-0002 | Config edit → shared file → mod reload | tui \| plugin | 2026-10-04    |
 | FLOW-0003 | Bundle core into the plugin            | repo-wide     | 2026-10-04    |
-| FLOW-0004 | Release & distribution                 | repo-wide     | 2026-10-05    |
+| FLOW-0004 | Release & distribution                 | repo-wide     | 2026-10-12    |
 | FLOW-0005 | TUI first-run mod detection & install  | tui           | 2026-10-05    |
 | FLOW-0006 | Lint, format & commit-quality pipeline | repo-wide     | 2026-10-05    |
 | FLOW-0007 | Native status-line render path         | tui \| plugin | 2026-10-07    |
@@ -258,34 +258,54 @@ See [DEC-0010](./DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-privat
 ## FLOW-0004 — Release & distribution
 
 - **Scope:** repo-wide
-- **Trigger:** cutting a public release of ccstatus (manual; not automated in v1).
-- **Outcome:** `npx @sushant-kum/ccstatus` installs the TUI from npm; `claude plugin marketplace add sushant-kum/ccstatus` + install adds the mod.
-- **Last verified:** 2026-10-09
-- **Related:** DEC-0010, [DEC-0014](./DECISION.md#dec-0014--publish-the-tui-under-the-scoped-name-sushant-kumccstatus), [FLOW-0003](#flow-0003--bundle-core-into-the-plugin)
+- **Trigger:** cutting a public release of ccstatus. Versioning/changelog/tagging is automated
+  (`npm run release`); publishing and pushing stay manual.
+- **Outcome:** one lockstep version across all manifests, a tag (no prefix, e.g. `0.1.0`), an
+  updated `CHANGELOG.md`; then `npx @sushant-kum/ccstatus` installs the TUI from npm and `claude
+plugin marketplace add sushant-kum/ccstatus` + install adds the mod.
+- **Last verified:** 2026-10-12
+- **Related:** [DEC-0016](./DECISION.md#dec-0016--release-versioning-via-commit-and-tag-version-one-lockstep-version-across-all-manifests), DEC-0010, [DEC-0014](./DECISION.md#dec-0014--publish-the-tui-under-the-scoped-name-sushant-kumccstatus), [FLOW-0003](#flow-0003--bundle-core-into-the-plugin)
 
 ### Steps
 
-1. Ensure the core bundle is current: `npm run build:plugin-core` (CI also gates
-   this via `git diff --exit-code`). Commit if it changed.
-2. Verify green: `npm test -w @ccstatus/core`, `npm test -w @sushant-kum/ccstatus`,
+1. From a **clean working tree** (the release commit folds in all tracked changes — see below),
+   verify green: `npm test -w @ccstatus/core`, `npm test -w @sushant-kum/ccstatus`,
    `npm run build -w @sushant-kum/ccstatus`, and — with the **preview** claude build —
    `claude plugin validate plugin` + `claude plugin test plugin`. CI cannot run
    those two: the public npm `@anthropic-ai/claude-code` doesn't understand the
    function-hooks (`modules`) format (it errors on the hooks shape and warns on
    `types`), so the CI `plugin` job runs `node scripts/check-plugin.mjs`
    (structural: manifest, hooks modules, committed bundle, marketplace entry) instead.
-3. **TUI → npm:** bump `packages/tui/package.json` `version`, then
-   `npm publish -w @sushant-kum/ccstatus` (scoped public — `publishConfig.access:
+2. **Cut the version:** `npm run release` (preview first with `npm run release:dry`). Driven by
+   `.versionrc.json` (DEC-0016), it: derives the next version from the Conventional Commits and
+   bumps it in `package.json` (the source of truth), `packages/tui/package.json`, and
+   `plugin/.claude-plugin/plugin.json`; **(`postbump`)** regenerates the core bundle
+   (`npm run build:plugin-core`, per [FLOW-0003](#flow-0003--bundle-core-into-the-plugin)) and runs
+   `scripts/sync-marketplace-version.mjs` to set the two nested versions in
+   `.claude-plugin/marketplace.json`; writes `CHANGELOG.md`; **(`postchangelog`)** runs
+   `npm run format:fix` + `git add -A` so the Prettier-normalised bumped files, bundle, and manifest
+   all land in one commit (`commitAll`); commits `chore(release): <version>`; and tags `<version>`
+   (no `v` prefix). While the version is `0.x`, the conventionalcommits preset bumps features as
+   **patch** (0.1.0 → 0.1.1); pass `--release-as minor` / `--first-release` to override.
+3. **TUI → npm:** `npm publish -w @sushant-kum/ccstatus` (scoped public — `publishConfig.access:
 public`, add `--access public` if npm asks; core is bundled, so no private
    dependency is fetched). Requires npm auth.
-4. **Mod → marketplace:** bump the `version` in `plugin/.claude-plugin/plugin.json`
-   and `.claude-plugin/marketplace.json`, tag/release the repo. Users then run
+4. **Mod → marketplace + push:** `git push --follow-tags`, then users run
    `claude plugin marketplace add sushant-kum/ccstatus` and
    `claude plugin install ccstatus@ccstatus`. The committed `plugin/hooks/core.js`
-   makes the installed mod loadable. **Not performed in Phase 4.**
+   makes the installed mod loadable.
 
 ### Branches & failure modes
 
+- **`format:check` fails on the release commit** → the JSON updater expanded a short inline array
+  to multiline; the `postchangelog` `format:fix` hook normalises it, so this only bites if that hook
+  is removed or `release` is run with `--skip.changelog`.
+- **Release commit blocked by the pre-commit hook** → the commit runs husky (lint-staged **and
+  knip**, see [FLOW-0006](#flow-0006--lint-format--commit-quality-pipeline)); a release helper that
+  is unused/unreferenced (knip) or unformatted fails it. `scripts/sync-marketplace-version.mjs` is a
+  knip `entry` for this reason.
+- **`marketplace.json` version drifts from the rest** → its two nested fields are bumped by the
+  `postbump` sync script, not the built-in updater (which only touches a top-level `version`).
 - **Published `ccstatus` can't resolve `@ccstatus/core`** → core was left in
   `dependencies`; it must be bundled and in `devDependencies` only (DEC-0010).
 - **Installed mod fails to load (`./core.js` missing)** → the bundle wasn't

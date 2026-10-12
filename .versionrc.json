@@ -1,0 +1,14 @@
+{
+  "tagPrefix": "",
+  "commitAll": true,
+  "packageFiles": [{ "filename": "package.json", "type": "json" }],
+  "bumpFiles": [
+    { "filename": "package.json", "type": "json" },
+    { "filename": "plugin/.claude-plugin/plugin.json", "type": "json" },
+    { "filename": "packages/tui/package.json", "type": "json" }
+  ],
+  "scripts": {
+    "postbump": "npm run build:plugin-core && node scripts/sync-marketplace-version.mjs",
+    "postchangelog": "npm run format:fix && git add -A"
+  }
+}

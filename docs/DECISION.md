@@ -47,23 +47,24 @@ open — no entry stays `Proposed` on `main`).
 
 ## Index
 
-| ID       | Date       | Title                                                                                | Status   | Scope          |
-| -------- | ---------- | ------------------------------------------------------------------------------------ | -------- | -------------- |
-| DEC-0001 | 2026-10-04 | Record decisions in DECISION.md and flows in FLOW.md                                 | Accepted | repo-wide      |
-| DEC-0002 | 2026-10-04 | Shared pure core; mod and TUI are thin painters                                      | Accepted | repo-wide      |
-| DEC-0003 | 2026-10-04 | Bundle core (zod inlined) into the plugin                                            | Accepted | plugin \| core |
-| DEC-0004 | 2026-10-04 | Config is external shared JSON at the XDG path                                       | Accepted | repo-wide      |
-| DEC-0005 | 2026-10-04 | Named terminal colors only in v1 (no hex)                                            | Accepted | repo-wide      |
-| DEC-0006 | 2026-10-04 | Default glyph and deferred render fields                                             | Accepted | repo-wide      |
-| DEC-0007 | 2026-10-04 | No AI-attribution in code, commits, or PRs                                           | Accepted | repo-wide      |
-| DEC-0008 | 2026-10-04 | Config items are a discriminated union keyed on `type`                               | Accepted | core           |
-| DEC-0009 | 2026-10-05 | Mod-side config writes are atomic via `$.process.run` + `mv`                         | Accepted | plugin         |
-| DEC-0010 | 2026-10-05 | Distribution: unscoped `ccstatus` bin, private bundled core, committed plugin bundle | Accepted | repo-wide      |
-| DEC-0011 | 2026-10-05 | TUI detects the mod and offers to install it on first run                            | Accepted | tui            |
-| DEC-0012 | 2026-10-05 | Adopt an arant-design-inspired lint/format/quality toolchain                         | Accepted | repo-wide      |
-| DEC-0013 | 2026-10-07 | Status line is rendered by a native settings.json command, not the mod               | Accepted | repo-wide      |
-| DEC-0014 | 2026-10-09 | Publish the TUI under the scoped name `@sushant-kum/ccstatus`                        | Accepted | repo-wide      |
-| DEC-0015 | 2026-10-11 | ccstatusline widget parity: ported set and deferred set                              | Accepted | core \| plugin |
+| ID       | Date       | Title                                                                                    | Status   | Scope          |
+| -------- | ---------- | ---------------------------------------------------------------------------------------- | -------- | -------------- |
+| DEC-0001 | 2026-10-04 | Record decisions in DECISION.md and flows in FLOW.md                                     | Accepted | repo-wide      |
+| DEC-0002 | 2026-10-04 | Shared pure core; mod and TUI are thin painters                                          | Accepted | repo-wide      |
+| DEC-0003 | 2026-10-04 | Bundle core (zod inlined) into the plugin                                                | Accepted | plugin \| core |
+| DEC-0004 | 2026-10-04 | Config is external shared JSON at the XDG path                                           | Accepted | repo-wide      |
+| DEC-0005 | 2026-10-04 | Named terminal colors only in v1 (no hex)                                                | Accepted | repo-wide      |
+| DEC-0006 | 2026-10-04 | Default glyph and deferred render fields                                                 | Accepted | repo-wide      |
+| DEC-0007 | 2026-10-04 | No AI-attribution in code, commits, or PRs                                               | Accepted | repo-wide      |
+| DEC-0008 | 2026-10-04 | Config items are a discriminated union keyed on `type`                                   | Accepted | core           |
+| DEC-0009 | 2026-10-05 | Mod-side config writes are atomic via `$.process.run` + `mv`                             | Accepted | plugin         |
+| DEC-0010 | 2026-10-05 | Distribution: unscoped `ccstatus` bin, private bundled core, committed plugin bundle     | Accepted | repo-wide      |
+| DEC-0011 | 2026-10-05 | TUI detects the mod and offers to install it on first run                                | Accepted | tui            |
+| DEC-0012 | 2026-10-05 | Adopt an arant-design-inspired lint/format/quality toolchain                             | Accepted | repo-wide      |
+| DEC-0013 | 2026-10-07 | Status line is rendered by a native settings.json command, not the mod                   | Accepted | repo-wide      |
+| DEC-0014 | 2026-10-09 | Publish the TUI under the scoped name `@sushant-kum/ccstatus`                            | Accepted | repo-wide      |
+| DEC-0015 | 2026-10-11 | ccstatusline widget parity: ported set and deferred set                                  | Accepted | core \| plugin |
+| DEC-0016 | 2026-10-12 | Release versioning via commit-and-tag-version, one lockstep version across all manifests | Accepted | repo-wide      |
 
 ---
 
@@ -734,3 +735,63 @@ Port every ccstatusline widget whose data the mod can already source; defer the 
 - Core changed, so the plugin bundle must be regenerated (`npm run build:plugin-core`).
 - Un-deferring a group means sourcing its data in the mod first, then
   registering the widget and updating the importer's reason table.
+
+## DEC-0016 — Release versioning via commit-and-tag-version, one lockstep version across all manifests
+
+- **Date:** 2026-10-12
+- **Status:** Accepted
+- **Scope:** repo-wide
+- **Related:** [FLOW-0004](./FLOW.md#flow-0004--release--distribution), [DEC-0010](#dec-0010--distribution-unscoped-ccstatus-bin-private-bundled-core-committed-plugin-bundle), [DEC-0014](#dec-0014--publish-the-tui-under-the-scoped-name-sushant-kumccstatus)
+
+### Context
+
+Releases were fully manual (FLOW-0004): bump the version by hand in several files, write no
+changelog, tag by hand. The version lives in four places that must agree — root `package.json`
+(added as the source of truth), the published TUI `packages/tui/package.json`, the mod
+`plugin/.claude-plugin/plugin.json`, and the marketplace manifest `.claude-plugin/marketplace.json`
+(which carries it **twice**: `metadata.version` and `plugins[].version`). Commits already follow
+Conventional Commits (commitlint), so a changelog and the next version are derivable.
+
+### Decision
+
+Adopt `commit-and-tag-version` (the maintained fork of the deprecated `standard-version`) as a root
+devDependency, driven by `.versionrc.json`, invoked with `npm run release` (`release:dry` for a
+preview). One **lockstep** version is shared by every manifest — there is no independent
+per-package versioning. Root `package.json` is the single source of truth (`packageFiles`); its
+`version` plus the TUI package and the plugin manifest are bumped by the built-in JSON updater
+(`bumpFiles`). Tags have **no prefix** (`0.1.0`, not `v0.1.0`; `tagPrefix: ""`).
+
+Two concerns are handled by lifecycle hooks:
+
+- **`postbump`** regenerates the committed core bundle (`npm run build:plugin-core`, per DEC-0003)
+  and runs `scripts/sync-marketplace-version.mjs`, which syncs the marketplace manifest's two nested
+  version fields — the built-in updater only bumps a top-level `version`, which that file lacks. The
+  sync is a textual replace so the hand-written formatting is preserved.
+- **`postchangelog`** runs `npm run format:fix` then `git add -A`. The JSON updater rewrites bumped
+  files with `JSON.stringify(…, 2)`, which expands short inline arrays (e.g. `keywords`) to
+  multiline and would fail Prettier's `format:check` on the release commit; `format:fix` normalises
+  them. `commitAll: true` plus the `git add -A` fold the regenerated bundle and the marketplace
+  manifest (neither a `bumpFile`) into the single release commit.
+
+Publishing to npm, pushing, and the marketplace step stay **manual** (FLOW-0004) — this decision
+automates versioning, changelog, and tagging only.
+
+### Alternatives considered
+
+- **Independent per-package versions (separate tags/runs per artifact)** — the TUI and the mod ship
+  as one product on one cadence; two version lines and two release runs add ceremony with no benefit.
+- **A custom commit-and-tag-version updater for the marketplace manifest** — the updater API couples
+  to the tool and still reflows the file; a tiny textual `postbump` sync is simpler and formatting-safe.
+- **`standard-version`** — deprecated and unmaintained; `commit-and-tag-version` is its drop-in fork.
+- **Keep releases fully manual** — error-prone across four version sites and yields no changelog.
+
+### Consequences
+
+- Cutting a version is `npm run release` (see FLOW-0004); the four manifests and the two marketplace
+  fields can no longer drift.
+- `npm run release` **must** run from a clean working tree — `commitAll`/`git add -A` fold all tracked
+  changes into the release commit.
+- The release commit runs the husky pre-commit hook (lint-staged **and knip**). New release helpers
+  must stay lint/knip-clean; `scripts/sync-marketplace-version.mjs` is registered as a knip `entry`.
+- `.versionrc.json` scripts are opaque to knip, so a helper referenced only there would be reported
+  unused unless added to `entry`.
