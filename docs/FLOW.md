@@ -285,12 +285,14 @@ See [DEC-0010](./DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-privat
 2. **Cut the version:** `npm run release` (preview first with `npm run release:dry`). Driven by
    `.versionrc.json` (DEC-0016), it: derives the next version from the Conventional Commits and
    bumps it in `package.json` (the source of truth), `packages/tui/package.json`, and
-   `plugin/.claude-plugin/plugin.json`; **(`postbump`)** regenerates the core bundle
-   (`npm run build:plugin-core`, per [FLOW-0003](#flow-0003--bundle-core-into-the-plugin)) and runs
+   `plugin/.claude-plugin/plugin.json`; **(`postbump` → `scripts/release-postbump.mjs`)**
+   regenerates the core bundle (`npm run build:plugin-core`, per
+   [FLOW-0003](#flow-0003--bundle-core-into-the-plugin)), runs
    `scripts/sync-marketplace-version.mjs` to set the two nested versions in
    `.claude-plugin/marketplace.json`, and re-syncs `package-lock.json` to the bumped versions
    (`npm install --package-lock-only --ignore-scripts` — the lockfile is not a `bumpFile`, so its
-   mirrored root/workspace `version` fields would otherwise drift); writes `CHANGELOG.md`;
+   mirrored root/workspace `version` fields would otherwise drift); each step is labelled, so a
+   mid-chain failure names the step that aborted. Then writes `CHANGELOG.md`;
    **(`postchangelog`)** runs
    `npm run format:fix` + `git add -A` so the Prettier-normalised bumped files, bundle, and manifest
    all land in one commit (`commitAll`); commits `chore(release): <version>`; and tags `<version>`
