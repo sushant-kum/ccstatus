@@ -331,6 +331,10 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
         {items.length === 0 ? (
           <Text dimColor>(no items — press a)</Text>
         ) : (
+          // Item ids are unique within a surface. Linked surfaces share ids across
+          // surfaces (DEC-0018), but only one surface's items render here at a time,
+          // so these keys never collide. (The live Preview renders a RenderModel of
+          // positional segments — paint.tsx keys by index, not item id.)
           items.map((it, i) => <Chip key={it.id} item={it} selected={i === idx} />)
         )}
       </Box>

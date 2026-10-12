@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 
 import { defaultConfig } from './defaults.js';
-import { linkedSurfaces, writeLinkedLines } from './links.js';
+import { LINKABLE, linkedSurfaces, writeLinkedLines } from './links.js';
 import type { Config } from './types.js';
 
 const surfaces = (): Config['surfaces'] => structuredClone(defaultConfig.surfaces);
@@ -47,4 +47,11 @@ test('writeLinkedLines does not propagate from an unlinked surface', () => {
   expect(next.band.lines).toBe(lines);
   expect(next.statusline.lines).toEqual(s.statusline.lines); // untouched
   expect(next.pane.lines).toEqual(s.pane.lines); // untouched
+});
+
+test('exactly three linkable surfaces — the single-group model (DEC-0018/0019) depends on it', () => {
+  // With four, two disjoint linked pairs become possible and linkedSurfaces()/
+  // normalizeLinks would mis-model them as one group. If this fails, the link
+  // design must be revisited, not the assertion loosened.
+  expect(LINKABLE.length).toBe(3);
 });
