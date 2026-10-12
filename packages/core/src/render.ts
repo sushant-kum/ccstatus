@@ -1,6 +1,7 @@
 import type { Config } from './config/types.js';
 import { lineToCells } from './layout/cells.js';
 import { composeLine } from './layout/compose.js';
+import { assignPaletteColors } from './layout/palette.js';
 import type { RenderModel } from './render-model.js';
 import type { Snapshot } from './snapshot.js';
 
@@ -32,10 +33,12 @@ export function render(config: Config, snapshot: Snapshot, opts: RenderOptions):
     return { lines: [] };
   }
   const outputs = opts.commandOutputs ?? {};
+  const theme = config.themes[config.theme] ?? [];
 
   const lines = surface.lines
     .map((items) => lineToCells(items, config, snapshot, outputs))
     .filter((cells) => cells.length > 0)
+    .map((cells) => assignPaletteColors(cells, theme))
     .map((cells) => ({
       segments: composeLine(cells, config.defaults.separator, opts.width, config.defaults.glyph),
     }));

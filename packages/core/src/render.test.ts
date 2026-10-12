@@ -69,3 +69,18 @@ test('render uses the configured powerline glyph', () => {
   expect(text).toContain('►');
   expect(text).not.toContain('▒');
 });
+
+test('positional palette colors every segment and alternates backgrounds', () => {
+  const model = render(defaultConfig, snap, { surface: 'band', width: 120 });
+  const [line] = model.lines;
+  if (!line) {
+    throw new Error('expected a rendered line');
+  }
+  const cells = line.segments.filter((s) => s.kind === 'cell');
+  expect(cells.length).toBeGreaterThanOrEqual(2);
+  for (const c of cells) {
+    expect(c.bg).toBeDefined(); // no terminal-default grey
+    expect(c.fg).toBeDefined();
+  }
+  expect(cells[0]?.bg).not.toBe(cells[1]?.bg); // positional alternation
+});
