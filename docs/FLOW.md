@@ -198,10 +198,11 @@ rather than silently falling back to defaults.
   through the same `$.process.run` the git snapshot uses (rename within one directory is atomic). A
   non-zero `mv` exit (or any thrown error) is caught and reported as "could not save the config file"; the
   in-memory `config` atom is already updated, so the live bar still reflects the new theme. See DEC-0009.
-- **Linked surfaces (DEC-0018):** editing a surface flagged `linked` in the TUI
-  (`screens/items.tsx`) writes the new `lines` to every linked member in the same
-  `setConfig`, and `loadConfig` re-enforces the linked-identical invariant on read,
-  so the mod and the TUI always agree on a linked group's layout.
+- **Linked surfaces (DEC-0018, DEC-0019):** editing a surface flagged `linked` in the
+  TUI (`screens/items.tsx`) writes the new `lines` to every linked member in the same
+  `setConfig` — routed through core's `writeLinkedLines` (the single mirror chokepoint) —
+  and `loadConfig` re-enforces the linked-identical invariant on read, so the mod and the
+  TUI always agree on a linked group's layout.
 - **mtime unchanged** → `reloadConfig` is a no-op (cheap `stat` only).
 - **`/ccstatus reload`** forces an immediate re-read regardless of mtime.
 

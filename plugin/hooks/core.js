@@ -686,6 +686,53 @@ var defaultConfig = {
   }
 };
 
+// packages/core/src/config/links.ts
+var LINKABLE = ["band", "statusline", "pane"];
+var clone = (v) => JSON.parse(JSON.stringify(v));
+function linkedSurfaces(surfaces) {
+  return LINKABLE.filter((name) => surfaces[name].linked);
+}
+function writeLinkedLines(surfaces, surface, lines) {
+  const next = { ...surfaces };
+  next[surface] = { ...surfaces[surface], lines };
+  if (surfaces[surface].linked) {
+    for (const member of LINKABLE) {
+      if (member !== surface && surfaces[member].linked) {
+        next[member] = { ...surfaces[member], lines: clone(lines) };
+      }
+    }
+  }
+  return next;
+}
+function normalizeLinks(surfaces, warn) {
+  const linked = linkedSurfaces(surfaces);
+  if (linked.length < 2) {
+    for (const name of linked) {
+      delete surfaces[name].linked;
+      warn(`dropped lone surface link on "${name}"`);
+    }
+    return;
+  }
+  const canonical = linked[0];
+  if (!canonical) {
+    return;
+  }
+  const source = JSON.stringify(surfaces[canonical].lines);
+  let diverged = false;
+  for (const name of linked) {
+    if (name === canonical) {
+      continue;
+    }
+    if (JSON.stringify(surfaces[name].lines) !== source) {
+      surfaces[name].lines = clone(surfaces[canonical].lines);
+      diverged = true;
+    }
+  }
+  if (diverged) {
+    warn(`linked surfaces diverged; synced to "${canonical}"`);
+  }
+}
+
 // node_modules/zod/v3/external.js
 var external_exports = {};
 __export(external_exports, {
@@ -4814,36 +4861,7 @@ var WIDGET_TYPES = [
 ];
 
 // packages/core/src/config/validate.ts
-var clone = (v) => JSON.parse(JSON.stringify(v));
-var LINKABLE = ["band", "statusline", "pane"];
-function normalizeLinks(surfaces, warn) {
-  const linked = LINKABLE.filter((name) => surfaces[name].linked);
-  if (linked.length < 2) {
-    for (const name of linked) {
-      delete surfaces[name].linked;
-      warn(`dropped lone surface link on "${name}"`);
-    }
-    return;
-  }
-  const canonical = linked[0];
-  if (!canonical) {
-    return;
-  }
-  const source = JSON.stringify(surfaces[canonical].lines);
-  let diverged = false;
-  for (const name of linked) {
-    if (name === canonical) {
-      continue;
-    }
-    if (JSON.stringify(surfaces[name].lines) !== source) {
-      surfaces[name].lines = clone(surfaces[canonical].lines);
-      diverged = true;
-    }
-  }
-  if (diverged) {
-    warn(`linked surfaces diverged; synced to "${canonical}"`);
-  }
-}
+var clone2 = (v) => JSON.parse(JSON.stringify(v));
 var WIDGET_TYPE_SET = new Set(WIDGET_TYPES);
 function cleanStyle(raw, type, warn) {
   const style = {};
@@ -4920,7 +4938,7 @@ function cleanThemes(themes, warn) {
 }
 function cleanToasts(raw, warn) {
   if (!raw) {
-    return clone(defaultConfig.surfaces.toasts);
+    return clone2(defaultConfig.surfaces.toasts);
   }
   const rules = raw.rules.filter((r) => {
     if (isValidWhen(r.when)) {
@@ -4946,13 +4964,13 @@ function loadConfig(raw) {
     if (raw !== void 0) {
       warn(`config invalid (${((_a = parsed.error.issues[0]) == null ? void 0 : _a.message) ?? "unknown"}); using defaults`);
     }
-    return { config: clone(defaultConfig), warnings };
+    return { config: clone2(defaultConfig), warnings };
   }
   const p = parsed.data;
   const surf = (name) => {
     const s = p.surfaces[name];
     if (!s) {
-      return clone(defaultConfig.surfaces[name]);
+      return clone2(defaultConfig.surfaces[name]);
     }
     const layout = {
       enabled: s.enabled,
@@ -4965,7 +4983,7 @@ function loadConfig(raw) {
     }
     return layout;
   };
-  const themesToUse = Object.keys(p.themes).length ? p.themes : clone(defaultConfig.themes);
+  const themesToUse = Object.keys(p.themes).length ? p.themes : clone2(defaultConfig.themes);
   const config = {
     version: 1,
     theme: p.theme,
@@ -4983,7 +5001,7 @@ function loadConfig(raw) {
 }
 
 // packages/core/src/config/import-ccstatusline.ts
-var clone2 = (v) => JSON.parse(JSON.stringify(v));
+var clone3 = (v) => JSON.parse(JSON.stringify(v));
 var TYPE_MAP = {
   model: "model",
   version: "version",
@@ -5083,7 +5101,7 @@ function importCcstatusline(raw) {
   const warnings = [];
   if (!raw || typeof raw !== "object" || !Array.isArray(raw.lines)) {
     warnings.push("input is not a ccstatusline config; using defaults");
-    return { config: clone2(defaultConfig), warnings };
+    return { config: clone3(defaultConfig), warnings };
   }
   const lines = raw.lines.map(
     (line) => (Array.isArray(line) ? line : []).flatMap((item) => {
@@ -5149,6 +5167,7 @@ var rendererBg = (bg2) => {
 };
 export {
   COLORS,
+  LINKABLE,
   TOAST_FIELDS,
   builtinThemes,
   defaultConfig,
@@ -5156,11 +5175,13 @@ export {
   importCcstatusline,
   isColor,
   isValidWhen,
+  linkedSurfaces,
   loadConfig,
   register,
   registry,
   render,
   rendererBg,
   rendererColor,
-  toAnsi
+  toAnsi,
+  writeLinkedLines
 };

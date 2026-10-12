@@ -2,6 +2,8 @@ export { render } from './render.js';
 export type { RenderOptions } from './render.js';
 export { toAnsi } from './ansi.js';
 export { loadConfig } from './config/validate.js';
+export { LINKABLE, linkedSurfaces, writeLinkedLines } from './config/links.js';
+export type { LinkableSurface } from './config/links.js';
 export { defaultConfig } from './config/defaults.js';
 export { importCcstatusline } from './config/import-ccstatusline.js';
 export { register, registry } from './widgets/registry.js';

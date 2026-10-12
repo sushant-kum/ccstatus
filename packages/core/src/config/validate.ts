@@ -2,6 +2,7 @@ import { isColor } from '../colors.js';
 import { isValidWhen } from '../toast.js';
 
 import { defaultConfig } from './defaults.js';
+import { normalizeLinks } from './links.js';
 import { configSchema } from './schema.js';
 import { WIDGET_TYPES } from './types.js';
 import type {
@@ -16,46 +17,6 @@ import type {
 } from './types.js';
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
-
-const LINKABLE = ['band', 'statusline', 'pane'] as const;
-
-/**
- * Enforces the linked-surface invariant in place: every surface flagged `linked`
- * shares one set of `lines` (only `lines` is mirrored, not `enabled`). A lone flag
- * is not a group and is dropped; divergent linked lines (only reachable via
- * hand-edited JSON) are synced to the first linked surface in
- * band -> statusline -> pane order.
- * @param surfaces - The built surfaces map, mutated in place.
- * @param warn     - Sink for human-readable warnings.
- */
-function normalizeLinks(surfaces: Config['surfaces'], warn: (s: string) => void): void {
-  const linked = LINKABLE.filter((name) => surfaces[name].linked);
-  if (linked.length < 2) {
-    for (const name of linked) {
-      delete surfaces[name].linked;
-      warn(`dropped lone surface link on "${name}"`);
-    }
-    return;
-  }
-  const canonical = linked[0];
-  if (!canonical) {
-    return;
-  }
-  const source = JSON.stringify(surfaces[canonical].lines);
-  let diverged = false;
-  for (const name of linked) {
-    if (name === canonical) {
-      continue;
-    }
-    if (JSON.stringify(surfaces[name].lines) !== source) {
-      surfaces[name].lines = clone(surfaces[canonical].lines);
-      diverged = true;
-    }
-  }
-  if (diverged) {
-    warn(`linked surfaces diverged; synced to "${canonical}"`);
-  }
-}
 
 const WIDGET_TYPE_SET = new Set<WidgetType>(WIDGET_TYPES);
 

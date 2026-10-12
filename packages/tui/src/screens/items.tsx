@@ -1,5 +1,12 @@
-import { registry } from '@ccstatus/core';
-import type { Align, Item, ItemStyle, StylableItem, WidgetType } from '@ccstatus/core';
+import { LINKABLE, linkedSurfaces, registry, writeLinkedLines } from '@ccstatus/core';
+import type {
+  Align,
+  Item,
+  ItemStyle,
+  LinkableSurface,
+  StylableItem,
+  WidgetType,
+} from '@ccstatus/core';
 import { Box, Text, useInput } from 'ink';
 import { useState, type ReactElement, type ReactNode } from 'react';
 
@@ -12,8 +19,10 @@ import { inkBg, inkColor } from '../paint.js';
 //        picker: ↑/↓ choose · enter add · esc cancel
 //        link:   ↑/↓ choose · enter link · esc cancel; confirm (non-empty target): y confirm · n cancel
 // v1 operates on line 0 of each surface (existing extra lines are preserved untouched).
-const SURFACES = ['band', 'statusline', 'pane'] as const;
-type Surface = (typeof SURFACES)[number];
+// Single source of truth lives in core (LINKABLE); the renderer/link logic here
+// reuses it so the two can't drift.
+const SURFACES = LINKABLE;
+type Surface = LinkableSurface;
 const FIELDS = ['fg', 'bg', 'raw', 'merge', 'align'] as const;
 const ALIGNS: Align[] = ['left', 'center', 'right'];
 const FG = NAMED_COLORS.filter((c) => !c.startsWith('bg'));
@@ -23,7 +32,6 @@ const WIDGETS = Object.values(registry) as { type: WidgetType; label: string }[]
 const wrap = (i: number, n: number): number => (i + n) % n;
 const makeId = (type: string): string =>
   `${type}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-const cloneLines = (lines: Item[][]): Item[][] => JSON.parse(JSON.stringify(lines)) as Item[][];
 
 // The flex separator carries no styling; everything else is a StylableItem.
 const isStylable = (item: Item): item is StylableItem => item.type !== 'flex-separator';
@@ -86,17 +94,9 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
   const idx = cur ? items.indexOf(cur) : -1;
 
   const commit = (next: Item[]): void => {
-    const s = config.surfaces[surface];
-    const lines = [next, ...s.lines.slice(1)];
-    const surfaces = { ...config.surfaces, [surface]: { ...s, lines } };
-    if (s.linked) {
-      for (const other of SURFACES) {
-        if (other !== surface && config.surfaces[other].linked) {
-          surfaces[other] = { ...config.surfaces[other], lines: cloneLines(lines) };
-        }
-      }
-    }
-    setConfig({ ...config, surfaces });
+    const lines = [next, ...config.surfaces[surface].lines.slice(1)];
+    // writeLinkedLines mirrors to every linked member when `surface` is linked.
+    setConfig({ ...config, surfaces: writeLinkedLines(config.surfaces, surface, lines) });
   };
   // Style edits only apply to stylable items (never the flex separator).
   const patch = (p: Partial<ItemStyle>): void => {
@@ -162,20 +162,15 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
   const linkReplacements = (targets: Surface[]): Surface[] =>
     SURFACES.filter((s) => s !== surface && (targets.includes(s) || config.surfaces[s].linked));
   const applyLink = (targets: Surface[]): void => {
-    const srcLines = cloneLines(config.surfaces[surface].lines);
-    const surfaces = { ...config.surfaces };
-    surfaces[surface] = { ...config.surfaces[surface], linked: true };
+    const marked = { ...config.surfaces };
+    marked[surface] = { ...config.surfaces[surface], linked: true };
     for (const t of targets) {
-      surfaces[t] = { ...config.surfaces[t], linked: true };
+      marked[t] = { ...config.surfaces[t], linked: true };
     }
-    // Keep the whole resulting group identical to the source — including any
-    // surface already linked but not among `targets`, which would otherwise
-    // diverge and be silently resolved against the user's intent on reload.
-    for (const s of SURFACES) {
-      if (s !== surface && surfaces[s].linked) {
-        surfaces[s] = { ...surfaces[s], lines: cloneLines(srcLines) };
-      }
-    }
+    // `surface` is now linked, so writeLinkedLines mirrors its layout to the
+    // whole resulting group — the chosen targets AND any pre-existing member —
+    // which would otherwise diverge and be silently resolved on reload.
+    const surfaces = writeLinkedLines(marked, surface, config.surfaces[surface].lines);
     setConfig({ ...config, surfaces });
   };
   const applyUnlink = (): void => {
@@ -193,7 +188,9 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
         ),
       },
     };
-    const remaining = SURFACES.filter((s) => s !== surface && surfaces[s].linked);
+    // Dissolve a group that would drop below two members (surface is already
+    // marked unlinked above, so linkedSurfaces() excludes it).
+    const remaining = linkedSurfaces(surfaces);
     if (remaining.length === 1) {
       const lone = remaining[0];
       if (lone) {

@@ -154,6 +154,29 @@ declare function loadConfig(raw: unknown): {
     warnings: string[];
 };
 
+declare const LINKABLE: readonly ["band", "statusline", "pane"];
+type LinkableSurface = (typeof LINKABLE)[number];
+type Surfaces = Config['surfaces'];
+/**
+ * The linkable surfaces currently flagged `linked`, in canonical
+ * band -> statusline -> pane order.
+ * @param surfaces - The surfaces map.
+ * @returns        The linked surfaces, canonical first.
+ */
+declare function linkedSurfaces(surfaces: Surfaces): LinkableSurface[];
+/**
+ * Writes `lines` to `surface` and, when it is linked, mirrors them (deep-cloned)
+ * to every other linked member, returning a new surfaces map. This is the single
+ * chokepoint for the "linked surfaces share one set of lines" invariant on every
+ * edit — callers route layout writes through it instead of re-implementing the
+ * propagation loop, so no edit can leave a linked group divergent. See DEC-0019.
+ * @param surfaces - The current surfaces map (not mutated).
+ * @param surface  - The surface whose lines are being written.
+ * @param lines    - The new lines for `surface`.
+ * @returns        A new surfaces map with `surface` and any linked members updated.
+ */
+declare function writeLinkedLines(surfaces: Surfaces, surface: LinkableSurface, lines: Item[][]): Surfaces;
+
 declare const defaultConfig: Config;
 
 /**
@@ -225,4 +248,4 @@ declare const rendererColor: (fg?: string) => string | undefined;
  */
 declare const rendererBg: (bg?: string) => string | undefined;
 
-export { type Align, COLORS, type Config, type CustomCommandItem, type CustomTextItem, type DataItem, type DataWidgetType, type Defaults, type FlexSeparatorItem, type Item, type ItemStyle, type RenderLine, type RenderModel, type RenderOptions, type Segment, type SegmentKind, type SeparatorMode, type Snapshot, type StylableItem, type SurfaceLayout, TOAST_FIELDS, type Theme, type ToastRule, type ToastSurface, type WidgetContext, type WidgetDef, type WidgetType, builtinThemes, defaultConfig, evalWhen, importCcstatusline, isColor, isValidWhen, loadConfig, register, registry, render, rendererBg, rendererColor, toAnsi };
+export { type Align, COLORS, type Config, type CustomCommandItem, type CustomTextItem, type DataItem, type DataWidgetType, type Defaults, type FlexSeparatorItem, type Item, type ItemStyle, LINKABLE, type LinkableSurface, type RenderLine, type RenderModel, type RenderOptions, type Segment, type SegmentKind, type SeparatorMode, type Snapshot, type StylableItem, type SurfaceLayout, TOAST_FIELDS, type Theme, type ToastRule, type ToastSurface, type WidgetContext, type WidgetDef, type WidgetType, builtinThemes, defaultConfig, evalWhen, importCcstatusline, isColor, isValidWhen, linkedSurfaces, loadConfig, register, registry, render, rendererBg, rendererColor, toAnsi, writeLinkedLines };
