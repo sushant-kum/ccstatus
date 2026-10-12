@@ -47,6 +47,7 @@ test('enter on another theme activates it', async () => {
   unmount();
 });
 test('picker edits a slot fg within the theme, immutably', async () => {
+  const origFg = defaultConfig.themes.default?.[0]?.fg;
   const setConfig = vi.fn();
   const { stdin, unmount } = render(
     <Themes
@@ -70,9 +71,11 @@ test('picker edits a slot fg within the theme, immutably', async () => {
   stdin.write('\r');
   await tick();
   const c = setConfig.mock.calls[0]?.[0];
-  expect(c.themes.default[0].fg).not.toBe(defaultConfig.themes.default?.[0]?.fg);
+  expect(c.themes.default[0].fg).toBeDefined();
+  expect(c.themes.default[0].fg).not.toBe(origFg);
   expect(c.themes.default[0].bg).toBe('bgCyan');
-  expect(defaultConfig.themes.default?.[0]?.bg).toBe('bgCyan');
+  expect(defaultConfig.themes.default?.[0]?.fg).toBe(origFg);
+  expect(c.themes.default).not.toBe(defaultConfig.themes.default);
   unmount();
 });
 test('d duplicates the selected theme', async () => {
