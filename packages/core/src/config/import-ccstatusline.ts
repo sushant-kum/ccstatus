@@ -96,18 +96,17 @@ const UNSUPPORTED: Record<string, string> = {
 };
 
 /**
- * Extracts the styling fields shared by every ccstatusline item that ccstatus can style.
+ * Extracts the styling fields shared by every ccstatusline item that ccstatus can carry.
  * @param raw        - The raw ccstatusline item.
  * @param idFallback - The id prefix used when the item carries no id of its own.
- * @returns          The id plus background, raw-value and merge flags.
+ * @returns          The id plus raw-value and merge flags.
  */
 function baseStyle(
   raw: Record<string, unknown>,
   idFallback: string
-): { id: string; bg?: string; rawValue?: true; merge?: true } {
+): { id: string; rawValue?: true; merge?: true } {
   return {
     id: String(raw['id'] ?? `${idFallback}-${Math.random().toString(36).slice(2)}`),
-    bg: typeof raw['backgroundColor'] === 'string' ? raw['backgroundColor'] : undefined,
     rawValue: raw['rawValue'] === true || undefined,
     merge: raw['merge'] === true || undefined,
   };

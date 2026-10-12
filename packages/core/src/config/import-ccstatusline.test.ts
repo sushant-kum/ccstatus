@@ -20,7 +20,7 @@ test('maps known items into the band surface', () => {
     throw new Error('expected a band line');
   }
   expect(line.map((i) => i.type)).toEqual(['version', 'context-percentage']);
-  expect((line[1] as { bg?: string }).bg).toBe('bgBrightYellow');
+  expect((line[1] as { bg?: string }).bg).toBeUndefined();
   expect(config.surfaces.band.enabled).toBe(true);
   expect(warnings.some((w) => w.includes('totally-unknown'))).toBe(true);
 });

@@ -1,4 +1,5 @@
 import { isColor } from '../colors.js';
+import { builtinThemes } from '../theme/themes.js';
 import { isValidWhen } from '../toast.js';
 
 import { defaultConfig } from './defaults.js';
@@ -11,7 +12,9 @@ import type {
   DataWidgetType,
   Item,
   ItemStyle,
+  PaletteSlot,
   SurfaceLayout,
+  Theme,
   ToastSurface,
   WidgetType,
 } from './types.js';
@@ -34,7 +37,7 @@ interface RawItem {
 }
 
 /**
- * Carries the common styling fields of a raw item, dropping and warning on unknown colors.
+ * Carries the common styling fields of a raw item, dropping any per-item color with a warning.
  * @param raw  - The parsed item row to read styling fields from.
  * @param type - The item's widget type, used in warning messages.
  * @param warn - Callback invoked with a message for each stripped field.
@@ -51,16 +54,8 @@ function cleanStyle(raw: RawItem, type: string, warn: (s: string) => void): Item
   if (raw.rawValue !== undefined) {
     style.rawValue = raw.rawValue;
   }
-  for (const key of ['fg', 'bg'] as const) {
-    const v = raw[key];
-    if (v === undefined) {
-      continue;
-    }
-    if (isColor(v)) {
-      style[key] = v;
-    } else {
-      warn(`stripped unknown color "${v}" on a ${type} item`);
-    }
+  if (raw.fg !== undefined || raw.bg !== undefined) {
+    warn(`dropped per-item color on a ${type} item; colors now come from the theme palette`);
   }
   return style;
 }
@@ -105,31 +100,45 @@ function cleanItem(raw: RawItem, warn: (s: string) => void): Item | null {
 }
 
 /**
- * Validates every color in each theme, stripping and warning on unknown colors.
- * @param themes - The themes keyed by name, each mapping widget names to color entries.
- * @param warn   - Callback invoked with a message for each stripped color.
- * @returns      The themes with only valid colors retained.
+ * Validates themes as positional palettes, dropping legacy per-widget themes and invalid slots.
+ * @param themes - The raw themes keyed by name; each value should be an array of palette slots.
+ * @param warn   - Callback invoked for each dropped theme or stripped slot color.
+ * @returns      The valid palette themes keyed by name.
  */
 function cleanThemes(
-  themes: Record<string, Record<string, { fg?: string; bg?: string }>>,
+  themes: Record<string, unknown>,
   warn: (s: string) => void
-): Record<string, Record<string, { fg?: string; bg?: string }>> {
-  const cleaned: Record<string, Record<string, { fg?: string; bg?: string }>> = {};
-  for (const [themeName, themeEntries] of Object.entries(themes)) {
-    const cleanedEntries: Record<string, { fg?: string; bg?: string }> = {};
-    for (const [widgetName, entry] of Object.entries(themeEntries)) {
-      const cleanedEntry = { ...entry };
+): Record<string, Theme> {
+  const cleaned: Record<string, Theme> = {};
+  for (const [name, value] of Object.entries(themes)) {
+    if (!Array.isArray(value)) {
+      warn(
+        `theme "${name}" uses the old per-widget format and was dropped; colors are now a positional palette`
+      );
+      continue;
+    }
+    const slots: PaletteSlot[] = [];
+    value.forEach((rawSlot, i) => {
+      if (!rawSlot || typeof rawSlot !== 'object') {
+        warn(`dropped invalid slot ${i} in theme "${name}"`);
+        return;
+      }
+      const entry = rawSlot as { fg?: unknown; bg?: unknown };
+      const slot: PaletteSlot = {};
       for (const key of ['fg', 'bg'] as const) {
-        if (cleanedEntry[key] !== undefined && !isColor(cleanedEntry[key])) {
-          warn(
-            `stripped unknown color "${cleanedEntry[key]}" in theme "${themeName}" (${widgetName})`
-          );
-          cleanedEntry[key] = undefined;
+        const v = entry[key];
+        if (v === undefined) {
+          continue;
+        }
+        if (typeof v === 'string' && isColor(v)) {
+          slot[key] = v;
+        } else {
+          warn(`stripped unknown color "${String(v)}" in theme "${name}" (slot ${i})`);
         }
       }
-      cleanedEntries[widgetName] = cleanedEntry;
-    }
-    cleaned[themeName] = cleanedEntries;
+      slots.push(slot);
+    });
+    cleaned[name] = slots;
   }
   return cleaned;
 }
@@ -209,12 +218,21 @@ export function loadConfig(raw: unknown): { config: Config; warnings: string[] }
     return layout;
   };
 
-  const themesToUse = Object.keys(p.themes).length ? p.themes : clone(defaultConfig.themes);
+  const cleaned = cleanThemes(p.themes, warn);
+  const themes = Object.keys(cleaned).length ? cleaned : clone(builtinThemes);
+  if (!('default' in themes)) {
+    themes['default'] = clone(builtinThemes['default'] ?? []);
+  }
+  let theme = p.theme;
+  if (!(theme in themes)) {
+    warn(`theme "${theme}" not found; using "default"`);
+    theme = 'default';
+  }
 
   const config: Config = {
     version: 1,
-    theme: p.theme,
-    themes: cleanThemes(themesToUse, warn),
+    theme,
+    themes,
     defaults: { ...defaultConfig.defaults, ...p.defaults },
     surfaces: {
       band: surf('band'),

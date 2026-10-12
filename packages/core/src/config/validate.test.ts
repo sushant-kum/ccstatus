@@ -26,36 +26,10 @@ test('unknown widget type is dropped with a warning', () => {
   expect(warnings.some((w) => w.includes('bogus'))).toBe(true);
 });
 
-test('unknown color is stripped with a warning', () => {
-  const raw = {
-    version: 1,
-    surfaces: { band: { enabled: true, lines: [[{ id: 'a', type: 'model', fg: 'fuchsia' }]] } },
-  };
-  const { config, warnings } = loadConfig(raw);
-  expect(config.surfaces.band.lines[0]).toHaveLength(1);
-  expect((config.surfaces.band.lines[0]?.[0] as { fg?: string } | undefined)?.fg).toBeUndefined();
-  expect(warnings.some((w) => w.includes('fuchsia'))).toBe(true);
-});
-
 test('missing surfaces are filled from defaults', () => {
   const { config } = loadConfig({ version: 1, surfaces: { band: { enabled: false, lines: [] } } });
   expect(config.surfaces.statusline).toEqual(defaultConfig.surfaces.statusline);
   expect(config.surfaces.toasts).toEqual(defaultConfig.surfaces.toasts);
-});
-
-test('unknown theme color is stripped with a warning', () => {
-  const raw = {
-    version: 1,
-    themes: {
-      default: {
-        model: { fg: 'fuchsia', bg: 'bgCyan' },
-      },
-    },
-  };
-  const { config, warnings } = loadConfig(raw);
-  expect(config.themes.default?.model?.fg).toBeUndefined();
-  expect(config.themes.default?.model?.bg).toBe('bgCyan');
-  expect(warnings.some((w) => w.includes('fuchsia'))).toBe(true);
 });
 
 test('empty input object yields valid config with no warnings', () => {
@@ -201,4 +175,57 @@ test('divergent linked surfaces sync to statusline when band is not linked', () 
   expect(config.surfaces.statusline.lines[0]?.[0]?.type).toBe('model');
   expect(config.surfaces.band.linked).toBeUndefined();
   expect(warnings.some((w) => w.includes('diverged'))).toBe(true);
+});
+
+test('a per-item color is dropped with a warning', () => {
+  const raw = {
+    version: 1,
+    surfaces: { band: { enabled: true, lines: [[{ id: 'a', type: 'model', fg: 'bgCyan' }]] } },
+  };
+  const { config, warnings } = loadConfig(raw);
+  const item = config.surfaces.band.lines[0]?.[0];
+  expect(item?.type).toBe('model');
+  expect((item as { fg?: string } | undefined)?.fg).toBeUndefined();
+  expect(warnings.some((w) => w.includes('per-item color'))).toBe(true);
+});
+
+test('a legacy per-widget theme is dropped and builtins are used', () => {
+  const raw = {
+    version: 1,
+    theme: 'default',
+    themes: { default: { model: { fg: 'black', bg: 'bgCyan' } } },
+  };
+  const { config, warnings } = loadConfig(raw);
+  expect(Array.isArray(config.themes.default)).toBe(true);
+  expect(config.theme).toBe('default');
+  expect(warnings.some((w) => w.includes('old per-widget format'))).toBe(true);
+});
+
+test('a positional palette theme with a bad slot color is stripped with a warning', () => {
+  const raw = {
+    version: 1,
+    theme: 'mine',
+    themes: {
+      mine: [
+        { fg: 'black', bg: 'bgCyan' },
+        { fg: 'fuchsia', bg: 'bgBlue' },
+      ],
+    },
+  };
+  const { config, warnings } = loadConfig(raw);
+  expect(config.themes.mine?.[1]).toEqual({ bg: 'bgBlue' });
+  expect(warnings.some((w) => w.includes('fuchsia'))).toBe(true);
+});
+
+test('an unknown active theme name falls back to default with a warning', () => {
+  const { config, warnings } = loadConfig({ version: 1, theme: 'ghost', themes: {} });
+  expect(config.theme).toBe('default');
+  expect(warnings.some((w) => w.includes('ghost') && w.includes('default'))).toBe(true);
+});
+
+test('a valid positional palette theme is preserved', () => {
+  const raw = { version: 1, theme: 'mine', themes: { mine: [{ fg: 'white', bg: 'bgRed' }] } };
+  const { config } = loadConfig(raw);
+  expect(config.themes.mine).toEqual([{ fg: 'white', bg: 'bgRed' }]);
+  expect(config.theme).toBe('mine');
 });

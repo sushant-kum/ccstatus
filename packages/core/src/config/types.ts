@@ -50,10 +50,15 @@ export type DataWidgetType = Exclude<
   'custom-text' | 'custom-command' | 'flex-separator'
 >;
 
-// Styling common to every item except the flex separator (which has no content).
-export interface ItemStyle {
+// A single palette slot. Both optional: bg-only → auto-contrast fg; fg-only → colored text, no block;
+// neither → terminal default.
+export interface PaletteSlot {
   fg?: string;
   bg?: string;
+}
+
+// Styling an item may carry. Colors are NOT here — they come from the theme palette by position.
+export interface ItemStyle {
   merge?: boolean;
   align?: Align;
   rawValue?: boolean;
@@ -88,7 +93,8 @@ export interface ToastSurface {
   enabled: boolean;
   rules: ToastRule[];
 }
-export type Theme = Record<string, { fg?: string; bg?: string }>;
+// A theme is an ordered palette, cycled across visible items by position.
+export type Theme = PaletteSlot[];
 export interface Defaults {
   separator: SeparatorMode;
   padding: number;

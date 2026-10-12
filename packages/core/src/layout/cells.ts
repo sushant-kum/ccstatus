@@ -1,6 +1,5 @@
 import type { Config, Item } from '../config/types.js';
 import type { Snapshot } from '../snapshot.js';
-import { resolveColors } from '../theme/themes.js';
 import { registry } from '../widgets/registry.js';
 
 export interface Cell {
@@ -38,9 +37,8 @@ export function itemToCell(
   // Defense in depth: the schema already clamps padding, but core must never throw
   // on a hand-constructed Config either (' '.repeat throws on negative counts).
   const pad = flex ? '' : ' '.repeat(Math.max(0, Math.floor(config.defaults.padding)));
-  const { fg, bg } = resolveColors(item, config);
   const merge = item.type === 'flex-separator' ? false : (item.merge ?? false);
-  return { text: flex ? '' : `${pad}${value}${pad}`, fg, bg, merge, flex };
+  return { text: flex ? '' : `${pad}${value}${pad}`, merge, flex };
 }
 
 /**

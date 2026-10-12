@@ -15,11 +15,9 @@ const config = {
 } as unknown as Config;
 const snap = { model: 'Opus', repo: false } as unknown as Snapshot;
 
-test('itemToCell pads and colors', () => {
+test('itemToCell pads (palette colors are applied downstream)', () => {
   expect(itemToCell({ id: 'a', type: 'model' }, config, snap, {})).toEqual({
     text: ' Opus ',
-    fg: 'black',
-    bg: 'bgCyan',
     merge: false,
     flex: false,
   });
@@ -30,8 +28,6 @@ test('omitted widget yields null', () => {
 test('flex cell is unpadded and flagged', () => {
   expect(itemToCell({ id: 'f', type: 'flex-separator' }, config, snap, {})).toEqual({
     text: '',
-    fg: undefined,
-    bg: undefined,
     merge: false,
     flex: true,
   });
