@@ -156,18 +156,22 @@ function assignPaletteColors(cells, theme) {
   }
   const out = [];
   let slot = -1;
+  let prev;
   for (const c of cells) {
     if (c.flex) {
       out.push({ ...c });
+      prev = c;
       continue;
     }
-    if (!(c.merge && slot >= 0)) {
+    const continuation = c.merge === true && prev !== void 0 && !prev.flex;
+    if (!continuation) {
       slot += 1;
     }
     const pal = theme[slot % theme.length];
     const bg2 = pal == null ? void 0 : pal.bg;
     const fg2 = (pal == null ? void 0 : pal.fg) ?? (bg2 !== void 0 ? contrastFg(bg2) : void 0);
     out.push({ ...c, fg: fg2, bg: bg2 });
+    prev = c;
   }
   return out;
 }
@@ -5005,11 +5009,11 @@ function loadConfig(raw) {
   };
   const cleaned = cleanThemes(p.themes, warn);
   const themes = Object.keys(cleaned).length ? cleaned : clone2(builtinThemes);
-  if (!("default" in themes)) {
+  if (!Object.hasOwn(themes, "default")) {
     themes["default"] = clone2(builtinThemes["default"] ?? []);
   }
   let theme = p.theme;
-  if (!(theme in themes)) {
+  if (!Object.hasOwn(themes, theme)) {
     warn(`theme "${theme}" not found; using "default"`);
     theme = "default";
   }
