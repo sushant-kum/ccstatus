@@ -1,0 +1,143 @@
+# Publishes a release when a version tag is pushed. Tags are created by
+# `npm run release` (commit-and-tag-version, see FLOW-0004 / DEC-0016) and carry
+# no prefix, e.g. `0.1.1`. `git push --follow-tags origin main` fires this.
+#
+# npm auth is OIDC Trusted Publishing — no token/secret (DEC-0017). One-time
+# setup on npmjs.com: the package's Settings → Trusted Publisher → GitHub, with
+# owner `sushant-kum`, repository `ccstatus`, workflow filename `release.yml`
+# (case-sensitive). The package already exists on npm (0.1.0 published), so no
+# bootstrap publish is needed — configure the trusted publisher and every tagged
+# release flows through here. Provenance is automatic (public repo + public
+# package); `repository.url` in packages/tui/package.json must match the repo.
+# The marketplace/mod side needs no external publish — the GitHub Release below
+# is its visible artifact.
+name: Release
+on:
+  push:
+    tags:
+      - '[0-9]*.[0-9]*.[0-9]*'
+
+permissions:
+  contents: write # create the GitHub Release
+  id-token: write # OIDC token for npm Trusted Publishing + provenance
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      # Trusted Publishing needs npm >= 11.5.1. Node 24 already ships npm 11, but
+      # upgrade defensively so the floor holds regardless of the bundled npm.
+      - name: Upgrade npm for Trusted Publishing
+        run: npm install -g npm@latest
+
+      - run: npm ci
+
+      # Never publish a tag whose manifests disagree with it (e.g. a hand-made
+      # tag, or one pushed without the matching release commit).
+      - name: Verify tag matches every manifest version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const tag = process.env.TAG;
+            const read = (p) => JSON.parse(fs.readFileSync(p, "utf8"));
+            const mp = read(".claude-plugin/marketplace.json");
+            const checks = {
+              "package.json": read("package.json").version,
+              "packages/tui/package.json": read("packages/tui/package.json").version,
+              "plugin/.claude-plugin/plugin.json": read("plugin/.claude-plugin/plugin.json").version,
+              "marketplace.metadata.version": mp.metadata.version,
+              ...Object.fromEntries(mp.plugins.map((p, i) => [`marketplace.plugins[${i}].version`, p.version])),
+            };
+            let bad = false;
+            for (const [where, version] of Object.entries(checks)) {
+              const ok = version === tag;
+              console.log(`${ok ? "ok" : "MISMATCH"}: ${where} = ${version}`);
+              if (!ok) bad = true;
+            }
+            if (bad) {
+              console.error(`::error::tag ${tag} does not match all manifest versions`);
+              process.exit(1);
+            }
+          '
+
+      # Re-verify at the tag so a red commit never ships to npm.
+      - run: npm run typecheck -w @ccstatus/core
+      - run: npm test -w @ccstatus/core
+      - run: npm run typecheck -w @sushant-kum/ccstatus
+      - run: npm test -w @sushant-kum/ccstatus
+      - run: npm run build -w @sushant-kum/ccstatus # emits packages/tui/dist (no prepublishOnly)
+      - name: Core bundle is fresh
+        run: |
+          npm run build:plugin-core
+          git diff --exit-code plugin/hooks/core.js plugin/hooks/core.d.ts \
+            || { echo "::error::plugin/hooks/core.{js,d.ts} is stale — run 'npm run build:plugin-core' and commit"; exit 1; }
+
+      # A prerelease tag (`X.Y.Z-<label>.<n>`, e.g. `0.2.0-rc.1`) must not become the
+      # npm `latest` dist-tag or the "Latest" GitHub Release. Derive the channel
+      # from the prerelease label: `-rc.1` → `rc`, `-pre-id.4` → `pre-id`; a stable
+      # tag publishes to `latest`. Empty/numeric labels fall back to `next`.
+      - name: Classify release channel
+        id: rel
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ "$TAG" == *-* ]]; then
+            pre="${TAG#*-}"          # strip the version core: 0.2.0-rc.1 -> rc.1
+            channel="${pre%%.*}"     # first prerelease identifier: rc.1 -> rc
+            channel="${channel%%+*}" # drop any +build metadata
+            if [[ -z "$channel" || "$channel" =~ ^[0-9]+$ ]]; then channel="next"; fi
+            prerelease=true
+          else
+            channel=latest
+            prerelease=false
+          fi
+          echo "npm_tag=$channel" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+          echo "$TAG → npm dist-tag '$channel', prerelease=$prerelease"
+
+      # No token: npm >= 11.5.1 on GitHub Actions exchanges the OIDC token with
+      # the registry automatically, and emits provenance for the public package.
+      - name: Publish TUI to npm (Trusted Publishing)
+        run: npm publish -w @sushant-kum/ccstatus --access public --tag '${{ steps.rel.outputs.npm_tag }}'
+
+      # Pull this version's section out of CHANGELOG.md for the release notes.
+      - name: Extract changelog notes
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const ver = process.env.VERSION;
+            const esc = ver.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const start = new RegExp("^## \\[?" + esc + "([^0-9]|$)");
+            const out = [];
+            let inSection = false;
+            for (const line of fs.readFileSync("CHANGELOG.md", "utf8").split("\n")) {
+              if (start.test(line)) { inSection = true; continue; }
+              if (inSection && /^## /.test(line)) break;
+              if (inSection) out.push(line);
+            }
+            fs.writeFileSync("RELEASE_NOTES.md", out.join("\n").trim() + "\n");
+          '
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ github.ref_name }}
+          PRERELEASE: ${{ steps.rel.outputs.prerelease }}
+        run: |
+          flags=(--verify-tag --title "$VERSION")
+          [ "$PRERELEASE" = "true" ] && flags+=(--prerelease)
+          if [ -s RELEASE_NOTES.md ] && grep -q '[^[:space:]]' RELEASE_NOTES.md; then
+            flags+=(--notes-file RELEASE_NOTES.md)
+          else
+            flags+=(--generate-notes)
+          fi
+          gh release create "$VERSION" "${flags[@]}"

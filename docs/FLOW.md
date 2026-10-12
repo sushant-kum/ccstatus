@@ -259,12 +259,13 @@ See [DEC-0010](./DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-privat
 
 - **Scope:** repo-wide
 - **Trigger:** cutting a public release of ccstatus. Versioning/changelog/tagging is automated
-  (`npm run release`); publishing and pushing stay manual.
+  (`npm run release`); publishing is automated by `release.yml` on the pushed tag.
 - **Outcome:** one lockstep version across all manifests, a tag (no prefix, e.g. `0.1.0`), an
-  updated `CHANGELOG.md`; then `npx @sushant-kum/ccstatus` installs the TUI from npm and `claude
-plugin marketplace add sushant-kum/ccstatus` + install adds the mod.
+  updated `CHANGELOG.md`, the TUI published to npm and a GitHub Release created; then `npx
+@sushant-kum/ccstatus` installs the TUI and `claude plugin marketplace add sushant-kum/ccstatus` +
+  install adds the mod.
 - **Last verified:** 2026-10-12
-- **Related:** [DEC-0016](./DECISION.md#dec-0016--release-versioning-via-commit-and-tag-version-one-lockstep-version-across-all-manifests), DEC-0010, [DEC-0014](./DECISION.md#dec-0014--publish-the-tui-under-the-scoped-name-sushant-kumccstatus), [FLOW-0003](#flow-0003--bundle-core-into-the-plugin)
+- **Related:** [DEC-0016](./DECISION.md#dec-0016--release-versioning-via-commit-and-tag-version-one-lockstep-version-across-all-manifests), [DEC-0017](./DECISION.md#dec-0017--publish-on-tag-via-github-actions-npm-auth-by-oidc-trusted-publishing), DEC-0010, [DEC-0014](./DECISION.md#dec-0014--publish-the-tui-under-the-scoped-name-sushant-kumccstatus), [FLOW-0003](#flow-0003--bundle-core-into-the-plugin)
 
 ### Steps
 
@@ -286,14 +287,31 @@ plugin marketplace add sushant-kum/ccstatus` + install adds the mod.
    `npm run format:fix` + `git add -A` so the Prettier-normalised bumped files, bundle, and manifest
    all land in one commit (`commitAll`); commits `chore(release): <version>`; and tags `<version>`
    (no `v` prefix). While the version is `0.x`, the conventionalcommits preset bumps features as
-   **patch** (0.1.0 → 0.1.1); pass `--release-as minor` / `--first-release` to override.
-3. **TUI → npm:** `npm publish -w @sushant-kum/ccstatus` (scoped public — `publishConfig.access:
-public`, add `--access public` if npm asks; core is bundled, so no private
-   dependency is fetched). Requires npm auth.
-4. **Mod → marketplace + push:** `git push --follow-tags`, then users run
-   `claude plugin marketplace add sushant-kum/ccstatus` and
-   `claude plugin install ccstatus@ccstatus`. The committed `plugin/hooks/core.js`
-   makes the installed mod loadable.
+   **patch** (0.1.0 → 0.1.1); pass `--release-as minor` / `--first-release` to override. For a
+   **prerelease**, pass `--prerelease <label>` (e.g. `npm run release -- --prerelease rc` →
+   `0.2.0-rc.0`, `-rc.1`, …); the tag stays prefix-free and the pipeline routes it to a prerelease
+   channel (step 4).
+3. **Push the tag:** `git push --follow-tags origin main`. The pushed `<version>` tag triggers
+   `.github/workflows/release.yml` (DEC-0017), which does the rest automatically.
+4. **Automated publish (`release.yml`, DEC-0017):** on the tag, one `release` job upgrades npm
+   (Trusted Publishing needs ≥ 11.5.1, pinned defensively), checks the tag equals every manifest
+   version, re-runs typecheck/tests + `npm run build -w @sushant-kum/ccstatus` + the bundle-freshness
+   check at the tagged commit, then `npm publish -w @sushant-kum/ccstatus --access public` via **OIDC
+   Trusted Publishing** — no token; npm exchanges the `id-token: write` OIDC token with the registry
+   and emits provenance (`publishConfig.access: public`; core is bundled, so no private dep is
+   fetched). A **stable** tag publishes to the npm `latest` dist-tag and a normal GitHub Release; a
+   **prerelease** tag (`X.Y.Z-<label>.<n>`) is detected from the `-` and published to a dist-tag
+   derived from the label (`-rc.1` → `rc`, `-pre-id.4` → `pre-id`; empty/numeric → `next`), with the
+   GitHub Release flagged `--prerelease` — so a prerelease never becomes `latest` or "Latest release".
+   Finally `gh release create <version>` posts this version's `CHANGELOG.md` section.
+   **Prerequisite (one-time):** configure the trusted publisher on npmjs.com — package Settings →
+   Trusted Publisher → owner `sushant-kum`, repo `ccstatus`, workflow `release.yml` (case-sensitive).
+   The package already exists on npm (`0.1.0` published manually), so no bootstrap publish is needed;
+   the first automated release is `0.1.1`.
+5. **Users install:** `npx @sushant-kum/ccstatus`, and `claude plugin marketplace add
+sushant-kum/ccstatus` + `claude plugin install ccstatus@ccstatus` (the marketplace is this repo's
+   `.claude-plugin/marketplace.json` on `main`; the committed `plugin/hooks/core.js` makes the
+   installed mod loadable — there is no external marketplace publish step).
 
 ### Branches & failure modes
 
@@ -306,6 +324,15 @@ public`, add `--access public` if npm asks; core is bundled, so no private
   knip `entry` for this reason.
 - **`marketplace.json` version drifts from the rest** → its two nested fields are bumped by the
   `postbump` sync script, not the built-in updater (which only touches a top-level `version`).
+- **`release.yml` fails at "Verify tag matches every manifest version"** → the tag was created by
+  hand or pushed without its release commit; the versions must agree before anything publishes.
+- **npm publish step fails with an OIDC/auth error** → the trusted publisher on npmjs.com is missing
+  or mis-typed (fields are case-sensitive: owner `sushant-kum`, repo `ccstatus`, workflow
+  `release.yml`), or npm is older than 11.5.1 (the job upgrades it — check that step). No GitHub
+  Release is created (publish runs first); fix the config and re-run the workflow.
+- **GitHub Release exists but npm does not (or vice-versa)** → publish runs before the release step;
+  if the release step fails, create it by hand (`gh release create <tag> …`). npm rejects
+  re-publishing an existing version, so a re-run is idempotent on the publish side.
 - **Published `ccstatus` can't resolve `@ccstatus/core`** → core was left in
   `dependencies`; it must be bundled and in `devDependencies` only (DEC-0010).
 - **Installed mod fails to load (`./core.js` missing)** → the bundle wasn't

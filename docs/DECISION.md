@@ -65,6 +65,7 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0014 | 2026-10-09 | Publish the TUI under the scoped name `@sushant-kum/ccstatus`                            | Accepted | repo-wide      |
 | DEC-0015 | 2026-10-11 | ccstatusline widget parity: ported set and deferred set                                  | Accepted | core \| plugin |
 | DEC-0016 | 2026-10-12 | Release versioning via commit-and-tag-version, one lockstep version across all manifests | Accepted | repo-wide      |
+| DEC-0017 | 2026-10-12 | Publish on tag via GitHub Actions; npm auth by OIDC Trusted Publishing                   | Accepted | repo-wide      |
 
 ---
 
@@ -795,3 +796,63 @@ automates versioning, changelog, and tagging only.
   must stay lint/knip-clean; `scripts/sync-marketplace-version.mjs` is registered as a knip `entry`.
 - `.versionrc.json` scripts are opaque to knip, so a helper referenced only there would be reported
   unused unless added to `entry`.
+
+## DEC-0017 — Publish on tag via GitHub Actions; npm auth by OIDC Trusted Publishing
+
+- **Date:** 2026-10-12
+- **Status:** Accepted
+- **Scope:** repo-wide
+- **Related:** [DEC-0016](#dec-0016--release-versioning-via-commit-and-tag-version-one-lockstep-version-across-all-manifests), [FLOW-0004](./FLOW.md#flow-0004--release--distribution), [DEC-0014](#dec-0014--publish-the-tui-under-the-scoped-name-sushant-kumccstatus)
+
+### Context
+
+DEC-0016 automated versioning/changelog/tagging, but publishing stayed manual: `npm publish` by
+hand and no visible release. Two artifacts ship — the TUI to npm and the mod to the "marketplace."
+The marketplace is **this repo**: users run `claude plugin marketplace add sushant-kum/ccstatus`,
+which reads `.claude-plugin/marketplace.json` from the default branch, so there is no external
+marketplace registry to push to — once the tagged commit is on `main`, the mod is released. The only
+genuinely outward action is the npm publish; a GitHub Release is the visible artifact for the mod side.
+
+### Decision
+
+Add `.github/workflows/release.yml`, triggered on pushing a version tag (`[0-9]*.[0-9]*.[0-9]*` —
+the no-prefix tags from `npm run release`; the glob's `*` also matches a `-prerelease` suffix). A
+single `release` job: verifies the tag equals every manifest version; re-runs typecheck/tests/TUI
+build and the bundle-freshness check at the tag; `npm publish -w @sushant-kum/ccstatus --access
+public --tag <channel>`; then creates a GitHub Release whose notes are this version's `CHANGELOG.md`
+section. A **prerelease** tag (`X.Y.Z-<label>.<n>`, created by `npm run release -- --prerelease
+<label>`) is detected from the `-` and routed to a dist-tag derived from the label (`-rc.1` → `rc`,
+`-pre-id.4` → `pre-id`; empty/numeric → `next`) with the GitHub Release marked `--prerelease`; a
+stable tag publishes to `latest`. This keeps a prerelease from ever becoming `latest` on npm or the
+"Latest" release on GitHub.
+
+npm auth is **OIDC Trusted Publishing** — no long-lived token or secret. npm (≥ 11.5.1, which the job
+pins defensively) running on GitHub Actions exchanges the `id-token: write`
+OIDC token with the registry automatically, and emits **provenance** for the public package (no
+`--provenance` flag needed; `repository.url` must match the repo). `gh release create` uses the
+built-in `GITHUB_TOKEN` (`contents: write`). A one-time, out-of-band setup configures the trusted
+publisher on npmjs.com (owner `sushant-kum`, repo `ccstatus`, workflow `release.yml`, case-sensitive).
+
+### Alternatives considered
+
+- **Token-based publish (`NPM_TOKEN` secret + `--provenance`)** — simpler first-time setup and no
+  npmjs-side config, but keeps a long-lived credential in repo secrets. Rejected in favour of no
+  stored secret.
+- **Trigger on GitHub Release published** — would require creating the release first (by hand or a
+  second workflow); tag-push matches the existing `git push --follow-tags` flow with one trigger.
+- **Publish the mod to an external registry** — none exists; the marketplace is this repo.
+- **Trust main CI and skip re-verification before publish** — a tag can point anywhere; re-verifying
+  at the tagged commit is cheap insurance against shipping a red build.
+
+### Consequences
+
+- No npm secret lives in the repo; a leaked Actions log cannot leak a publish credential.
+- **One-time setup is required before trusted publishing works:** configure the trusted publisher on
+  npmjs.com (package Settings → Trusted Publisher). `@sushant-kum/ccstatus@0.1.0` was already
+  published by hand, so the package exists and no bootstrap publish is needed; the first automated
+  release (`0.1.1`) flows straight through the workflow with provenance. See [FLOW-0004](./FLOW.md#flow-0004--release--distribution).
+- The workflow pins no npm version; it installs `npm@latest` each run (Trusted Publishing needs
+  ≥ 11.5.1). A future npm major could change behaviour — watch the publish step.
+- Provenance + OIDC only work from this repo's Actions on a public package; publishing from a fork or
+  locally produces no attestation (and locally, no OIDC — it falls back to whatever auth is present).
+- The tag==version guard means a hand-made or mismatched tag fails fast instead of publishing.
