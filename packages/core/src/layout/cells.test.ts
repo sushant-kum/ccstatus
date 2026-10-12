@@ -10,7 +10,7 @@ import '../widgets/custom-widgets.js';
 
 const config = {
   theme: 'default',
-  themes: { default: { model: { fg: 'black', bg: 'bgCyan' } } },
+  themes: { default: [{ fg: 'black', bg: 'bgCyan' }] },
   defaults: { separator: 'powerline', padding: 1, align: 'left' },
 } as unknown as Config;
 const snap = { model: 'Opus', repo: false } as unknown as Snapshot;

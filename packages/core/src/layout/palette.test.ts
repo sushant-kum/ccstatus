@@ -55,3 +55,12 @@ test('empty palette leaves cells uncolored', () => {
   const out = assignPaletteColors([cell('a'), cell('b')], []);
   expect(out.every((c) => c.fg === undefined && c.bg === undefined)).toBe(true);
 });
+
+test('a merge immediately after a flex separator is not a continuation', () => {
+  const out = assignPaletteColors(
+    [cell('a'), cell('', { flex: true }), cell('b', { merge: true })],
+    theme
+  );
+  expect(out[0]?.bg).toBe('bgCyan'); // slot 0
+  expect(out[2]?.bg).toBe('bgBlue'); // slot 1 — NOT shared with 'a'
+});

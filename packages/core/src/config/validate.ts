@@ -220,11 +220,11 @@ export function loadConfig(raw: unknown): { config: Config; warnings: string[] }
 
   const cleaned = cleanThemes(p.themes, warn);
   const themes = Object.keys(cleaned).length ? cleaned : clone(builtinThemes);
-  if (!('default' in themes)) {
+  if (!Object.hasOwn(themes, 'default')) {
     themes['default'] = clone(builtinThemes['default'] ?? []);
   }
   let theme = p.theme;
-  if (!(theme in themes)) {
+  if (!Object.hasOwn(themes, theme)) {
     warn(`theme "${theme}" not found; using "default"`);
     theme = 'default';
   }

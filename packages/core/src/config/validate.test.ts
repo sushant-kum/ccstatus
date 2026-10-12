@@ -229,3 +229,10 @@ test('a valid positional palette theme is preserved', () => {
   expect(config.themes.mine).toEqual([{ fg: 'white', bg: 'bgRed' }]);
   expect(config.theme).toBe('mine');
 });
+
+test('an active theme name matching a prototype key falls back to default', () => {
+  const { config, warnings } = loadConfig({ version: 1, theme: 'toString', themes: {} });
+  expect(config.theme).toBe('default');
+  expect(Array.isArray(config.themes.default)).toBe(true);
+  expect(warnings.some((w) => w.includes('toString') && w.includes('default'))).toBe(true);
+});
