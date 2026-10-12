@@ -33,6 +33,7 @@ type StylableItem = DataItem | CustomTextItem | CustomCommandItem;
 interface SurfaceLayout {
     enabled: boolean;
     lines: Item[][];
+    linked?: boolean;
 }
 interface ToastRule {
     when: string;

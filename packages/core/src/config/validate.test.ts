@@ -130,3 +130,57 @@ test('fractional padding is coerced to an integer', () => {
   const { config } = loadConfig({ version: 1, defaults: { padding: 1.5 } });
   expect(Number.isInteger(config.defaults.padding)).toBe(true);
 });
+
+test('linked surfaces are synced to the canonical (band) layout on load', () => {
+  const raw = {
+    version: 1,
+    surfaces: {
+      band: { enabled: true, linked: true, lines: [[{ id: 'a', type: 'model' }]] },
+      statusline: { enabled: true, linked: true, lines: [[{ id: 'b', type: 'cwd' }]] },
+      pane: { enabled: true, linked: true, lines: [[{ id: 'c', type: 'git-branch' }]] },
+    },
+  };
+  const { config, warnings } = loadConfig(raw);
+  expect(config.surfaces.band.linked).toBe(true);
+  expect(config.surfaces.band.lines[0]?.[0]?.type).toBe('model'); // band is canonical
+  expect(config.surfaces.statusline.lines).toEqual(config.surfaces.band.lines);
+  expect(config.surfaces.pane.lines).toEqual(config.surfaces.band.lines);
+  expect(warnings.some((w) => w.includes('diverged'))).toBe(true);
+});
+
+test('a lone linked flag is dropped with a warning', () => {
+  const raw = {
+    version: 1,
+    surfaces: { band: { enabled: true, linked: true, lines: [[{ id: 'a', type: 'model' }]] } },
+  };
+  const { config, warnings } = loadConfig(raw);
+  expect(config.surfaces.band.linked).toBeUndefined();
+  expect(warnings.some((w) => w.includes('lone surface link'))).toBe(true);
+});
+
+test('already-identical linked surfaces load without a diverge warning', () => {
+  const line = [{ id: 'a', type: 'model' }];
+  const raw = {
+    version: 1,
+    surfaces: {
+      band: { enabled: true, linked: true, lines: [line] },
+      statusline: { enabled: true, linked: true, lines: [line] },
+    },
+  };
+  const { config, warnings } = loadConfig(raw);
+  expect(config.surfaces.band.linked).toBe(true);
+  expect(config.surfaces.statusline.linked).toBe(true);
+  expect(warnings.some((w) => w.includes('diverged'))).toBe(false);
+});
+
+test('normalization deep-clones linked lines (no shared references)', () => {
+  const raw = {
+    version: 1,
+    surfaces: {
+      band: { enabled: true, linked: true, lines: [[{ id: 'a', type: 'model' }]] },
+      pane: { enabled: true, linked: true, lines: [[{ id: 'b', type: 'cwd' }]] },
+    },
+  };
+  const { config } = loadConfig(raw);
+  expect(config.surfaces.pane.lines[0]).not.toBe(config.surfaces.band.lines[0]);
+});

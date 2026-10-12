@@ -25,6 +25,7 @@ const itemSchema = z.object({
 const surfaceLayoutSchema = z.object({
   enabled: z.boolean(),
   lines: z.array(z.array(itemSchema)),
+  linked: z.boolean().optional(),
 });
 
 const toastRuleSchema = z.object({

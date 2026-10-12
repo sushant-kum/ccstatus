@@ -4746,7 +4746,8 @@ var itemSchema = external_exports.object({
 });
 var surfaceLayoutSchema = external_exports.object({
   enabled: external_exports.boolean(),
-  lines: external_exports.array(external_exports.array(itemSchema))
+  lines: external_exports.array(external_exports.array(itemSchema)),
+  linked: external_exports.boolean().optional()
 });
 var toastRuleSchema = external_exports.object({
   when: external_exports.string(),
@@ -4814,6 +4815,35 @@ var WIDGET_TYPES = [
 
 // packages/core/src/config/validate.ts
 var clone = (v) => JSON.parse(JSON.stringify(v));
+var LINKABLE = ["band", "statusline", "pane"];
+function normalizeLinks(surfaces, warn) {
+  const linked = LINKABLE.filter((name) => surfaces[name].linked);
+  if (linked.length < 2) {
+    for (const name of linked) {
+      delete surfaces[name].linked;
+      warn(`dropped lone surface link on "${name}"`);
+    }
+    return;
+  }
+  const canonical = linked[0];
+  if (!canonical) {
+    return;
+  }
+  const source = JSON.stringify(surfaces[canonical].lines);
+  let diverged = false;
+  for (const name of linked) {
+    if (name === canonical) {
+      continue;
+    }
+    if (JSON.stringify(surfaces[name].lines) !== source) {
+      surfaces[name].lines = clone(surfaces[canonical].lines);
+      diverged = true;
+    }
+  }
+  if (diverged) {
+    warn(`linked surfaces diverged; synced to "${canonical}"`);
+  }
+}
 var WIDGET_TYPE_SET = new Set(WIDGET_TYPES);
 function cleanStyle(raw, type, warn) {
   const style = {};
@@ -4924,12 +4954,16 @@ function loadConfig(raw) {
     if (!s) {
       return clone(defaultConfig.surfaces[name]);
     }
-    return {
+    const layout = {
       enabled: s.enabled,
       lines: s.lines.map(
         (line) => line.map((it) => cleanItem(it, warn)).filter((x) => x !== null)
       )
     };
+    if (s.linked) {
+      layout.linked = true;
+    }
+    return layout;
   };
   const themesToUse = Object.keys(p.themes).length ? p.themes : clone(defaultConfig.themes);
   const config = {
@@ -4944,6 +4978,7 @@ function loadConfig(raw) {
       toasts: cleanToasts(p.surfaces.toasts, warn)
     }
   };
+  normalizeLinks(config.surfaces, warn);
   return { config, warnings };
 }
 

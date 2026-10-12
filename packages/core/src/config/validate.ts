@@ -17,6 +17,45 @@ import type {
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
+const LINKABLE = ['band', 'statusline', 'pane'] as const;
+
+/**
+ * Enforces the linked-surface invariant in place: every surface flagged `linked`
+ * shares one layout. A lone flag is not a group and is dropped; divergent linked
+ * lines (only reachable via hand-edited JSON) are synced to the first linked
+ * surface in band -> statusline -> pane order.
+ * @param surfaces - The built surfaces map, mutated in place.
+ * @param warn     - Sink for human-readable warnings.
+ */
+function normalizeLinks(surfaces: Config['surfaces'], warn: (s: string) => void): void {
+  const linked = LINKABLE.filter((name) => surfaces[name].linked);
+  if (linked.length < 2) {
+    for (const name of linked) {
+      delete surfaces[name].linked;
+      warn(`dropped lone surface link on "${name}"`);
+    }
+    return;
+  }
+  const canonical = linked[0];
+  if (!canonical) {
+    return;
+  }
+  const source = JSON.stringify(surfaces[canonical].lines);
+  let diverged = false;
+  for (const name of linked) {
+    if (name === canonical) {
+      continue;
+    }
+    if (JSON.stringify(surfaces[name].lines) !== source) {
+      surfaces[name].lines = clone(surfaces[canonical].lines);
+      diverged = true;
+    }
+  }
+  if (diverged) {
+    warn(`linked surfaces diverged; synced to "${canonical}"`);
+  }
+}
+
 const WIDGET_TYPE_SET = new Set<WidgetType>(WIDGET_TYPES);
 
 interface RawItem {
@@ -196,12 +235,16 @@ export function loadConfig(raw: unknown): { config: Config; warnings: string[] }
     if (!s) {
       return clone(defaultConfig.surfaces[name]);
     }
-    return {
+    const layout: SurfaceLayout = {
       enabled: s.enabled,
       lines: s.lines.map((line) =>
         line.map((it) => cleanItem(it, warn)).filter((x): x is Item => x !== null)
       ),
     };
+    if (s.linked) {
+      layout.linked = true;
+    }
+    return layout;
   };
 
   const themesToUse = Object.keys(p.themes).length ? p.themes : clone(defaultConfig.themes);
@@ -218,5 +261,6 @@ export function loadConfig(raw: unknown): { config: Config; warnings: string[] }
       toasts: cleanToasts(p.surfaces.toasts, warn),
     },
   };
+  normalizeLinks(config.surfaces, warn);
   return { config, warnings };
 }

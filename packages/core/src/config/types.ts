@@ -77,6 +77,7 @@ export type StylableItem = DataItem | CustomTextItem | CustomCommandItem;
 export interface SurfaceLayout {
   enabled: boolean;
   lines: Item[][];
+  linked?: boolean; // part of the single band/statusline/pane link group
 }
 export interface ToastRule {
   when: string;
