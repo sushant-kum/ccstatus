@@ -1,5 +1,5 @@
 import { registry } from '@ccstatus/core';
-import type { Align, Config, Item, ItemStyle, StylableItem, WidgetType } from '@ccstatus/core';
+import type { Align, Item, ItemStyle, StylableItem, WidgetType } from '@ccstatus/core';
 import { Box, Text, useInput } from 'ink';
 import { useState, type ReactElement, type ReactNode } from 'react';
 
@@ -20,6 +20,9 @@ const BG = ['(none)', ...NAMED_COLORS.filter((c) => c.startsWith('bg'))];
 const WIDGETS = Object.values(registry) as { type: WidgetType; label: string }[];
 
 const wrap = (i: number, n: number): number => (i + n) % n;
+const makeId = (type: string): string =>
+  `${type}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+const cloneLines = (lines: Item[][]): Item[][] => JSON.parse(JSON.stringify(lines)) as Item[][];
 
 // The flex separator carries no styling; everything else is a StylableItem.
 const isStylable = (item: Item): item is StylableItem => item.type !== 'flex-separator';
@@ -82,8 +85,15 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
   const commit = (next: Item[]): void => {
     const s = config.surfaces[surface];
     const lines = [next, ...s.lines.slice(1)];
-    const c: Config = { ...config, surfaces: { ...config.surfaces, [surface]: { ...s, lines } } };
-    setConfig(c);
+    const surfaces = { ...config.surfaces, [surface]: { ...s, lines } };
+    if (s.linked) {
+      for (const other of SURFACES) {
+        if (other !== surface && config.surfaces[other].linked) {
+          surfaces[other] = { ...config.surfaces[other], lines: cloneLines(lines) };
+        }
+      }
+    }
+    setConfig({ ...config, surfaces });
   };
   // Style edits only apply to stylable items (never the flex separator).
   const patch = (p: Partial<ItemStyle>): void => {
@@ -152,7 +162,7 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
         const picked = WIDGETS[pick];
         if (picked) {
           const type = picked.type;
-          const id = `${type}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+          const id = makeId(type);
           const newItem: Item =
             type === 'custom-text'
               ? { id, type, text: '' }

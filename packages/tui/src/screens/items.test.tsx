@@ -233,3 +233,38 @@ test('empty line: x, e, → do not throw', async () => {
   expect(setConfig).not.toHaveBeenCalled();
   unmount();
 });
+
+test('editing a linked surface propagates to its linked members', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  base.surfaces.band.linked = true;
+  base.surfaces.pane.linked = true;
+  base.surfaces.pane.lines = structuredClone(base.surfaces.band.lines);
+  const onChange = vi.fn();
+  const { stdin, unmount } = render(<Harness initial={base} onChange={onChange} />);
+  await tick();
+  stdin.write('x'); // remove the selected band item
+  await tick();
+  const next = onChange.mock.calls.at(-1)?.[0] as Config;
+  expect(next.surfaces.band.lines[0]?.length).toBe(len - 1);
+  expect(next.surfaces.pane.lines[0]).toEqual(next.surfaces.band.lines[0]);
+  expect(next.surfaces.pane.lines[0]).not.toBe(next.surfaces.band.lines[0]); // cloned, not shared
+  unmount();
+});
+
+test('propagation copies every line, not just line 0', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  const extra = [{ id: 'z', type: 'cwd' as const }];
+  base.surfaces.band.lines = [structuredClone(base.surfaces.band.lines[0] ?? []), extra];
+  base.surfaces.band.linked = true;
+  base.surfaces.pane.linked = true;
+  base.surfaces.pane.lines = structuredClone(base.surfaces.band.lines);
+  const onChange = vi.fn();
+  const { stdin, unmount } = render(<Harness initial={base} onChange={onChange} />);
+  await tick();
+  stdin.write('x');
+  await tick();
+  const next = onChange.mock.calls.at(-1)?.[0] as Config;
+  expect(next.surfaces.pane.lines).toEqual(next.surfaces.band.lines); // both lines identical
+  expect(next.surfaces.pane.lines[1]?.[0]?.id).toBe('z');
+  unmount();
+});
