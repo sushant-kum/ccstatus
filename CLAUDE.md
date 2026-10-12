@@ -129,6 +129,11 @@ router is a `switch` in `app.tsx`.
   is the smart constructor and migrates legacy `metadata.text`/`metadata.command`. See [DEC-0008](./docs/DECISION.md#dec-0008--config-items-are-a-discriminated-union-keyed-on-type).
 - Toast `when` rules share one definition in `core` (`evalWhen`/`isValidWhen`/`TOAST_FIELDS`, `src/toast.ts`); the
   plugin evaluates and the TUI validates through it, so "valid in the TUI" matches "fires in the mod".
+- **Theme colors are positional.** A theme is an ordered `PaletteSlot[]` (`{ fg?, bg? }`) applied by visible position
+  on each line by `core`'s `assignPaletteColors` (`layout/palette.ts`, run inside `render`): the palette cycles,
+  merged cells share the preceding slot, flex separators are skipped, and the counter resets per line. A bg-only slot
+  gets a readable auto-contrast fg via `contrastFg` (`theme/contrast.ts`, named colors only). Items have no per-item
+  `fg`/`bg`; `loadConfig` drops them (and legacy per-widget themes) with a warning. See [DEC-0020](./docs/DECISION.md#dec-0020--theme-colors-are-a-positional-palette-not-per-widget-type) and [DEC-0021](./docs/DECISION.md#dec-0021--breaking-config-migration-to-positional-palettes).
 - `defaults.glyph` is configurable but **defaults to `▒`** (renders in any terminal); the Powerline screen offers
   Nerd-Font presets + custom. `defaults.invert` and per-item `align` are **stored in config but not yet applied by
   the renderer** (shown greyed in the TUI). See [DEC-0006](./docs/DECISION.md#dec-0006--default-glyph-and-deferred-render-fields).
