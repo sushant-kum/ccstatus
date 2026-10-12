@@ -166,6 +166,30 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
     }
     setConfig({ ...config, surfaces });
   };
+  const applyUnlink = (): void => {
+    const layout = config.surfaces[surface];
+    if (!layout.linked) {
+      return;
+    }
+    const surfaces = {
+      ...config.surfaces,
+      [surface]: {
+        ...layout,
+        linked: false,
+        lines: layout.lines.map((line) =>
+          line.map((it) => ({ ...it, id: makeId(it.type) }) as Item)
+        ),
+      },
+    };
+    const remaining = SURFACES.filter((s) => s !== surface && surfaces[s].linked);
+    if (remaining.length === 1) {
+      const lone = remaining[0];
+      if (lone) {
+        surfaces[lone] = { ...surfaces[lone], linked: false };
+      }
+    }
+    setConfig({ ...config, surfaces });
+  };
 
   // eslint-disable-next-line complexity -- inherent key/mode dispatch for the strip editor
   useInput((input, key) => {
@@ -263,6 +287,8 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
         setLinkPick(0);
         setConfirm(null);
         setMode('link');
+      } else if (input === 'u') {
+        applyUnlink();
       }
     }
   });
@@ -287,6 +313,12 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
           </Text>
         ))}
       </Box>
+      {config.surfaces[surface].linked && (
+        <Text color="magenta">
+          🔗 linked: {SURFACES.filter((s) => config.surfaces[s].linked).join(', ')} — edits apply to
+          all
+        </Text>
+      )}
       <Box>
         {items.length === 0 ? (
           <Text dimColor>(no items — press a)</Text>

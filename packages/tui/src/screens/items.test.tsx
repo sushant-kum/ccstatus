@@ -325,3 +325,44 @@ test('confirm can be cancelled with n', async () => {
   expect(onChange).not.toHaveBeenCalled();
   unmount();
 });
+
+test('u unlinks the surface, regenerates its ids, and dissolves a 2-member group', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  base.surfaces.band.linked = true;
+  base.surfaces.pane.linked = true;
+  base.surfaces.pane.lines = structuredClone(base.surfaces.band.lines);
+  const beforeIds = (base.surfaces.band.lines[0] ?? []).map((i) => i.id);
+  const onChange = vi.fn();
+  const { stdin, unmount } = render(<Harness initial={base} onChange={onChange} />);
+  await tick();
+  stdin.write('u');
+  await tick();
+  const next = onChange.mock.calls.at(-1)?.[0] as Config;
+  expect(next.surfaces.band.linked).toBe(false);
+  expect(next.surfaces.pane.linked).toBe(false); // only pane would remain -> dissolved
+  const afterIds = (next.surfaces.band.lines[0] ?? []).map((i: { id: string }) => i.id);
+  expect(afterIds).not.toEqual(beforeIds); // ids regenerated
+  expect(afterIds.length).toBe(beforeIds.length);
+  unmount();
+});
+
+test('u on a non-linked surface is a no-op', async () => {
+  const onChange = vi.fn();
+  const { stdin, unmount } = render(<Harness initial={defaultConfig} onChange={onChange} />);
+  await tick();
+  stdin.write('u');
+  await tick();
+  expect(onChange).not.toHaveBeenCalled();
+  unmount();
+});
+
+test('a linked surface shows the linked indicator', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  base.surfaces.band.linked = true;
+  base.surfaces.pane.linked = true;
+  base.surfaces.pane.lines = structuredClone(base.surfaces.band.lines);
+  const { lastFrame, unmount } = render(<Harness initial={base} onChange={vi.fn()} />);
+  await tick();
+  expect(lastFrame()).toContain('linked:');
+  unmount();
+});
