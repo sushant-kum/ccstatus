@@ -2,7 +2,7 @@
 
 **Status:** Draft for review
 **Date:** 2026-10-12
-**Scope:** core | tui (+ plugin bundle regen, docs)
+**Scope:** core | tui (+ plugin bundle regeneration, docs)
 **Ships as:** 0.1.3
 
 ## Problem

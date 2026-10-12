@@ -1002,7 +1002,7 @@ git commit -m "docs: record positional palette theming (DEC-0020, DEC-0021)"
 ## Self-review notes (plan author)
 
 - **Spec coverage:** data model (T2), contrast (T1), separate pass (T3), render wiring (T4), migration
-  (T2), built-ins (T2), TUI (T6), docs/DEC/CLAUDE/FLOW (T7), bundle regen (T5) — all mapped.
+  (T2), built-ins (T2), TUI (T6), docs/DEC/CLAUDE/FLOW (T7), bundle regeneration (T5) — all mapped.
 - **Type consistency:** `PaletteSlot`/`Theme` defined in T2 and consumed identically in T3/T4/T6;
   `assignPaletteColors(cells, theme)` signature matches between palette.ts (T3) and render.ts (T4).
 - **Review Focus:** every bullet has a named test in T1–T3.
