@@ -109,7 +109,7 @@ test('] reorders the selected item right', async () => {
   unmount();
 });
 
-test('e edits: ↓ to raw, → toggles rawValue; tab switches surface; esc home', async () => {
+test('e edits: → on raw toggles rawValue; tab switches surface; esc home', async () => {
   const setConfig = vi.fn(),
     goHome = vi.fn();
   const { lastFrame, stdin, unmount } = render(
@@ -117,10 +117,6 @@ test('e edits: ↓ to raw, → toggles rawValue; tab switches surface; esc home'
   );
   await tick();
   stdin.write('e');
-  await tick();
-  stdin.write('\u001B[B');
-  await tick();
-  stdin.write('\u001B[B');
   await tick();
   stdin.write('\u001B[C');
   await tick();
@@ -133,49 +129,6 @@ test('e edits: ↓ to raw, → toggles rawValue; tab switches surface; esc home'
   await tick();
   expect(lastFrame()).toContain('statusline');
   unmount();
-});
-
-test('fg and bg cycle to a color, then back to (none) which removes the key', async () => {
-  for (const [downs, key] of [
-    [0, 'fg'],
-    [1, 'bg'],
-  ] as const) {
-    let last!: Config;
-    const { stdin, unmount } = render(
-      <Harness
-        initial={defaultConfig}
-        onChange={(c) => {
-          last = c;
-        }}
-      />
-    );
-    await tick();
-    stdin.write('e');
-    await tick();
-    for (let i = 0; i < downs; i++) {
-      stdin.write(DOWN);
-      await tick();
-    }
-    // defaults give item 0 a fg/bg; cycle forward until it wraps to (none)
-    let guard = 0;
-    while (
-      (last?.surfaces.band.lines[0]?.[0] as Record<string, unknown> | undefined)?.[key] !==
-        undefined ||
-      guard === 0
-    ) {
-      stdin.write(RIGHT);
-      await tick();
-      expect(++guard).toBeLessThan(60);
-    }
-    const item0 = (): Record<string, unknown> =>
-      (last.surfaces.band.lines[0]?.[0] ?? {}) as Record<string, unknown>;
-    expect('fg' in item0() && key === 'fg').toBe(false);
-    expect(key in item0()).toBe(false);
-    stdin.write(RIGHT);
-    await tick();
-    expect(item0()[key]).toBeDefined();
-    unmount();
-  }
 });
 
 test('editing line 0 preserves lines[1]', async () => {

@@ -47,13 +47,10 @@ test('save returns the warnings from re-validation', () => {
   const p = join(d, 'config.json');
   const dirty = {
     ...defaultConfig,
-    surfaces: {
-      ...defaultConfig.surfaces,
-      band: { enabled: true, lines: [[{ id: 'x', type: 'model', fg: 'notacolor' }]] },
-    },
+    themes: { ...defaultConfig.themes, default: [{ fg: 'notacolor', bg: 'bgCyan' }] },
   } as unknown as typeof defaultConfig;
   const warnings = saveConfigFile(p, dirty);
   expect(warnings.some((w) => w.includes('notacolor'))).toBe(true);
   // the stripped field must not reach disk
-  expect(JSON.parse(readFileSync(p, 'utf8')).surfaces.band.lines[0][0].fg).toBeUndefined();
+  expect(JSON.parse(readFileSync(p, 'utf8')).themes.default[0].fg).toBeUndefined();
 });

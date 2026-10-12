@@ -6,7 +6,7 @@ import { Themes } from './themes.js';
 
 const tick = (): Promise<void> => new Promise<void>((r) => setTimeout(r, 20));
 
-test('lists themes with default active and shows its widget colors', () => {
+test('lists themes with default active and shows its slot colors', () => {
   const { lastFrame, unmount } = render(
     <Themes
       config={defaultConfig}
@@ -46,7 +46,7 @@ test('enter on another theme activates it', async () => {
   expect(defaultConfig.theme).toBe('default');
   unmount();
 });
-test('picker edits a widget fg within the theme, immutably', async () => {
+test('picker edits a slot fg within the theme, immutably', async () => {
   const setConfig = vi.fn();
   const { stdin, unmount } = render(
     <Themes
@@ -60,7 +60,7 @@ test('picker edits a widget fg within the theme, immutably', async () => {
   await tick();
   stdin.write('\u001B[C');
   await tick();
-  await tick(); // into colors
+  await tick(); // into slots
   stdin.write('\r');
   await tick();
   await tick(); // picker
@@ -70,9 +70,9 @@ test('picker edits a widget fg within the theme, immutably', async () => {
   stdin.write('\r');
   await tick();
   const c = setConfig.mock.calls[0]?.[0];
-  expect(c.themes.default.model.fg).not.toBe('black');
-  expect(c.themes.default.model.bg).toBe('bgCyan');
-  expect(defaultConfig.themes.default?.model?.fg).toBe('black');
+  expect(c.themes.default[0].fg).not.toBe(defaultConfig.themes.default?.[0]?.fg);
+  expect(c.themes.default[0].bg).toBe('bgCyan');
+  expect(defaultConfig.themes.default?.[0]?.bg).toBe('bgCyan');
   unmount();
 });
 test('d duplicates the selected theme', async () => {
