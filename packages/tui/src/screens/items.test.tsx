@@ -366,3 +366,31 @@ test('a linked surface shows the linked indicator', async () => {
   expect(lastFrame()).toContain('linked:');
   unmount();
 });
+
+test('linking into a pre-existing group syncs the whole group to the source', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  base.surfaces.band.linked = true;
+  base.surfaces.statusline.linked = true;
+  base.surfaces.statusline.lines = structuredClone(base.surfaces.band.lines);
+  base.surfaces.pane.lines = [[{ id: 'p', type: 'cwd' as const }]];
+  const onChange = vi.fn();
+  const { stdin, unmount } = render(<Harness initial={base} onChange={onChange} />);
+  await tick();
+  stdin.write('\t'); // band -> statusline
+  stdin.write('\t'); // statusline -> pane
+  await tick();
+  stdin.write('l'); // chooser for pane: [band, statusline, all others]
+  await tick();
+  stdin.write(DOWN); // band -> statusline
+  await tick();
+  stdin.write('\r'); // statusline non-empty -> confirm
+  await tick();
+  stdin.write('y');
+  await tick();
+  const next = onChange.mock.calls.at(-1)?.[0] as Config;
+  expect(next.surfaces.pane.linked).toBe(true);
+  expect(next.surfaces.pane.lines[0]?.[0]?.type).toBe('cwd'); // source wins
+  expect(next.surfaces.band.lines).toEqual(next.surfaces.pane.lines);
+  expect(next.surfaces.statusline.lines).toEqual(next.surfaces.pane.lines);
+  unmount();
+});

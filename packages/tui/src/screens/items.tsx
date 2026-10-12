@@ -157,12 +157,18 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
   ];
   const applyLink = (targets: Surface[]): void => {
     const srcLines = cloneLines(config.surfaces[surface].lines);
-    const surfaces = {
-      ...config.surfaces,
-      [surface]: { ...config.surfaces[surface], linked: true },
-    };
+    const surfaces = { ...config.surfaces };
+    surfaces[surface] = { ...config.surfaces[surface], linked: true };
     for (const t of targets) {
-      surfaces[t] = { ...config.surfaces[t], linked: true, lines: cloneLines(srcLines) };
+      surfaces[t] = { ...config.surfaces[t], linked: true };
+    }
+    // Keep the whole resulting group identical to the source — including any
+    // surface already linked but not among `targets`, which would otherwise
+    // diverge and be silently resolved against the user's intent on reload.
+    for (const s of SURFACES) {
+      if (s !== surface && surfaces[s].linked) {
+        surfaces[s] = { ...surfaces[s], lines: cloneLines(srcLines) };
+      }
     }
     setConfig({ ...config, surfaces });
   };
