@@ -894,7 +894,8 @@ not `enabled`.
 ### Consequences
 
 - The config gains a backward-compatible optional field; old configs load unlinked.
-- Linked members keep identical item ids (a shared `custom-command` is computed once);
-  **unlink regenerates ids** so detached surfaces no longer share a cache key.
+- Linked members keep identical item ids (so a shared `custom-command` keyed by id
+  would be computed once, were the mod populating command outputs); **unlink
+  regenerates ids** so detached surfaces no longer share a cache key.
 - `saveConfigFile` already rounds through `loadConfig`, so the persisted file always
   satisfies the linked-identical invariant, and the mod self-heals hand-edited drift.

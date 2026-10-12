@@ -184,3 +184,21 @@ test('normalization deep-clones linked lines (no shared references)', () => {
   const { config } = loadConfig(raw);
   expect(config.surfaces.pane.lines[0]).not.toBe(config.surfaces.band.lines[0]);
 });
+
+test('divergent linked surfaces sync to statusline when band is not linked', () => {
+  const raw = {
+    version: 1,
+    surfaces: {
+      statusline: { enabled: true, linked: true, lines: [[{ id: 's', type: 'model' }]] },
+      pane: { enabled: true, linked: true, lines: [[{ id: 'p', type: 'cwd' }]] },
+    },
+  };
+  const { config, warnings } = loadConfig(raw);
+  expect(config.surfaces.statusline.linked).toBe(true);
+  expect(config.surfaces.pane.linked).toBe(true);
+  expect(config.surfaces.pane.lines).toEqual(config.surfaces.statusline.lines);
+  // statusline is canonical (band is not linked)
+  expect(config.surfaces.statusline.lines[0]?.[0]?.type).toBe('model');
+  expect(config.surfaces.band.linked).toBeUndefined();
+  expect(warnings.some((w) => w.includes('diverged'))).toBe(true);
+});

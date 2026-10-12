@@ -7,9 +7,10 @@ import type { ScreenProps } from '../app.js';
 import { NAMED_COLORS } from '../named-colors.js';
 import { inkBg, inkColor } from '../paint.js';
 
-// Keys — strip: ←/→ select · [ / ] move item left/right · a add · x remove · e edit · tab surface · esc home
+// Keys — strip: ←/→ select · [ / ] move item left/right · a add · x remove · e edit · l link · u unlink · tab surface · esc back
 //        editor: ↑/↓ field · ←/→ change · esc back to strip
 //        picker: ↑/↓ choose · enter add · esc cancel
+//        link:   ↑/↓ choose · enter link · esc cancel; confirm (non-empty target): y confirm · n cancel
 // v1 operates on line 0 of each surface (existing extra lines are preserved untouched).
 const SURFACES = ['band', 'statusline', 'pane'] as const;
 type Surface = (typeof SURFACES)[number];
@@ -155,6 +156,11 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
     ...others.map((s) => ({ label: s, targets: [s] })),
     { label: 'all others', targets: others },
   ];
+  // Surfaces whose lines applyLink() will overwrite: the chosen targets plus any
+  // surface already in a linked group (never the source, which keeps its layout).
+  // Drives the confirm prompt + non-empty check so every replaced surface is named.
+  const linkReplacements = (targets: Surface[]): Surface[] =>
+    SURFACES.filter((s) => s !== surface && (targets.includes(s) || config.surfaces[s].linked));
   const applyLink = (targets: Surface[]): void => {
     const srcLines = cloneLines(config.surfaces[surface].lines);
     const surfaces = { ...config.surfaces };
@@ -255,11 +261,10 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
       } else if (key.return) {
         const chosen = linkOptions[linkPick];
         if (chosen) {
-          const nonEmpty = chosen.targets.some((t) =>
-            config.surfaces[t].lines.some((l) => l.length > 0)
-          );
+          const affected = linkReplacements(chosen.targets);
+          const nonEmpty = affected.some((t) => config.surfaces[t].lines.some((l) => l.length > 0));
           if (nonEmpty) {
-            setConfirm(chosen.targets);
+            setConfirm(affected);
           } else {
             applyLink(chosen.targets);
             setMode('strip');

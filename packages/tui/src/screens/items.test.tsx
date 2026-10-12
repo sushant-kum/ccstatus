@@ -394,3 +394,44 @@ test('linking into a pre-existing group syncs the whole group to the source', as
   expect(next.surfaces.statusline.lines).toEqual(next.surfaces.pane.lines);
   unmount();
 });
+
+test('unlinking one of three linked surfaces keeps the other two linked', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  base.surfaces.band.linked = true;
+  base.surfaces.statusline.linked = true;
+  base.surfaces.pane.linked = true;
+  base.surfaces.statusline.lines = structuredClone(base.surfaces.band.lines);
+  base.surfaces.pane.lines = structuredClone(base.surfaces.band.lines);
+  const onChange = vi.fn();
+  const { stdin, unmount } = render(<Harness initial={base} onChange={onChange} />);
+  await tick();
+  stdin.write('u'); // unlink band (the current surface)
+  await tick();
+  const next = onChange.mock.calls.at(-1)?.[0] as Config;
+  expect(next.surfaces.band.linked).toBe(false);
+  expect(next.surfaces.statusline.linked).toBe(true);
+  expect(next.surfaces.pane.linked).toBe(true);
+  unmount();
+});
+
+test('confirm names every surface a link replaces, including existing group members', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  base.surfaces.band.linked = true;
+  base.surfaces.statusline.linked = true;
+  base.surfaces.statusline.lines = structuredClone(base.surfaces.band.lines);
+  const onChange = vi.fn();
+  const { lastFrame, stdin, unmount } = render(<Harness initial={base} onChange={onChange} />);
+  await tick();
+  stdin.write('\t'); // band -> statusline
+  stdin.write('\t'); // statusline -> pane (empty, unlinked)
+  await tick();
+  stdin.write('l'); // chooser for pane: [band, statusline, all others]
+  await tick();
+  stdin.write('\r'); // choose band; statusline is in band's existing group
+  await tick();
+  const frame = lastFrame() ?? '';
+  expect(frame).toContain('Replace');
+  expect(frame).toContain('band');
+  expect(frame).toContain('statusline'); // pre-existing group member also named
+  unmount();
+});

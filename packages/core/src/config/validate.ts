@@ -21,9 +21,10 @@ const LINKABLE = ['band', 'statusline', 'pane'] as const;
 
 /**
  * Enforces the linked-surface invariant in place: every surface flagged `linked`
- * shares one layout. A lone flag is not a group and is dropped; divergent linked
- * lines (only reachable via hand-edited JSON) are synced to the first linked
- * surface in band -> statusline -> pane order.
+ * shares one set of `lines` (only `lines` is mirrored, not `enabled`). A lone flag
+ * is not a group and is dropped; divergent linked lines (only reachable via
+ * hand-edited JSON) are synced to the first linked surface in
+ * band -> statusline -> pane order.
  * @param surfaces - The built surfaces map, mutated in place.
  * @param warn     - Sink for human-readable warnings.
  */
