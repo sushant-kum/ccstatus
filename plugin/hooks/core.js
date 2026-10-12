@@ -694,7 +694,7 @@ function linkedSurfaces(surfaces) {
 }
 function writeLinkedLines(surfaces, surface, lines) {
   const next = { ...surfaces };
-  next[surface] = { ...surfaces[surface], lines };
+  next[surface] = { ...surfaces[surface], lines: clone(lines) };
   if (surfaces[surface].linked) {
     for (const member of LINKABLE) {
       if (member !== surface && surfaces[member].linked) {

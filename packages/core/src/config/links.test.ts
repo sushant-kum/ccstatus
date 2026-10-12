@@ -22,9 +22,11 @@ test('writeLinkedLines writes only the target surface when it is not linked', ()
   const s = surfaces();
   const lines = line();
   const next = writeLinkedLines(s, 'band', lines);
-  expect(next.band.lines).toBe(lines); // source keeps the passed ref (not cloned)
+  expect(next.band.lines).toEqual(lines);
+  expect(next.band.lines).not.toBe(lines); // source lines are cloned, never aliased
   expect(next.statusline.lines).toEqual(s.statusline.lines); // untouched
   expect(next).not.toBe(s); // a new surfaces map
+  expect(s.band.lines).not.toBe(lines); // input surfaces map is not mutated
 });
 
 test('writeLinkedLines mirrors to linked members with deep clones', () => {
@@ -44,9 +46,10 @@ test('writeLinkedLines does not propagate from an unlinked surface', () => {
   s.pane.linked = true;
   const lines = line();
   const next = writeLinkedLines(s, 'band', lines); // band is not linked
-  expect(next.band.lines).toBe(lines);
-  expect(next.statusline.lines).toEqual(s.statusline.lines); // untouched
-  expect(next.pane.lines).toEqual(s.pane.lines); // untouched
+  expect(next.band.lines).toEqual(lines);
+  expect(next.band.lines).not.toBe(lines); // cloned, never aliased
+  expect(next.statusline.lines).toEqual(s.statusline.lines); // untouched (no mirror)
+  expect(next.pane.lines).toEqual(s.pane.lines); // untouched (no mirror)
 });
 
 test('exactly three linkable surfaces — the single-group model (DEC-0018/0019) depends on it', () => {

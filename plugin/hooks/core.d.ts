@@ -165,11 +165,14 @@ type Surfaces = Config['surfaces'];
  */
 declare function linkedSurfaces(surfaces: Surfaces): LinkableSurface[];
 /**
- * Writes `lines` to `surface` and, when it is linked, mirrors them (deep-cloned)
- * to every other linked member, returning a new surfaces map. This is the single
- * chokepoint for the "linked surfaces share one set of lines" invariant on every
- * edit — callers route layout writes through it instead of re-implementing the
- * propagation loop, so no edit can leave a linked group divergent. See DEC-0019.
+ * Writes `lines` to `surface` and, when it is linked, mirrors them to every other
+ * linked member, returning a new surfaces map. This is the single chokepoint for
+ * writing a linked surface's shared `lines`: callers route layout edits through it
+ * instead of re-implementing the mirror loop, so no edit to a linked group's
+ * content can leave it divergent. (Unlinking is a membership change, not a
+ * shared-content write, and is handled by the caller.) Pure — the returned map and
+ * every surface's `lines` in it are fresh deep copies that never alias the input.
+ * See DEC-0019.
  * @param surfaces - The current surfaces map (not mutated).
  * @param surface  - The surface whose lines are being written.
  * @param lines    - The new lines for `surface`.

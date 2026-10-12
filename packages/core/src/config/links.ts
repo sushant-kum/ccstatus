@@ -6,6 +6,8 @@ import type { Config, Item } from './types.js';
 export const LINKABLE = ['band', 'statusline', 'pane'] as const;
 export type LinkableSurface = (typeof LINKABLE)[number];
 
+// Only the LinkableSurface keys (band/statusline/pane) are read/written here;
+// `toasts` is carried through untouched by the spreads.
 type Surfaces = Config['surfaces'];
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
@@ -21,11 +23,14 @@ export function linkedSurfaces(surfaces: Surfaces): LinkableSurface[] {
 }
 
 /**
- * Writes `lines` to `surface` and, when it is linked, mirrors them (deep-cloned)
- * to every other linked member, returning a new surfaces map. This is the single
- * chokepoint for the "linked surfaces share one set of lines" invariant on every
- * edit — callers route layout writes through it instead of re-implementing the
- * propagation loop, so no edit can leave a linked group divergent. See DEC-0019.
+ * Writes `lines` to `surface` and, when it is linked, mirrors them to every other
+ * linked member, returning a new surfaces map. This is the single chokepoint for
+ * writing a linked surface's shared `lines`: callers route layout edits through it
+ * instead of re-implementing the mirror loop, so no edit to a linked group's
+ * content can leave it divergent. (Unlinking is a membership change, not a
+ * shared-content write, and is handled by the caller.) Pure — the returned map and
+ * every surface's `lines` in it are fresh deep copies that never alias the input.
+ * See DEC-0019.
  * @param surfaces - The current surfaces map (not mutated).
  * @param surface  - The surface whose lines are being written.
  * @param lines    - The new lines for `surface`.
@@ -37,7 +42,7 @@ export function writeLinkedLines(
   lines: Item[][]
 ): Surfaces {
   const next: Surfaces = { ...surfaces };
-  next[surface] = { ...surfaces[surface], lines };
+  next[surface] = { ...surfaces[surface], lines: clone(lines) };
   if (surfaces[surface].linked) {
     for (const member of LINKABLE) {
       if (member !== surface && surfaces[member].linked) {

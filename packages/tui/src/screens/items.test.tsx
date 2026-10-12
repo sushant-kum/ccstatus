@@ -429,9 +429,11 @@ test('confirm names every surface a link replaces, including existing group memb
   await tick();
   stdin.write('\r'); // choose band; statusline is in band's existing group
   await tick();
-  const frame = lastFrame() ?? '';
-  expect(frame).toContain('Replace');
-  expect(frame).toContain('band');
-  expect(frame).toContain('statusline'); // pre-existing group member also named
+  // Assert on the confirm line itself, not the surface-tab header (which always
+  // contains "band"/"statusline"). The prompt must name BOTH the chosen target
+  // (band) and the pre-existing group member (statusline) that the link replaces;
+  // a regression dropping the pre-existing member would fail here.
+  const frame = (lastFrame() ?? '').replace(/\s+/g, ' ');
+  expect(frame).toContain('Replace band, statusline layout');
   unmount();
 });
