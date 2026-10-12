@@ -288,7 +288,10 @@ See [DEC-0010](./DECISION.md#dec-0010--distribution-unscoped-ccstatus-bin-privat
    `plugin/.claude-plugin/plugin.json`; **(`postbump`)** regenerates the core bundle
    (`npm run build:plugin-core`, per [FLOW-0003](#flow-0003--bundle-core-into-the-plugin)) and runs
    `scripts/sync-marketplace-version.mjs` to set the two nested versions in
-   `.claude-plugin/marketplace.json`; writes `CHANGELOG.md`; **(`postchangelog`)** runs
+   `.claude-plugin/marketplace.json`, and re-syncs `package-lock.json` to the bumped versions
+   (`npm install --package-lock-only --ignore-scripts` — the lockfile is not a `bumpFile`, so its
+   mirrored root/workspace `version` fields would otherwise drift); writes `CHANGELOG.md`;
+   **(`postchangelog`)** runs
    `npm run format:fix` + `git add -A` so the Prettier-normalised bumped files, bundle, and manifest
    all land in one commit (`commitAll`); commits `chore(release): <version>`; and tags `<version>`
    (no `v` prefix). While the version is `0.x`, the conventionalcommits preset bumps features as
