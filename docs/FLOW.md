@@ -44,7 +44,7 @@ already explains, or a sequence that exists only inside one file.
 | ID        | Title                                  | Scope         | Last verified |
 | --------- | -------------------------------------- | ------------- | ------------- |
 | FLOW-0001 | Mod renders the above-prompt band      | plugin        | 2026-10-04    |
-| FLOW-0002 | Config edit → shared file → mod reload | tui \| plugin | 2026-10-04    |
+| FLOW-0002 | Config edit → shared file → mod reload | tui \| plugin | 2026-10-12    |
 | FLOW-0003 | Bundle core into the plugin            | repo-wide     | 2026-10-04    |
 | FLOW-0004 | Release & distribution                 | repo-wide     | 2026-10-12    |
 | FLOW-0005 | TUI first-run mod detection & install  | tui           | 2026-10-05    |
@@ -156,8 +156,8 @@ rather than silently falling back to defaults.
 - **Trigger:** the user edits and saves config in `npx @sushant-kum/ccstatus` (or hand-edits
   `~/.config/ccstatus/config.json`).
 - **Outcome:** the running mod picks up the new config and repaints within one tick.
-- **Last verified:** 2026-10-04
-- **Related:** DEC-0001, [FLOW-0001](#flow-0001--mod-renders-the-above-prompt-band)
+- **Last verified:** 2026-10-12
+- **Related:** DEC-0001, [DEC-0018](./DECISION.md#dec-0018--linked-surface-layouts-a-surfacelayoutlinked-flag-mirrored-on-write-and-on-load), [FLOW-0001](#flow-0001--mod-renders-the-above-prompt-band)
 
 ### Participants
 
@@ -198,6 +198,11 @@ rather than silently falling back to defaults.
   through the same `$.process.run` the git snapshot uses (rename within one directory is atomic). A
   non-zero `mv` exit (or any thrown error) is caught and reported as "could not save the config file"; the
   in-memory `config` atom is already updated, so the live bar still reflects the new theme. See DEC-0009.
+- **Linked surfaces (DEC-0018, DEC-0019):** editing a surface flagged `linked` in the
+  TUI (`screens/items.tsx`) writes the new `lines` to every linked member in the same
+  `setConfig` — routed through core's `writeLinkedLines` (the single mirror chokepoint) —
+  and `loadConfig` re-enforces the linked-identical invariant on read, so the mod and the
+  TUI always agree on a linked group's layout.
 - **mtime unchanged** → `reloadConfig` is a no-op (cheap `stat` only).
 - **`/ccstatus reload`** forces an immediate re-read regardless of mtime.
 

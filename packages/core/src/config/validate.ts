@@ -2,6 +2,7 @@ import { isColor } from '../colors.js';
 import { isValidWhen } from '../toast.js';
 
 import { defaultConfig } from './defaults.js';
+import { normalizeLinks } from './links.js';
 import { configSchema } from './schema.js';
 import { WIDGET_TYPES } from './types.js';
 import type {
@@ -196,12 +197,16 @@ export function loadConfig(raw: unknown): { config: Config; warnings: string[] }
     if (!s) {
       return clone(defaultConfig.surfaces[name]);
     }
-    return {
+    const layout: SurfaceLayout = {
       enabled: s.enabled,
       lines: s.lines.map((line) =>
         line.map((it) => cleanItem(it, warn)).filter((x): x is Item => x !== null)
       ),
     };
+    if (s.linked) {
+      layout.linked = true;
+    }
+    return layout;
   };
 
   const themesToUse = Object.keys(p.themes).length ? p.themes : clone(defaultConfig.themes);
@@ -218,5 +223,6 @@ export function loadConfig(raw: unknown): { config: Config; warnings: string[] }
       toasts: cleanToasts(p.surfaces.toasts, warn),
     },
   };
+  normalizeLinks(config.surfaces, warn);
   return { config, warnings };
 }

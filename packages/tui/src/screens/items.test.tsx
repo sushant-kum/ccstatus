@@ -233,3 +233,207 @@ test('empty line: x, e, → do not throw', async () => {
   expect(setConfig).not.toHaveBeenCalled();
   unmount();
 });
+
+test('editing a linked surface propagates to its linked members', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  base.surfaces.band.linked = true;
+  base.surfaces.pane.linked = true;
+  base.surfaces.pane.lines = structuredClone(base.surfaces.band.lines);
+  const onChange = vi.fn();
+  const { stdin, unmount } = render(<Harness initial={base} onChange={onChange} />);
+  await tick();
+  stdin.write('x'); // remove the selected band item
+  await tick();
+  const next = onChange.mock.calls.at(-1)?.[0] as Config;
+  expect(next.surfaces.band.lines[0]?.length).toBe(len - 1);
+  expect(next.surfaces.pane.lines[0]).toEqual(next.surfaces.band.lines[0]);
+  expect(next.surfaces.pane.lines[0]).not.toBe(next.surfaces.band.lines[0]); // cloned, not shared
+  unmount();
+});
+
+test('propagation copies every line, not just line 0', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  const extra = [{ id: 'z', type: 'cwd' as const }];
+  base.surfaces.band.lines = [structuredClone(base.surfaces.band.lines[0] ?? []), extra];
+  base.surfaces.band.linked = true;
+  base.surfaces.pane.linked = true;
+  base.surfaces.pane.lines = structuredClone(base.surfaces.band.lines);
+  const onChange = vi.fn();
+  const { stdin, unmount } = render(<Harness initial={base} onChange={onChange} />);
+  await tick();
+  stdin.write('x');
+  await tick();
+  const next = onChange.mock.calls.at(-1)?.[0] as Config;
+  expect(next.surfaces.pane.lines).toEqual(next.surfaces.band.lines); // both lines identical
+  expect(next.surfaces.pane.lines[1]?.[0]?.id).toBe('z');
+  unmount();
+});
+
+test('l links band to all others, copying the layout and marking linked', async () => {
+  const onChange = vi.fn();
+  const { lastFrame, stdin, unmount } = render(
+    <Harness initial={defaultConfig} onChange={onChange} />
+  );
+  await tick();
+  stdin.write('l');
+  await tick();
+  expect(lastFrame()).toContain('Link band layout to');
+  stdin.write(DOWN); // statusline -> pane
+  stdin.write(DOWN); // pane -> all others
+  await tick();
+  stdin.write('\r');
+  await tick();
+  const next = onChange.mock.calls.at(-1)?.[0] as Config;
+  expect(next.surfaces.band.linked).toBe(true);
+  expect(next.surfaces.statusline.linked).toBe(true);
+  expect(next.surfaces.pane.linked).toBe(true);
+  expect(next.surfaces.statusline.lines[0]).toEqual(next.surfaces.band.lines[0]);
+  expect(next.surfaces.pane.lines[0]).toEqual(next.surfaces.band.lines[0]);
+  unmount();
+});
+
+test('linking into a non-empty surface asks to confirm; y applies', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  base.surfaces.statusline.lines = structuredClone(base.surfaces.band.lines); // make it non-empty
+  const onChange = vi.fn();
+  const { lastFrame, stdin, unmount } = render(<Harness initial={base} onChange={onChange} />);
+  await tick();
+  stdin.write('l'); // first option is statusline
+  await tick();
+  stdin.write('\r');
+  await tick();
+  expect(lastFrame()).toContain('Replace');
+  stdin.write('y');
+  await tick();
+  const next = onChange.mock.calls.at(-1)?.[0] as Config;
+  expect(next.surfaces.statusline.linked).toBe(true);
+  unmount();
+});
+
+test('confirm can be cancelled with n', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  base.surfaces.statusline.lines = structuredClone(base.surfaces.band.lines);
+  const onChange = vi.fn();
+  const { stdin, unmount } = render(<Harness initial={base} onChange={onChange} />);
+  await tick();
+  stdin.write('l');
+  await tick();
+  stdin.write('\r'); // choose statusline -> confirm
+  await tick();
+  stdin.write('n'); // cancel
+  await tick();
+  expect(onChange).not.toHaveBeenCalled();
+  unmount();
+});
+
+test('u unlinks the surface, regenerates its ids, and dissolves a 2-member group', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  base.surfaces.band.linked = true;
+  base.surfaces.pane.linked = true;
+  base.surfaces.pane.lines = structuredClone(base.surfaces.band.lines);
+  const beforeIds = (base.surfaces.band.lines[0] ?? []).map((i) => i.id);
+  const onChange = vi.fn();
+  const { stdin, unmount } = render(<Harness initial={base} onChange={onChange} />);
+  await tick();
+  stdin.write('u');
+  await tick();
+  const next = onChange.mock.calls.at(-1)?.[0] as Config;
+  expect(next.surfaces.band.linked).toBe(false);
+  expect(next.surfaces.pane.linked).toBe(false); // only pane would remain -> dissolved
+  const afterIds = (next.surfaces.band.lines[0] ?? []).map((i: { id: string }) => i.id);
+  expect(afterIds).not.toEqual(beforeIds); // ids regenerated
+  expect(afterIds.length).toBe(beforeIds.length);
+  unmount();
+});
+
+test('u on a non-linked surface is a no-op', async () => {
+  const onChange = vi.fn();
+  const { stdin, unmount } = render(<Harness initial={defaultConfig} onChange={onChange} />);
+  await tick();
+  stdin.write('u');
+  await tick();
+  expect(onChange).not.toHaveBeenCalled();
+  unmount();
+});
+
+test('a linked surface shows the linked indicator', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  base.surfaces.band.linked = true;
+  base.surfaces.pane.linked = true;
+  base.surfaces.pane.lines = structuredClone(base.surfaces.band.lines);
+  const { lastFrame, unmount } = render(<Harness initial={base} onChange={vi.fn()} />);
+  await tick();
+  expect(lastFrame()).toContain('linked:');
+  unmount();
+});
+
+test('linking into a pre-existing group syncs the whole group to the source', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  base.surfaces.band.linked = true;
+  base.surfaces.statusline.linked = true;
+  base.surfaces.statusline.lines = structuredClone(base.surfaces.band.lines);
+  base.surfaces.pane.lines = [[{ id: 'p', type: 'cwd' as const }]];
+  const onChange = vi.fn();
+  const { stdin, unmount } = render(<Harness initial={base} onChange={onChange} />);
+  await tick();
+  stdin.write('\t'); // band -> statusline
+  stdin.write('\t'); // statusline -> pane
+  await tick();
+  stdin.write('l'); // chooser for pane: [band, statusline, all others]
+  await tick();
+  stdin.write(DOWN); // band -> statusline
+  await tick();
+  stdin.write('\r'); // statusline non-empty -> confirm
+  await tick();
+  stdin.write('y');
+  await tick();
+  const next = onChange.mock.calls.at(-1)?.[0] as Config;
+  expect(next.surfaces.pane.linked).toBe(true);
+  expect(next.surfaces.pane.lines[0]?.[0]?.type).toBe('cwd'); // source wins
+  expect(next.surfaces.band.lines).toEqual(next.surfaces.pane.lines);
+  expect(next.surfaces.statusline.lines).toEqual(next.surfaces.pane.lines);
+  unmount();
+});
+
+test('unlinking one of three linked surfaces keeps the other two linked', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  base.surfaces.band.linked = true;
+  base.surfaces.statusline.linked = true;
+  base.surfaces.pane.linked = true;
+  base.surfaces.statusline.lines = structuredClone(base.surfaces.band.lines);
+  base.surfaces.pane.lines = structuredClone(base.surfaces.band.lines);
+  const onChange = vi.fn();
+  const { stdin, unmount } = render(<Harness initial={base} onChange={onChange} />);
+  await tick();
+  stdin.write('u'); // unlink band (the current surface)
+  await tick();
+  const next = onChange.mock.calls.at(-1)?.[0] as Config;
+  expect(next.surfaces.band.linked).toBe(false);
+  expect(next.surfaces.statusline.linked).toBe(true);
+  expect(next.surfaces.pane.linked).toBe(true);
+  unmount();
+});
+
+test('confirm names every surface a link replaces, including existing group members', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  base.surfaces.band.linked = true;
+  base.surfaces.statusline.linked = true;
+  base.surfaces.statusline.lines = structuredClone(base.surfaces.band.lines);
+  const onChange = vi.fn();
+  const { lastFrame, stdin, unmount } = render(<Harness initial={base} onChange={onChange} />);
+  await tick();
+  stdin.write('\t'); // band -> statusline
+  stdin.write('\t'); // statusline -> pane (empty, unlinked)
+  await tick();
+  stdin.write('l'); // chooser for pane: [band, statusline, all others]
+  await tick();
+  stdin.write('\r'); // choose band; statusline is in band's existing group
+  await tick();
+  // Assert on the confirm line itself, not the surface-tab header (which always
+  // contains "band"/"statusline"). The prompt must name BOTH the chosen target
+  // (band) and the pre-existing group member (statusline) that the link replaces;
+  // a regression dropping the pre-existing member would fail here.
+  const frame = (lastFrame() ?? '').replace(/\s+/g, ' ');
+  expect(frame).toContain('Replace band, statusline layout');
+  unmount();
+});

@@ -1,5 +1,12 @@
-import { registry } from '@ccstatus/core';
-import type { Align, Config, Item, ItemStyle, StylableItem, WidgetType } from '@ccstatus/core';
+import { LINKABLE, linkedSurfaces, registry, writeLinkedLines } from '@ccstatus/core';
+import type {
+  Align,
+  Item,
+  ItemStyle,
+  LinkableSurface,
+  StylableItem,
+  WidgetType,
+} from '@ccstatus/core';
 import { Box, Text, useInput } from 'ink';
 import { useState, type ReactElement, type ReactNode } from 'react';
 
@@ -7,12 +14,15 @@ import type { ScreenProps } from '../app.js';
 import { NAMED_COLORS } from '../named-colors.js';
 import { inkBg, inkColor } from '../paint.js';
 
-// Keys — strip: ←/→ select · [ / ] move item left/right · a add · x remove · e edit · tab surface · esc home
+// Keys — strip: ←/→ select · [ / ] move item left/right · a add · x remove · e edit · l link · u unlink · tab surface · esc back
 //        editor: ↑/↓ field · ←/→ change · esc back to strip
 //        picker: ↑/↓ choose · enter add · esc cancel
+//        link:   ↑/↓ choose · enter link · esc cancel; confirm (non-empty target): y confirm · n cancel
 // v1 operates on line 0 of each surface (existing extra lines are preserved untouched).
-const SURFACES = ['band', 'statusline', 'pane'] as const;
-type Surface = (typeof SURFACES)[number];
+// Single source of truth lives in core (LINKABLE); the renderer/link logic here
+// reuses it so the two can't drift.
+const SURFACES = LINKABLE;
+type Surface = LinkableSurface;
 const FIELDS = ['fg', 'bg', 'raw', 'merge', 'align'] as const;
 const ALIGNS: Align[] = ['left', 'center', 'right'];
 const FG = NAMED_COLORS.filter((c) => !c.startsWith('bg'));
@@ -20,6 +30,8 @@ const BG = ['(none)', ...NAMED_COLORS.filter((c) => c.startsWith('bg'))];
 const WIDGETS = Object.values(registry) as { type: WidgetType; label: string }[];
 
 const wrap = (i: number, n: number): number => (i + n) % n;
+const makeId = (type: string): string =>
+  `${type}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
 // The flex separator carries no styling; everything else is a StylableItem.
 const isStylable = (item: Item): item is StylableItem => item.type !== 'flex-separator';
@@ -71,7 +83,9 @@ function Swatch({ name, bg }: { name?: string; bg?: boolean }): ReactElement {
 export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement {
   const [surface, setSurface] = useState<Surface>('band');
   const [sel, setSel] = useState(0);
-  const [mode, setMode] = useState<'strip' | 'editor' | 'picker'>('strip');
+  const [mode, setMode] = useState<'strip' | 'editor' | 'picker' | 'link'>('strip');
+  const [linkPick, setLinkPick] = useState(0);
+  const [confirm, setConfirm] = useState<Surface[] | null>(null);
   const [field, setField] = useState(0);
   const [pick, setPick] = useState(0);
 
@@ -80,10 +94,9 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
   const idx = cur ? items.indexOf(cur) : -1;
 
   const commit = (next: Item[]): void => {
-    const s = config.surfaces[surface];
-    const lines = [next, ...s.lines.slice(1)];
-    const c: Config = { ...config, surfaces: { ...config.surfaces, [surface]: { ...s, lines } } };
-    setConfig(c);
+    const lines = [next, ...config.surfaces[surface].lines.slice(1)];
+    // writeLinkedLines mirrors to every linked member when `surface` is linked.
+    setConfig({ ...config, surfaces: writeLinkedLines(config.surfaces, surface, lines) });
   };
   // Style edits only apply to stylable items (never the flex separator).
   const patch = (p: Partial<ItemStyle>): void => {
@@ -138,6 +151,54 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
     commit(next);
     setSel(j);
   };
+  const others = SURFACES.filter((s) => s !== surface);
+  const linkOptions: { label: string; targets: Surface[] }[] = [
+    ...others.map((s) => ({ label: s, targets: [s] })),
+    { label: 'all others', targets: others },
+  ];
+  // Surfaces whose lines applyLink() will overwrite: the chosen targets plus any
+  // surface already in a linked group (never the source, which keeps its layout).
+  // Drives the confirm prompt + non-empty check so every replaced surface is named.
+  const linkReplacements = (targets: Surface[]): Surface[] =>
+    SURFACES.filter((s) => s !== surface && (targets.includes(s) || config.surfaces[s].linked));
+  const applyLink = (targets: Surface[]): void => {
+    const marked = { ...config.surfaces };
+    marked[surface] = { ...config.surfaces[surface], linked: true };
+    for (const t of targets) {
+      marked[t] = { ...config.surfaces[t], linked: true };
+    }
+    // `surface` is now linked, so writeLinkedLines mirrors its layout to the
+    // whole resulting group — the chosen targets AND any pre-existing member —
+    // which would otherwise diverge and be silently resolved on reload.
+    const surfaces = writeLinkedLines(marked, surface, config.surfaces[surface].lines);
+    setConfig({ ...config, surfaces });
+  };
+  const applyUnlink = (): void => {
+    const layout = config.surfaces[surface];
+    if (!layout.linked) {
+      return;
+    }
+    const surfaces = {
+      ...config.surfaces,
+      [surface]: {
+        ...layout,
+        linked: false,
+        lines: layout.lines.map((line) =>
+          line.map((it) => ({ ...it, id: makeId(it.type) }) as Item)
+        ),
+      },
+    };
+    // Dissolve a group that would drop below two members (surface is already
+    // marked unlinked above, so linkedSurfaces() excludes it).
+    const remaining = linkedSurfaces(surfaces);
+    if (remaining.length === 1) {
+      const lone = remaining[0];
+      if (lone) {
+        surfaces[lone] = { ...surfaces[lone], linked: false };
+      }
+    }
+    setConfig({ ...config, surfaces });
+  };
 
   // eslint-disable-next-line complexity -- inherent key/mode dispatch for the strip editor
   useInput((input, key) => {
@@ -152,7 +213,7 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
         const picked = WIDGETS[pick];
         if (picked) {
           const type = picked.type;
-          const id = `${type}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+          const id = makeId(type);
           const newItem: Item =
             type === 'custom-text'
               ? { id, type, text: '' }
@@ -178,6 +239,35 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
       } else if (key.rightArrow) {
         change(1);
       }
+    } else if (mode === 'link') {
+      if (confirm) {
+        if (input === 'y') {
+          applyLink(confirm);
+          setConfirm(null);
+          setMode('strip');
+        } else if (input === 'n' || key.escape) {
+          setConfirm(null);
+          setMode('strip');
+        }
+      } else if (key.escape) {
+        setMode('strip');
+      } else if (key.upArrow) {
+        setLinkPick((p) => wrap(p - 1 + linkOptions.length, linkOptions.length));
+      } else if (key.downArrow) {
+        setLinkPick((p) => wrap(p + 1, linkOptions.length));
+      } else if (key.return) {
+        const chosen = linkOptions[linkPick];
+        if (chosen) {
+          const affected = linkReplacements(chosen.targets);
+          const nonEmpty = affected.some((t) => config.surfaces[t].lines.some((l) => l.length > 0));
+          if (nonEmpty) {
+            setConfirm(affected);
+          } else {
+            applyLink(chosen.targets);
+            setMode('strip');
+          }
+        }
+      }
     } else {
       if (key.escape) {
         goHome();
@@ -201,6 +291,12 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
       } else if (input === 'e' && idx >= 0) {
         setField(0);
         setMode('editor');
+      } else if (input === 'l') {
+        setLinkPick(0);
+        setConfirm(null);
+        setMode('link');
+      } else if (input === 'u') {
+        applyUnlink();
       }
     }
   });
@@ -225,14 +321,42 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
           </Text>
         ))}
       </Box>
+      {config.surfaces[surface].linked && (
+        <Text color="magenta">
+          🔗 linked: {SURFACES.filter((s) => config.surfaces[s].linked).join(', ')} — edits apply to
+          all
+        </Text>
+      )}
       <Box>
         {items.length === 0 ? (
           <Text dimColor>(no items — press a)</Text>
         ) : (
+          // Item ids are unique within a surface. Linked surfaces share ids across
+          // surfaces (DEC-0018), but only one surface's items render here at a time,
+          // so these keys never collide. (The live Preview renders a RenderModel of
+          // positional segments — paint.tsx keys by index, not item id.)
           items.map((it, i) => <Chip key={it.id} item={it} selected={i === idx} />)
         )}
       </Box>
-      {mode === 'picker' ? (
+      {mode === 'link' ? (
+        <Box flexDirection="column" marginTop={1}>
+          {confirm ? (
+            <Text>
+              Replace {confirm.join(', ')} layout with {surface}&apos;s? (y/n)
+            </Text>
+          ) : (
+            <>
+              <Text bold>Link {surface} layout to:</Text>
+              {linkOptions.map((o, i) => (
+                <Text key={o.label} color={i === linkPick ? 'cyan' : undefined}>
+                  {i === linkPick ? '▸ ' : '  '}
+                  {o.label}
+                </Text>
+              ))}
+            </>
+          )}
+        </Box>
+      ) : mode === 'picker' ? (
         <Box flexDirection="column" marginTop={1}>
           <Text bold>Add widget</Text>
           {WIDGETS.map((w, i) => (
@@ -262,10 +386,14 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
       )}
       <Text dimColor>
         {mode === 'strip'
-          ? '←/→ select · [/] move · a add · x remove · e edit · tab surface · esc back'
+          ? '←/→ select · [/] move · a add · x remove · e edit · l link · u unlink · tab surface · esc back'
           : mode === 'editor'
             ? '↑/↓ field · ←/→ change · esc done'
-            : '↑/↓ choose · enter add · esc cancel'}
+            : mode === 'link'
+              ? confirm
+                ? 'y confirm · n cancel'
+                : '↑/↓ choose · enter link · esc cancel'
+              : '↑/↓ choose · enter add · esc cancel'}
       </Text>
     </Box>
   );

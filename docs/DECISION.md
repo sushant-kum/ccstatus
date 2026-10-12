@@ -66,6 +66,8 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0015 | 2026-10-11 | ccstatusline widget parity: ported set and deferred set                                  | Accepted | core \| plugin |
 | DEC-0016 | 2026-10-12 | Release versioning via commit-and-tag-version, one lockstep version across all manifests | Accepted | repo-wide      |
 | DEC-0017 | 2026-10-12 | Publish on tag via GitHub Actions; npm auth by OIDC Trusted Publishing                   | Accepted | repo-wide      |
+| DEC-0018 | 2026-10-12 | Linked surface layouts: a `SurfaceLayout.linked` flag mirrored on write + on load        | Accepted | core \| tui    |
+| DEC-0019 | 2026-10-12 | Centralize linked-surface line mirroring in a core helper (`writeLinkedLines`)           | Accepted | core \| tui    |
 
 ---
 
@@ -856,3 +858,88 @@ publisher on npmjs.com (owner `sushant-kum`, repo `ccstatus`, workflow `release.
 - Provenance + OIDC only work from this repo's Actions on a public package; publishing from a fork or
   locally produces no attestation (and locally, no OIDC — it falls back to whatever auth is present).
 - The tag==version guard means a hand-made or mismatched tag fails fast instead of publishing.
+
+## DEC-0018 — Linked surface layouts: a `SurfaceLayout.linked` flag mirrored on write and on load
+
+- **Date:** 2026-10-12
+- **Status:** Accepted
+- **Scope:** core | tui
+- **Related:** [DEC-0002](#dec-0002--shared-pure-core-mod-and-tui-are-thin-painters), [DEC-0008](#dec-0008--config-items-are-a-discriminated-union-keyed-on-type), [FLOW-0002](./FLOW.md#flow-0002--config-edit--shared-file--mod-reload), docs/superpowers/specs/2026-10-12-surface-link-design.md
+
+### Context
+
+Users wanted band/statusline/pane to show the same item layout without configuring
+each surface separately, kept in sync live. `theme` and `defaults` are already
+global; only `SurfaceLayout.lines` differs per surface.
+
+### Decision
+
+Add an optional `linked` flag to `SurfaceLayout`. Surfaces flagged `linked` form one
+group (with three linkable surfaces, a single group is fully general). The group is
+held byte-identical by two mechanisms: the TUI propagates every edit to all linked
+members, and `loadConfig` normalizes linked surfaces on load (drops a lone flag;
+syncs divergent lines to the first linked surface in band→statusline→pane order,
+with a warning). `core.render` and both painters are unchanged — each surface still
+renders its own, now-identical, `lines`. The TUI gains `l` (link: pick one or all,
+confirm before replacing a non-empty target) and `u` (unlink: regenerate the
+detached surface's item ids, dissolve a sub-2 group). Linking mirrors `lines` only,
+not `enabled`.
+
+### Alternatives considered
+
+- **Shared layout by reference** (store `lines` once, surfaces point at it) — forces
+  `render`, `toAnsi`, both painters, and migration to resolve references; large blast
+  radius for no user-visible gain. Rejected.
+- **One-time copy (no live link)** — simpler, but the user chose live mirroring.
+
+### Consequences
+
+- The config gains a backward-compatible optional field; old configs load unlinked.
+- Linked members keep identical item ids (so a shared `custom-command` keyed by id
+  would be computed once, were the mod populating command outputs); **unlink
+  regenerates ids** so detached surfaces no longer share a cache key.
+- `saveConfigFile` already rounds through `loadConfig`, so the persisted file always
+  satisfies the linked-identical invariant, and the mod self-heals hand-edited drift.
+
+## DEC-0019 — Centralize linked-surface line mirroring in a core helper (`writeLinkedLines`)
+
+- **Date:** 2026-10-12
+- **Status:** Accepted
+- **Scope:** core | tui
+- **Related:** [DEC-0018](#dec-0018--linked-surface-layouts-a-surfacelayoutlinked-flag-mirrored-on-write-and-on-load), [DEC-0002](#dec-0002--shared-pure-core-mod-and-tui-are-thin-painters)
+
+### Context
+
+DEC-0018 keeps linked surfaces identical by two mechanisms: `loadConfig` normalization on
+read, and the TUI mirroring every edit to linked members on write. The write-side mirror was
+implemented inline at each edit site in `screens/items.tsx` (`commit`, `applyLink`). A PR review
+(PR #5) flagged that this scatters the invariant across call sites — a future TUI edit path that
+forgets to mirror would leave the linked group divergent in memory until the next `loadConfig`
+silently resolved it against the user's intent.
+
+### Decision
+
+Move the linked-surface logic into one core module, `packages/core/src/config/links.ts`, exporting
+`LINKABLE`, the `LinkableSurface` type, `linkedSurfaces(surfaces)`, `writeLinkedLines(surfaces,
+surface, lines)`, and `normalizeLinks` (relocated from `validate.ts`). **Every layout write routes
+through `writeLinkedLines`**, the single chokepoint that writes a surface's `lines` and mirrors them
+(deep-cloned) to its linked members. The TUI's `commit`/`applyLink` call it instead of hand-rolling
+the propagation loop, and the TUI reuses core's `LINKABLE`/`LinkableSurface` rather than redefining
+them (one source of truth). Behavior is unchanged — this is a refactor with new unit tests for the
+helpers.
+
+### Alternatives considered
+
+- **Leave the mirror inline in the TUI (status quo)** — works, but the in-memory invariant depends
+  on every current and future edit site remembering to propagate; rejected for fragility.
+- **Encode the group as a richer type so illegal states are unrepresentable** — a type-design review
+  judged this not worth the churn given only three surfaces and `loadConfig` as the smart
+  constructor; the chokepoint helper captures most of the benefit at far lower cost.
+
+### Consequences
+
+- New linked-lines write paths MUST go through `writeLinkedLines`; the in-memory invariant now has
+  one enforcement point (plus `loadConfig` at the config boundary).
+- `LINKABLE`/`LinkableSurface` are the single source of truth for which surfaces are linkable; the
+  "single group is fully general" reasoning still holds only while `LINKABLE.length === 3`.
+- Core changed, so the plugin bundle is regenerated (`npm run build:plugin-core`).
