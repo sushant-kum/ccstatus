@@ -8,7 +8,7 @@
     { "filename": "packages/tui/package.json", "type": "json" }
   ],
   "scripts": {
-    "postbump": "npm run build:plugin-core && node scripts/sync-marketplace-version.mjs",
+    "postbump": "node scripts/release-postbump.mjs",
     "postchangelog": "npm run format:fix && git add -A"
   }
 }
