@@ -268,3 +268,60 @@ test('propagation copies every line, not just line 0', async () => {
   expect(next.surfaces.pane.lines[1]?.[0]?.id).toBe('z');
   unmount();
 });
+
+test('l links band to all others, copying the layout and marking linked', async () => {
+  const onChange = vi.fn();
+  const { lastFrame, stdin, unmount } = render(
+    <Harness initial={defaultConfig} onChange={onChange} />
+  );
+  await tick();
+  stdin.write('l');
+  await tick();
+  expect(lastFrame()).toContain('Link band layout to');
+  stdin.write(DOWN); // statusline -> pane
+  stdin.write(DOWN); // pane -> all others
+  await tick();
+  stdin.write('\r');
+  await tick();
+  const next = onChange.mock.calls.at(-1)?.[0] as Config;
+  expect(next.surfaces.band.linked).toBe(true);
+  expect(next.surfaces.statusline.linked).toBe(true);
+  expect(next.surfaces.pane.linked).toBe(true);
+  expect(next.surfaces.statusline.lines[0]).toEqual(next.surfaces.band.lines[0]);
+  expect(next.surfaces.pane.lines[0]).toEqual(next.surfaces.band.lines[0]);
+  unmount();
+});
+
+test('linking into a non-empty surface asks to confirm; y applies', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  base.surfaces.statusline.lines = structuredClone(base.surfaces.band.lines); // make it non-empty
+  const onChange = vi.fn();
+  const { lastFrame, stdin, unmount } = render(<Harness initial={base} onChange={onChange} />);
+  await tick();
+  stdin.write('l'); // first option is statusline
+  await tick();
+  stdin.write('\r');
+  await tick();
+  expect(lastFrame()).toContain('Replace');
+  stdin.write('y');
+  await tick();
+  const next = onChange.mock.calls.at(-1)?.[0] as Config;
+  expect(next.surfaces.statusline.linked).toBe(true);
+  unmount();
+});
+
+test('confirm can be cancelled with n', async () => {
+  const base = structuredClone(defaultConfig) as Config;
+  base.surfaces.statusline.lines = structuredClone(base.surfaces.band.lines);
+  const onChange = vi.fn();
+  const { stdin, unmount } = render(<Harness initial={base} onChange={onChange} />);
+  await tick();
+  stdin.write('l');
+  await tick();
+  stdin.write('\r'); // choose statusline -> confirm
+  await tick();
+  stdin.write('n'); // cancel
+  await tick();
+  expect(onChange).not.toHaveBeenCalled();
+  unmount();
+});

@@ -74,7 +74,9 @@ function Swatch({ name, bg }: { name?: string; bg?: boolean }): ReactElement {
 export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement {
   const [surface, setSurface] = useState<Surface>('band');
   const [sel, setSel] = useState(0);
-  const [mode, setMode] = useState<'strip' | 'editor' | 'picker'>('strip');
+  const [mode, setMode] = useState<'strip' | 'editor' | 'picker' | 'link'>('strip');
+  const [linkPick, setLinkPick] = useState(0);
+  const [confirm, setConfirm] = useState<Surface[] | null>(null);
   const [field, setField] = useState(0);
   const [pick, setPick] = useState(0);
 
@@ -148,6 +150,22 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
     commit(next);
     setSel(j);
   };
+  const others = SURFACES.filter((s) => s !== surface);
+  const linkOptions: { label: string; targets: Surface[] }[] = [
+    ...others.map((s) => ({ label: s, targets: [s] })),
+    { label: 'all others', targets: others },
+  ];
+  const applyLink = (targets: Surface[]): void => {
+    const srcLines = cloneLines(config.surfaces[surface].lines);
+    const surfaces = {
+      ...config.surfaces,
+      [surface]: { ...config.surfaces[surface], linked: true },
+    };
+    for (const t of targets) {
+      surfaces[t] = { ...config.surfaces[t], linked: true, lines: cloneLines(srcLines) };
+    }
+    setConfig({ ...config, surfaces });
+  };
 
   // eslint-disable-next-line complexity -- inherent key/mode dispatch for the strip editor
   useInput((input, key) => {
@@ -188,6 +206,36 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
       } else if (key.rightArrow) {
         change(1);
       }
+    } else if (mode === 'link') {
+      if (confirm) {
+        if (input === 'y') {
+          applyLink(confirm);
+          setConfirm(null);
+          setMode('strip');
+        } else if (input === 'n' || key.escape) {
+          setConfirm(null);
+          setMode('strip');
+        }
+      } else if (key.escape) {
+        setMode('strip');
+      } else if (key.upArrow) {
+        setLinkPick((p) => wrap(p - 1 + linkOptions.length, linkOptions.length));
+      } else if (key.downArrow) {
+        setLinkPick((p) => wrap(p + 1, linkOptions.length));
+      } else if (key.return) {
+        const chosen = linkOptions[linkPick];
+        if (chosen) {
+          const nonEmpty = chosen.targets.some((t) =>
+            config.surfaces[t].lines.some((l) => l.length > 0)
+          );
+          if (nonEmpty) {
+            setConfirm(chosen.targets);
+          } else {
+            applyLink(chosen.targets);
+            setMode('strip');
+          }
+        }
+      }
     } else {
       if (key.escape) {
         goHome();
@@ -211,6 +259,10 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
       } else if (input === 'e' && idx >= 0) {
         setField(0);
         setMode('editor');
+      } else if (input === 'l') {
+        setLinkPick(0);
+        setConfirm(null);
+        setMode('link');
       }
     }
   });
@@ -242,7 +294,25 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
           items.map((it, i) => <Chip key={it.id} item={it} selected={i === idx} />)
         )}
       </Box>
-      {mode === 'picker' ? (
+      {mode === 'link' ? (
+        <Box flexDirection="column" marginTop={1}>
+          {confirm ? (
+            <Text>
+              Replace {confirm.join(', ')} layout with {surface}&apos;s? (y/n)
+            </Text>
+          ) : (
+            <>
+              <Text bold>Link {surface} layout to:</Text>
+              {linkOptions.map((o, i) => (
+                <Text key={o.label} color={i === linkPick ? 'cyan' : undefined}>
+                  {i === linkPick ? '▸ ' : '  '}
+                  {o.label}
+                </Text>
+              ))}
+            </>
+          )}
+        </Box>
+      ) : mode === 'picker' ? (
         <Box flexDirection="column" marginTop={1}>
           <Text bold>Add widget</Text>
           {WIDGETS.map((w, i) => (
@@ -272,10 +342,14 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
       )}
       <Text dimColor>
         {mode === 'strip'
-          ? '←/→ select · [/] move · a add · x remove · e edit · tab surface · esc back'
+          ? '←/→ select · [/] move · a add · x remove · e edit · l link · u unlink · tab surface · esc back'
           : mode === 'editor'
             ? '↑/↓ field · ←/→ change · esc done'
-            : '↑/↓ choose · enter add · esc cancel'}
+            : mode === 'link'
+              ? confirm
+                ? 'y confirm · n cancel'
+                : '↑/↓ choose · enter link · esc cancel'
+              : '↑/↓ choose · enter add · esc cancel'}
       </Text>
     </Box>
   );
