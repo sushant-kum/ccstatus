@@ -34,3 +34,13 @@ test('defaultConfig folds in all builtin themes, default active', () => {
   expect(Object.keys(defaultConfig.themes)).toHaveLength(9);
   expect(defaultConfig.theme).toBe('default');
 });
+
+test('the default theme keeps its exact translated values', () => {
+  expect(builtinThemes['default']).toEqual([
+    { fg: 16, bg: 44 },
+    { fg: 231, bg: 20 },
+    { fg: 16, bg: 226 },
+    { fg: 231, bg: 240 },
+    { fg: 16, bg: 40 },
+  ]);
+});

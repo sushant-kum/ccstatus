@@ -1,11 +1,11 @@
-import { defaultConfig, indexToHex } from '@ccstatus/core';
+import { asIndex, defaultConfig, indexToHex } from '@ccstatus/core';
 import type { Config } from '@ccstatus/core';
 import { render } from 'ink-testing-library';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { expect, test, vi } from 'vitest';
 
-import { Themes } from './themes.js';
+import { PICK_INDICES, posToPick, Themes } from './themes.js';
 
 const tick = (): Promise<void> => new Promise<void>((r) => setTimeout(r, 20));
 
@@ -278,7 +278,7 @@ test('picking a cube index (across block boundaries) sets a numeric fg', async (
   expect(slot.fg).toBe(16 + 36 * 5 + 6 * 2 + 3);
   expect(slot.fg).toBeGreaterThanOrEqual(16);
   expect(slot.fg).toBeLessThanOrEqual(255);
-  expect(indexToHex(slot.fg ?? 0)).toMatch(/^#[0-9a-f]{6}$/);
+  expect(indexToHex(asIndex(slot.fg ?? 16))).toMatch(/^#[0-9a-f]{6}$/);
   expect(config.themes.default).not.toBe(defaultConfig.themes.default);
   expect(defaultConfig.themes.default?.[0]?.fg).toBe(16);
 });
@@ -308,4 +308,33 @@ test('the first ramp swatch is idx 232 and the last cube swatch is idx 231', asy
     ...Array.from({ length: 40 }, () => RIGHT),
   ];
   expect((await pickWith('fg', toLastCube)).slot.fg).toBe(231);
+});
+
+test('the picker grid maps bijectively onto indices 16-255', () => {
+  const rowWidths = [36, 36, 36, 36, 36, 36, 24];
+  const seen = new Set<number>();
+  rowWidths.forEach((width, row) => {
+    for (let col = 0; col < width; col++) {
+      const pi = posToPick({ row, col });
+      const idx = pi === undefined ? undefined : PICK_INDICES[pi];
+      expect(idx).toBeDefined();
+      seen.add(idx ?? -1);
+    }
+  });
+  expect(seen.size).toBe(240);
+  expect([...seen].sort((a, b) => a - b)).toEqual(Array.from({ length: 240 }, (_, i) => 16 + i));
+  expect(posToPick({ row: 7, col: 0 })).toBeUndefined();
+});
+
+test('up from the (none) row lands on the ramp row', async () => {
+  const keys = [...Array.from({ length: 7 }, () => DOWN), '\u001B[A'];
+  expect((await pickWith('fg', keys)).slot.fg).toBe(232);
+});
+
+test('moving down from a high cube column onto the 24-wide ramp clamps the column', async () => {
+  const keys = [
+    ...Array.from({ length: 30 }, () => RIGHT),
+    ...Array.from({ length: 6 }, () => DOWN),
+  ];
+  expect((await pickWith('fg', keys)).slot.fg).toBe(255);
 });

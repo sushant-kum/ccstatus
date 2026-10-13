@@ -300,3 +300,44 @@ test('an out-of-range / garbage color drops the field with a warning, never thro
   expect(config.themes.m).toEqual([{}]);
   expect(warnings.length).toBeGreaterThan(0);
 });
+
+test('prototype-key color names are dropped with warnings and never throw', () => {
+  const raw = {
+    version: 1,
+    theme: 'm',
+    themes: { m: [{ fg: 'toString', bg: 'valueOf' }], p: [{ fg: 'bgToString' }] },
+  };
+  const { config, warnings } = loadConfig(raw);
+  expect(config.themes.m).toEqual([{}]);
+  expect(config.themes.p).toEqual([{}]);
+  expect(warnings.filter((w) => w.includes('dropped invalid color'))).toHaveLength(3);
+});
+
+test('ANSI16 ends map to 16 and 231 with a dims warning', () => {
+  const { config, warnings } = loadConfig({
+    version: 1,
+    theme: 'm',
+    themes: { m: [{ fg: 0 }, { bg: 15 }] },
+  });
+  expect(config.themes.m).toEqual([{ fg: 16 }, { bg: 231 }]);
+  expect(warnings.filter((w) => w.includes('dims'))).toHaveLength(2);
+});
+
+test('a multi-word bg-prefixed legacy name migrates via its CamelCase base', () => {
+  const { config } = loadConfig({
+    version: 1,
+    theme: 'm',
+    themes: { m: [{ fg: 'bgBrightBlack' }] },
+  });
+  expect(config.themes.m).toEqual([{ fg: 240 }]);
+});
+
+test('a numeric per-item color is dropped with a warning', () => {
+  const raw = {
+    version: 1,
+    surfaces: { band: { enabled: true, lines: [[{ id: 'a', type: 'model', fg: 45, bg: 3 }]] } },
+  };
+  const { config, warnings } = loadConfig(raw);
+  expect(config.surfaces.band.lines[0]?.[0]).toEqual({ id: 'a', type: 'model' });
+  expect(warnings.some((w) => w.includes('per-item color'))).toBe(true);
+});

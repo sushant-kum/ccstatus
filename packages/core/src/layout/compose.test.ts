@@ -1,13 +1,14 @@
 import { expect, test } from 'vitest';
 
 import { toAnsi } from '../ansi.js';
+import { asIndex } from '../colors.js';
 
 import type { Cell } from './cells.js';
 import { composeLine } from './compose.js';
 
 const cell = (text: string, bg?: number, extra: Partial<Cell> = {}): Cell => ({
   text,
-  bg,
+  bg: bg === undefined ? undefined : asIndex(bg),
   merge: false,
   flex: false,
   ...extra,

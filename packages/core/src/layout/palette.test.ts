@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
 
+import { asIndex } from '../colors.js';
 import type { Theme } from '../config/types.js';
 
 import type { Cell } from './cells.js';
@@ -12,8 +13,8 @@ const cell = (text: string, o: Partial<Cell> = {}): Cell => ({
   ...o,
 });
 const theme: Theme = [
-  { fg: 16, bg: 44 },
-  { fg: 231, bg: 20 },
+  { fg: asIndex(16), bg: asIndex(44) },
+  { fg: asIndex(231), bg: asIndex(20) },
 ];
 
 test('cycles the palette across positions', () => {
@@ -23,20 +24,20 @@ test('cycles the palette across positions', () => {
 });
 
 test('auto-contrasts a bg-only slot', () => {
-  const out = assignPaletteColors([cell('a')], [{ bg: 184 }]);
-  expect(out[0]).toMatchObject({ bg: 184, fg: 16 });
+  const out = assignPaletteColors([cell('a')], [{ bg: asIndex(184) }]);
+  expect(out[0]).toMatchObject({ bg: asIndex(184), fg: asIndex(16) });
 });
 
 test('an fg-only slot sets fg and no bg', () => {
-  const out = assignPaletteColors([cell('a')], [{ fg: 160 }]);
+  const out = assignPaletteColors([cell('a')], [{ fg: asIndex(160) }]);
   expect(out[0]?.fg).toBe(160);
   expect(out[0]?.bg).toBeUndefined();
 });
 
 test('an explicit fg wins over the auto-contrast color when a slot sets both fg and bg', () => {
   // contrastFg(44) is 16; the slot's explicit 160 must take precedence.
-  const out = assignPaletteColors([cell('a')], [{ fg: 160, bg: 44 }]);
-  expect(out[0]).toMatchObject({ fg: 160, bg: 44 });
+  const out = assignPaletteColors([cell('a')], [{ fg: asIndex(160), bg: asIndex(44) }]);
+  expect(out[0]).toMatchObject({ fg: asIndex(160), bg: asIndex(44) });
 });
 
 test('merged cell shares the preceding slot and does not advance the counter', () => {
