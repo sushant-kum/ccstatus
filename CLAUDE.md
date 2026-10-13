@@ -84,13 +84,10 @@ invalid items/colors with warnings. Both hosts rely on this — the mod falls ba
 `saveConfigFile` **always rounds the in-memory config through `loadConfig` before writing** (atomic temp+rename, with
 a `.bak`), so the TUI can never persist an invalid config. See [DEC-0004](./docs/DECISION.md#dec-0004--config-is-external-shared-json-at-the-xdg-path) and [FLOW-0002](./docs/FLOW.md#flow-0002--config-edit--shared-file--mod-reload).
 
-**Color-name gotcha.** Core uses chalk/mod-style color names (`brightYellow`, `bgBrightYellow`). **Ink/chalk do not
-accept them** — they need `yellowBright` order and base bg names — and the mod engine's `Text` is **Ink's too** (the
-band/pane originally skipped the mapping, which was the colour bug). Both hosts therefore map through the core
-helpers `rendererColor`/`rendererBg` (`packages/core/src/renderer-colors.ts`; the TUI via `packages/tui/src/paint.tsx`
-`inkColor`/`inkBg`). Any code that paints core colors with an Ink-based `Text` must go through them, or bright colors
-render uncolored. **Exception:** `brightGray`/`bgBrightGray` render uncolored even _through_ the mappers —
-Ink/chalk have `gray`/`bgGray` but no `grayBright`/`bgGrayBright`. See [DEC-0005](./docs/DECISION.md#dec-0005--named-terminal-colors-only-in-v1-no-hex) and [DEC-0013](./docs/DECISION.md#dec-0013--status-line-is-rendered-by-a-native-settingsjson-command-not-the-mod).
+**Colors are xterm-256 indices 16–255.** CC's status line dims the basic colors 0–15, so they are rejected. One
+`indexToRgb` table (`packages/core/src/theme/xterm256.ts`) feeds both painters: `toAnsi` emits `38;5;N`/`48;5;N` and
+Ink gets `#rrggbb`. `contrastFg` is luminance-based (returns 16 or 231). Truecolor is not supported in the status
+line. See [DEC-0023](./docs/DECISION.md#dec-0023--colors-are-an-xterm-256-palette-indices-16255-not-named-terminal-colors), [DEC-0024](./docs/DECISION.md#dec-0024--breaking-migration-to-256-color-indices) and [DEC-0013](./docs/DECISION.md#dec-0013--status-line-is-rendered-by-a-native-settingsjson-command-not-the-mod).
 
 **Native status line.** The status line is **not** drawn by the mod (`$.ui.status` is plain text and can't colour; the
 mod no longer calls it). Instead `npx @sushant-kum/ccstatus statusline` (`packages/tui/src/statusline-cmd.ts`, dispatched from
@@ -129,10 +126,10 @@ router is a `switch` in `app.tsx`.
   is the smart constructor and migrates legacy `metadata.text`/`metadata.command`. See [DEC-0008](./docs/DECISION.md#dec-0008--config-items-are-a-discriminated-union-keyed-on-type).
 - Toast `when` rules share one definition in `core` (`evalWhen`/`isValidWhen`/`TOAST_FIELDS`, `src/toast.ts`); the
   plugin evaluates and the TUI validates through it, so "valid in the TUI" matches "fires in the mod".
-- **Theme colors are positional.** A theme is an ordered `PaletteSlot[]` (`{ fg?, bg? }`) applied by visible position
+- **Theme colors are positional.** A theme is an ordered `PaletteSlot[]` (`{ fg?: number; bg?: number }`, 256-color indices) applied by visible position
   on each line by `core`'s `assignPaletteColors` (`layout/palette.ts`, run inside `render`): the palette cycles,
   merged cells share the preceding slot, flex separators are skipped, and the counter resets per line. A bg-only slot
-  gets a readable auto-contrast fg via `contrastFg` (`theme/contrast.ts`, named colors only). Items have no per-item
+  gets a readable auto-contrast fg via `contrastFg` (`theme/contrast.ts`). Items have no per-item
   `fg`/`bg`; `loadConfig` drops them (and legacy per-widget themes) with a warning. See [DEC-0020](./docs/DECISION.md#dec-0020--theme-colors-are-a-positional-palette-not-per-widget-type) and [DEC-0021](./docs/DECISION.md#dec-0021--breaking-config-migration-to-positional-palettes).
 - `defaults.glyph` is configurable but **defaults to `▒`** (renders in any terminal); the Powerline screen offers
   Nerd-Font presets + custom. `defaults.invert` and per-item `align` are **stored in config but not yet applied by
