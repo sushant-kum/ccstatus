@@ -1,5 +1,6 @@
 import { isColorIndex } from '../colors.js';
 import { builtinThemes } from '../theme/themes.js';
+import { NAMED_INDEX } from '../theme/xterm256.js';
 import { isValidWhen } from '../toast.js';
 
 import { defaultConfig } from './defaults.js';
@@ -20,6 +21,21 @@ import type {
 } from './types.js';
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+
+/** Cube equivalents for the legacy ANSI 0-15 indices (which dim in the status line). */
+const ANSI16: readonly number[] = [
+  16, 160, 40, 184, 20, 164, 44, 250, 240, 196, 46, 226, 21, 201, 51, 231,
+];
+
+/**
+ * Strips a `bg` prefix and lowercases the first remaining char (`bgCyan` becomes `cyan`).
+ * @param name - A legacy color name, possibly bg-prefixed.
+ * @returns    The base color name.
+ */
+const baseName = (name: string): string => {
+  const rest = name.slice(2);
+  return rest.charAt(0).toLowerCase() + rest.slice(1);
+};
 
 const WIDGET_TYPE_SET = new Set<WidgetType>(WIDGET_TYPES);
 
@@ -140,6 +156,32 @@ function cleanThemes(
         }
         if (isColorIndex(v)) {
           slot[key] = v;
+        } else if (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 15) {
+          const mapped = ANSI16[v] ?? 16;
+          slot[key] = mapped;
+          warn(
+            `color index ${v} dims in the status line; using ${mapped} in theme "${name}" (slot ${i})`
+          );
+        } else if (typeof v === 'string' && Object.hasOwn(NAMED_INDEX, v)) {
+          const mapped = NAMED_INDEX[v];
+          if (mapped !== undefined) {
+            slot[key] = mapped;
+            warn(
+              `named colors are now 256-color indices; using ${mapped} for "${v}" in theme "${name}"`
+            );
+          }
+        } else if (
+          typeof v === 'string' &&
+          v.startsWith('bg') &&
+          Object.hasOwn(NAMED_INDEX, baseName(v))
+        ) {
+          const mapped = NAMED_INDEX[baseName(v)];
+          if (mapped !== undefined) {
+            slot[key] = mapped;
+            warn(
+              `named colors are now 256-color indices; using ${mapped} for "${v}" in theme "${name}"`
+            );
+          }
         } else {
           warn(`dropped invalid color ${String(v)} in theme "${name}" (slot ${i})`);
         }

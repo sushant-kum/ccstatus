@@ -276,3 +276,27 @@ test('an active theme name matching a prototype key falls back to default', () =
   expect(Array.isArray(config.themes.default)).toBe(true);
   expect(warnings.some((w) => w.includes('toString') && w.includes('default'))).toBe(true);
 });
+
+test('a legacy string color migrates to its index with a warning', () => {
+  const raw = {
+    version: 1,
+    theme: 'mine',
+    themes: { mine: [{ fg: 'brightWhite', bg: 'bgCyan' }] },
+  };
+  const { config, warnings } = loadConfig(raw);
+  expect(config.themes.mine).toEqual([{ fg: 231, bg: 44 }]);
+  expect(warnings.some((w) => w.includes('256-color'))).toBe(true);
+});
+
+test('a 0-15 index migrates to its cube equivalent with a warning', () => {
+  const { config, warnings } = loadConfig({ version: 1, theme: 'm', themes: { m: [{ bg: 7 }] } });
+  expect(config.themes.m).toEqual([{ bg: 250 }]);
+  expect(warnings.some((w) => w.includes('dims'))).toBe(true);
+});
+
+test('an out-of-range / garbage color drops the field with a warning, never throws', () => {
+  const raw = { version: 1, theme: 'm', themes: { m: [{ fg: 300, bg: 'notacolor' }] } };
+  const { config, warnings } = loadConfig(raw);
+  expect(config.themes.m).toEqual([{}]);
+  expect(warnings.length).toBeGreaterThan(0);
+});
