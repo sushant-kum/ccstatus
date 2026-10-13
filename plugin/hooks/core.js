@@ -451,7 +451,7 @@ function render(config, snapshot, opts) {
     return { lines: [] };
   }
   const outputs = opts.commandOutputs ?? {};
-  const theme = config.themes[config.theme] ?? [];
+  const theme = Object.hasOwn(config.themes, config.theme) ? config.themes[config.theme] ?? [] : [];
   const lines = surface.lines.map((items) => lineToCells(items, config, snapshot, outputs)).filter((cells) => cells.length > 0).map((cells) => assignPaletteColors(cells, theme)).map((cells) => ({
     segments: composeLine(cells, config.defaults.separator, opts.width, config.defaults.glyph)
   }));
@@ -4927,18 +4927,18 @@ function cleanItem(raw, warn) {
   return { id, type, ...style };
 }
 function cleanThemes(themes, warn) {
-  const cleaned = {};
+  const cleaned = /* @__PURE__ */ Object.create(null);
   for (const [name, value] of Object.entries(themes)) {
     if (!Array.isArray(value)) {
-      warn(
-        `theme "${name}" uses the old per-widget format and was dropped; colors are now a positional palette`
-      );
+      const message = value !== null && typeof value === "object" ? `theme "${name}" uses the old per-widget format and was dropped; colors are now a positional palette` : `theme "${name}" is not a palette array and was dropped; colors are now a positional palette`;
+      warn(message);
       continue;
     }
     const slots = [];
     value.forEach((rawSlot, i) => {
       if (!rawSlot || typeof rawSlot !== "object") {
-        warn(`dropped invalid slot ${i} in theme "${name}"`);
+        warn(`replaced invalid slot ${i} in theme "${name}" with an empty slot`);
+        slots.push({});
         return;
       }
       const entry = rawSlot;
