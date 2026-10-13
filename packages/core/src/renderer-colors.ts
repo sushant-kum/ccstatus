@@ -1,32 +1,17 @@
-// Core uses brightX / bgX / bgBrightX. Ink (chalk) wants x / xBright and adds the
-// bg prefix itself. The engine's Text is Ink's too, so both hosts share this.
-/**
- * Converts a core colour name to Ink/chalk order (brightX becomes xBright).
- * @param n - The core colour name, if any.
- * @returns The Ink colour name, or undefined when no colour is given.
- */
-const toInk = (n?: string): string | undefined => {
-  if (!n) {
-    return undefined;
-  }
-  return n.startsWith('bright') ? (n[6] ?? '').toLowerCase() + n.slice(7) + 'Bright' : n;
-};
+import { indexToHex } from './theme/xterm256.js';
 
 /**
- * Maps a core foreground colour name to the renderer's (Ink/chalk) colour name.
- * @param fg - The core foreground colour name, if any.
- * @returns  The renderer colour name, or undefined when no colour is given.
+ * Maps a core foreground index to an Ink/chalk hex color.
+ * @param fg - The foreground palette index, if any.
+ * @returns  The `#rrggbb` hex, or undefined when no color is given.
  */
-export const rendererColor = (fg?: string): string | undefined => toInk(fg);
+export const rendererColor = (fg?: number): string | undefined =>
+  fg === undefined ? undefined : indexToHex(fg);
 
 /**
- * Maps a core background colour name to the renderer's base colour name.
- * @param bg - The core background colour name, if any.
- * @returns  The renderer background colour name, or undefined when no colour is given.
+ * Maps a core background index to an Ink/chalk hex color.
+ * @param bg - The background palette index, if any.
+ * @returns  The `#rrggbb` hex, or undefined when no color is given.
  */
-export const rendererBg = (bg?: string): string | undefined => {
-  if (!bg) {
-    return undefined;
-  }
-  return toInk(bg.startsWith('bg') ? (bg[2] ?? '').toLowerCase() + bg.slice(3) : bg);
-};
+export const rendererBg = (bg?: number): string | undefined =>
+  bg === undefined ? undefined : indexToHex(bg);

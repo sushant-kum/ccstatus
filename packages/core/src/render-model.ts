@@ -1,8 +1,8 @@
 export type SegmentKind = 'cell' | 'separator' | 'cap' | 'flex';
 export interface Segment {
   text: string;
-  fg?: string;
-  bg?: string;
+  fg?: number;
+  bg?: number;
   kind: SegmentKind;
 }
 export interface RenderLine {

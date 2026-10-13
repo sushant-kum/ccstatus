@@ -1,4 +1,4 @@
-import { isColor } from '../colors.js';
+import { isColorIndex } from '../colors.js';
 import { builtinThemes } from '../theme/themes.js';
 import { isValidWhen } from '../toast.js';
 
@@ -138,10 +138,10 @@ function cleanThemes(
         if (v === undefined) {
           continue;
         }
-        if (typeof v === 'string' && isColor(v)) {
+        if (isColorIndex(v)) {
           slot[key] = v;
         } else {
-          warn(`stripped unknown color "${String(v)}" in theme "${name}" (slot ${i})`);
+          warn(`dropped invalid color ${String(v)} in theme "${name}" (slot ${i})`);
         }
       }
       slots.push(slot);

@@ -4,22 +4,6 @@ import type { Segment } from '../render-model.js';
 import type { Cell } from './cells.js';
 
 /**
- * Converts a background color name into the matching foreground color name.
- * @param bg - The background color name, or `undefined`.
- * @returns  The corresponding foreground color name, or `undefined` when no background is given.
- */
-function bgToFg(bg: string | undefined): string | undefined {
-  if (!bg) {
-    return undefined;
-  }
-  if (!bg.startsWith('bg')) {
-    return bg;
-  }
-  const rest = bg.slice(2);
-  return rest.charAt(0).toLowerCase() + rest.slice(1);
-}
-
-/**
  * Concatenates adjacent cells flagged to merge into their predecessor.
  * @param cells - The cells to merge, in order.
  * @returns     A new array of cells with mergeable cells folded into the preceding cell.
@@ -108,7 +92,7 @@ export function composeLine(
   const segs: Segment[] = [];
   const emitStartCap = mode === 'powerline' && content.length > 0;
   if (emitStartCap) {
-    segs.push({ kind: 'cap', text: glyph, fg: bgToFg(content[0]?.bg) });
+    segs.push({ kind: 'cap', text: glyph, fg: content[0]?.bg });
   }
 
   let ci = 0;
@@ -122,7 +106,7 @@ export function composeLine(
     const next = content[ci + 1];
     if (!isLast && next) {
       if (mode === 'powerline') {
-        segs.push({ kind: 'separator', text: glyph, fg: bgToFg(c.bg), bg: next.bg });
+        segs.push({ kind: 'separator', text: glyph, fg: c.bg, bg: next.bg });
       } else if (mode === 'space') {
         segs.push({ kind: 'separator', text: ' ' });
       }
@@ -130,7 +114,7 @@ export function composeLine(
     ci += 1;
   }
   if (emitStartCap) {
-    segs.push({ kind: 'cap', text: glyph, fg: bgToFg(content[content.length - 1]?.bg) });
+    segs.push({ kind: 'cap', text: glyph, fg: content[content.length - 1]?.bg });
   }
 
   return truncate(segs, width);

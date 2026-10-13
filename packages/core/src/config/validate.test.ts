@@ -212,7 +212,7 @@ test('a non-array, non-object theme value is dropped with a "not a palette array
 });
 
 test('defining one custom theme keeps default but does not fold in the other builtins', () => {
-  const raw = { version: 1, theme: 'mine', themes: { mine: [{ fg: 'white', bg: 'bgRed' }] } };
+  const raw = { version: 1, theme: 'mine', themes: { mine: [{ fg: 231, bg: 160 }] } };
   const { config } = loadConfig(raw);
   expect(Object.keys(config.themes).sort()).toEqual(['default', 'mine']);
   expect(config.themes.nord).toBeUndefined();
@@ -222,10 +222,10 @@ test('a non-object slot is replaced with an empty slot, preserving later positio
   const raw = {
     version: 1,
     theme: 'mine',
-    themes: { mine: [{ fg: 'white', bg: 'bgRed' }, null, { bg: 'bgBlue' }] },
+    themes: { mine: [{ fg: 231, bg: 160 }, null, { bg: 20 }] },
   };
   const { config, warnings } = loadConfig(raw);
-  expect(config.themes.mine).toEqual([{ fg: 'white', bg: 'bgRed' }, {}, { bg: 'bgBlue' }]);
+  expect(config.themes.mine).toEqual([{ fg: 231, bg: 160 }, {}, { bg: 20 }]);
   expect(warnings.some((w) => w.includes('slot 1'))).toBe(true);
 });
 
@@ -235,14 +235,26 @@ test('a positional palette theme with a bad slot color is stripped with a warnin
     theme: 'mine',
     themes: {
       mine: [
-        { fg: 'black', bg: 'bgCyan' },
-        { fg: 'fuchsia', bg: 'bgBlue' },
+        { fg: 16, bg: 44 },
+        { fg: 999, bg: 20 },
       ],
     },
   };
   const { config, warnings } = loadConfig(raw);
-  expect(config.themes.mine?.[1]).toEqual({ bg: 'bgBlue' });
-  expect(warnings.some((w) => w.includes('fuchsia'))).toBe(true);
+  expect(config.themes.mine?.[1]).toEqual({ bg: 20 });
+  expect(warnings.some((w) => w.includes('999'))).toBe(true);
+});
+
+test('non-mappable slot colors (-1, garbage) are dropped with warnings and never throw', () => {
+  const raw = {
+    version: 1,
+    theme: 'mine',
+    themes: { mine: [{ fg: -1, bg: 'garbage' }, { fg: 45 }] },
+  };
+  const { config, warnings } = loadConfig(raw);
+  expect(config.themes.mine).toEqual([{}, { fg: 45 }]);
+  expect(warnings.some((w) => w.includes('-1'))).toBe(true);
+  expect(warnings.some((w) => w.includes('garbage'))).toBe(true);
 });
 
 test('an unknown active theme name falls back to default with a warning', () => {
@@ -252,9 +264,9 @@ test('an unknown active theme name falls back to default with a warning', () => 
 });
 
 test('a valid positional palette theme is preserved', () => {
-  const raw = { version: 1, theme: 'mine', themes: { mine: [{ fg: 'white', bg: 'bgRed' }] } };
+  const raw = { version: 1, theme: 'mine', themes: { mine: [{ fg: 231, bg: 160 }] } };
   const { config } = loadConfig(raw);
-  expect(config.themes.mine).toEqual([{ fg: 'white', bg: 'bgRed' }]);
+  expect(config.themes.mine).toEqual([{ fg: 231, bg: 160 }]);
   expect(config.theme).toBe('mine');
 });
 

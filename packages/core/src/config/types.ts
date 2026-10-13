@@ -50,11 +50,11 @@ export type DataWidgetType = Exclude<
   'custom-text' | 'custom-command' | 'flex-separator'
 >;
 
-// A single palette slot. Both optional: bg-only → auto-contrast fg; fg-only → colored text, no block;
-// neither → terminal default.
+// A single palette slot. Colors are xterm-256 indices (16–255). Both optional:
+// bg-only → auto-contrast fg; fg-only → colored text, no block; neither → terminal default.
 export interface PaletteSlot {
-  fg?: string;
-  bg?: string;
+  fg?: number;
+  bg?: number;
 }
 
 // Styling an item may carry. Colors are NOT here — they come from the theme palette by position.

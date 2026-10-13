@@ -4,8 +4,8 @@ import { registry } from '../widgets/registry.js';
 
 export interface Cell {
   text: string;
-  fg?: string;
-  bg?: string;
+  fg?: number;
+  bg?: number;
   merge: boolean;
   flex: boolean;
 }
