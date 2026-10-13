@@ -379,12 +379,29 @@ function captureEffort($: EngineInterface, e: unknown): Promise<void> {
   return Promise.resolve();
 }
 
+/**
+ * Build the help text listing every `/ccstatus` operation.
+ * @returns A multi-line summary of the command's subcommands.
+ */
+function commandHelp(): string {
+  return [
+    'ccstatus commands:',
+    '  /ccstatus              toggle the band above the prompt',
+    '  /ccstatus pane         toggle the ccstatus pane',
+    '  /ccstatus theme <name> switch the palette theme',
+    '  /ccstatus reload       reload config from disk',
+    '  /ccstatus edit         how to open the interactive editor',
+    '  /ccstatus help         show this help',
+  ].join('\n');
+}
+
 export const register: Register = (on) => {
   on('session.start', async ($, e, next) => {
     try {
       await $.command.register({
         name: 'ccstatus',
         description: 'Toggle the ccstatus band above the prompt',
+        argumentHint: '[pane | theme <name> | reload | edit | help]',
       });
       await reloadConfig($, true);
       await refresh($);
@@ -439,6 +456,12 @@ export const register: Register = (on) => {
             'Edit your layout with the ccstatus editor: run `npx @sushant-kum/ccstatus` in a terminal. ' +
             'Changes are picked up automatically.',
         };
+      }
+      if (sub === 'help') {
+        return { text: commandHelp() };
+      }
+      if (sub !== '') {
+        return { text: `unknown command: ${sub}\n\n${commandHelp()}` };
       }
       const now = !(await read($, visible));
       await update($, visible, () => now);

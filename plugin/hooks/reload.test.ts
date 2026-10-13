@@ -19,6 +19,7 @@ interface SetupWorld {
   snapshots: string[];
   tmp: Record<string, string>;
   clock: any;
+  registerSpecs: any[];
 }
 
 /**
@@ -39,9 +40,13 @@ function setup($: any, on: any): SetupWorld {
     snapshots: [],
     tmp: {},
     clock: null,
+    registerSpecs: [],
   };
   on('session.start', async (_$: any, e: any) => ({ cwd: e.cwd }));
-  on('command.register', async () => ({ value: { command: 'ccstatus' } }));
+  on('command.register', async (_$: any, e: any) => {
+    w.registerSpecs.push(e);
+    return { value: { command: 'ccstatus' } } as any;
+  });
   on('fs.read', async () => {
     w.reads++;
     return { value: w.text } as any;
@@ -138,6 +143,42 @@ test('/ccstatus theme <name> writes the config back atomically (temp + mv, .bak 
   expect(bad.text).toContain('unknown');
   const edit = await $.command.run({ command: 'ccstatus', args: 'edit' } as any);
   expect(edit.text).toContain('npx @sushant-kum/ccstatus');
+});
+
+test('the command registers with an argument hint listing its operations', async ($, on) => {
+  const w = setup($, on);
+  await $.session.start({ cwd: '', surface: 'terminal', isInteractive: true });
+  const spec = w.registerSpecs.find((s) => s.name === 'ccstatus');
+  expect(spec).toBeDefined();
+  expect(typeof spec.argumentHint).toBe('string');
+  for (const op of ['pane', 'theme', 'reload', 'edit', 'help']) {
+    expect(spec.argumentHint).toContain(op);
+  }
+});
+
+test('/ccstatus help lists every operation', async ($, on) => {
+  setup($, on);
+  await $.session.start({ cwd: '', surface: 'terminal', isInteractive: true });
+  const r = await $.command.run({ command: 'ccstatus', args: 'help' } as any);
+  for (const op of ['pane', 'theme', 'reload', 'edit', 'help']) {
+    expect(r.text).toContain(op);
+  }
+  // bare `/ccstatus` keeps toggling the band — help must not describe itself as the default
+  expect(r.text).not.toContain('band shown');
+  expect(r.text).not.toContain('band hidden');
+});
+
+test('an unknown subcommand shows help instead of silently toggling the band', async ($, on) => {
+  setup($, on);
+  await $.session.start({ cwd: '', surface: 'terminal', isInteractive: true });
+  const r = await $.command.run({ command: 'ccstatus', args: 'bogus' } as any);
+  expect(r.text).toContain('unknown command');
+  expect(r.text).toContain('bogus');
+  // it did NOT toggle — the toggle path is the one that reports shown/hidden
+  expect(r.text).not.toContain('band shown');
+  expect(r.text).not.toContain('band hidden');
+  // and the operations are still listed so the user can recover
+  expect(r.text).toContain('help');
 });
 
 test('a config with problems surfaces a warning toast on reload', async ($, on) => {
