@@ -23,6 +23,7 @@ export type {
   FlexSeparatorItem,
   Item,
   ItemStyle,
+  PaletteSlot,
   SeparatorMode,
   StylableItem,
   SurfaceLayout,

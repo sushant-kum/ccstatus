@@ -1,4 +1,4 @@
-import type { Theme } from '@ccstatus/core';
+import type { PaletteSlot, Theme } from '@ccstatus/core';
 import { Box, Text, useInput } from 'ink';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
@@ -7,10 +7,12 @@ import type { ScreenProps } from '../app.js';
 import { NAMED_COLORS } from '../named-colors.js';
 import { inkBg, inkColor } from '../paint.js';
 
-// list: ↑/↓ select · ⏎ activate · → colors · n new · d duplicate · esc home
-// colors: ↑/↓ widget · ←/→ fg/bg · ⏎ pick · esc back      picker: ↑/↓ · ⏎ set · esc cancel
+// list: ↑/↓ select · ⏎ activate · → slots · n new · d duplicate · esc home
+// slots: ↑/↓ slot · ←/→ fg/bg · ⏎ pick · a add slot · x remove slot · esc back
+// picker: ↑/↓ · ⏎ set · esc cancel
+// NAMED_COLORS already begins with '(none)', so FG keeps it; the bg filter drops it, so BG re-adds it.
 const FG = NAMED_COLORS.filter((c) => !c.startsWith('bg'));
-const BG = NAMED_COLORS.filter((c) => c.startsWith('bg'));
+const BG = ['(none)', ...NAMED_COLORS.filter((c) => c.startsWith('bg'))];
 const FIELDS = ['fg', 'bg'] as const;
 
 /**
@@ -41,19 +43,25 @@ function uniqueName(base: string, themes: Record<string, Theme>): string {
 export function Themes({ config, setConfig, goHome }: ScreenProps): ReactElement {
   const names = Object.keys(config.themes);
   const [sel, setSel] = useState(Math.max(0, names.indexOf(config.theme)));
-  const [mode, setMode] = useState<'list' | 'colors' | 'picker'>('list');
-  const [w, setW] = useState(0);
+  const [mode, setMode] = useState<'list' | 'slots' | 'picker'>('list');
+  const [slot, setSlot] = useState(0);
   const [field, setField] = useState(0);
   const [pick, setPick] = useState(0);
 
   const name = names[Math.min(sel, names.length - 1)];
-  const theme: Theme = (name && config.themes[name]) || {};
-  const widgets = Object.keys(theme);
-  const widget = widgets[Math.min(w, widgets.length - 1)];
+  const theme: Theme = (name && config.themes[name]) || [];
+  const count = theme.length;
+  const slotIdx = Math.min(slot, count - 1);
   const list = FIELDS[field] === 'fg' ? FG : BG;
 
   const setThemes = (themes: Record<string, Theme>, active = config.theme): void =>
     setConfig({ ...config, theme: active, themes });
+
+  const writeSlot = (index: number, entry: PaletteSlot): void => {
+    if (name) {
+      setThemes({ ...config.themes, [name]: theme.map((s, i) => (i === index ? entry : s)) });
+    }
+  };
 
   // eslint-disable-next-line complexity -- inherent key/mode dispatch for the theme editor
   useInput((input, key) => {
@@ -69,49 +77,65 @@ export function Themes({ config, setConfig, goHome }: ScreenProps): ReactElement
           setConfig({ ...config, theme: name });
         }
       } else if (key.rightArrow) {
-        if (widgets.length) {
-          setW(0);
-          setMode('colors');
+        if (count) {
+          setSlot(0);
+          setMode('slots');
         }
       } else if (input === 'n') {
         const n = uniqueName('custom', config.themes);
-        setThemes({ ...config.themes, [n]: {} });
+        setThemes({ ...config.themes, [n]: [] });
         setSel(names.length);
       } else if (input === 'd' && name) {
         const n = uniqueName(`${name}-copy`, config.themes);
         setThemes({ ...config.themes, [n]: structuredClone(theme) });
         setSel(names.length);
       }
-    } else if (mode === 'colors') {
+    } else if (mode === 'slots') {
       if (key.escape || (key.leftArrow && field === 0)) {
         setMode('list');
       } else if (key.upArrow) {
-        setW((i) => Math.max(0, i - 1));
+        setSlot(Math.max(0, slotIdx - 1));
       } else if (key.downArrow) {
-        setW((i) => Math.min(widgets.length - 1, i + 1));
+        setSlot(Math.min(count - 1, slotIdx + 1));
       } else if (key.leftArrow) {
         setField(0);
       } else if (key.rightArrow) {
         setField(1);
-      } else if (key.return && widget) {
-        const cur = theme[widget]?.[FIELDS[field] ?? 'fg'];
-        setPick(Math.max(0, list.indexOf(cur ?? '')));
+      } else if (key.return && slotIdx >= 0) {
+        const cur = theme[slotIdx]?.[FIELDS[field] ?? 'fg'];
+        setPick(Math.max(0, list.indexOf(cur ?? '(none)')));
         setMode('picker');
+      } else if (input === 'a' && name) {
+        setThemes({ ...config.themes, [name]: [...theme, {}] });
+        setSlot(count);
+      } else if (input === 'x' && name && slotIdx >= 0) {
+        const next = theme.filter((_, i) => i !== slotIdx);
+        setThemes({ ...config.themes, [name]: next });
+        if (next.length === 0) {
+          setMode('list');
+        } else {
+          setSlot(Math.min(slotIdx, next.length - 1));
+        }
       }
     } else {
       if (key.escape) {
-        setMode('colors');
+        setMode('slots');
       } else if (key.upArrow) {
         setPick((p) => Math.max(0, p - 1));
       } else if (key.downArrow) {
         setPick((p) => Math.min(list.length - 1, p + 1));
-      } else if (key.return && name && widget) {
+      } else if (key.return && slotIdx >= 0) {
         const f = FIELDS[field] ?? 'fg';
         const chosen = list[pick];
         if (chosen) {
-          const entry = { ...theme[widget], [f]: chosen };
-          setThemes({ ...config.themes, [name]: { ...theme, [widget]: entry } });
-          setMode('colors');
+          const entry: PaletteSlot = { ...theme[slotIdx] };
+          if (chosen === '(none)') {
+            delete entry[f];
+          } else {
+            entry[f] = chosen;
+          }
+          writeSlot(slotIdx, entry);
+          setMode('slots');
         }
       }
     }
@@ -127,14 +151,14 @@ export function Themes({ config, setConfig, goHome }: ScreenProps): ReactElement
           {n === config.theme ? ' (active)' : ''}
         </Text>
       ))}
-      <Text dimColor>{name} colors:</Text>
-      {widgets.map((wt, i) => {
-        const c = theme[wt] ?? {};
-        const on = mode !== 'list' && i === w;
+      <Text dimColor>{name} palette slots:</Text>
+      {count === 0 && <Text dimColor>(empty palette)</Text>}
+      {theme.map((c, i) => {
+        const on = mode !== 'list' && i === slotIdx;
         return (
-          <Text key={wt}>
+          <Text key={i}>
             {on ? '▸ ' : '  '}
-            {wt.padEnd(20)}
+            {String(i).padEnd(4)}
             <Text color={inkColor(c.fg)} inverse={on && field === 0}>
               {' '}
               {c.fg ?? '(none)'}{' '}
@@ -149,7 +173,7 @@ export function Themes({ config, setConfig, goHome }: ScreenProps): ReactElement
       {mode === 'picker' && (
         <Box flexDirection="column">
           <Text bold>
-            Pick {FIELDS[field]} for {widget}
+            Pick {FIELDS[field]} for slot {slotIdx}
           </Text>
           {list.map((c, i) => (
             <Text key={c} color={i === pick ? 'cyan' : undefined}>
@@ -167,9 +191,9 @@ export function Themes({ config, setConfig, goHome }: ScreenProps): ReactElement
       )}
       <Text dimColor>
         {mode === 'list'
-          ? '↑/↓ select · ⏎ activate · → colors · n new · d duplicate · esc back'
-          : mode === 'colors'
-            ? '↑/↓ widget · ←/→ fg/bg · ⏎ pick · esc back'
+          ? '↑/↓ select · ⏎ activate · → slots · n new · d duplicate · esc back'
+          : mode === 'slots'
+            ? '↑/↓ slot · ←/→ fg/bg · ⏎ pick · a add · x remove · esc back'
             : '↑/↓ choose · ⏎ set · esc cancel'}
       </Text>
     </Box>

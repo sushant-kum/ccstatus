@@ -3,9 +3,11 @@ type SeparatorMode = 'powerline' | 'space' | 'none';
 declare const WIDGET_TYPES: readonly ["model", "version", "context-length", "context-percentage", "tokens-input", "tokens-output", "tokens-cached", "tokens-total", "session-clock", "cwd", "git-branch", "git-changes", "git-worktree", "git-root-dir", "cost", "rate-limit-5h", "rate-limit-week", "block-timer", "session-usage", "weekly-usage", "reset-timer", "weekly-reset-timer", "context-bar", "context-remaining", "thinking-effort", "git-insertions", "git-deletions", "session-id", "context-window", "session-cost-rate", "git-sha", "output-style", "terminal-width", "custom-text", "custom-command", "flex-separator"];
 type WidgetType = (typeof WIDGET_TYPES)[number];
 type DataWidgetType = Exclude<WidgetType, 'custom-text' | 'custom-command' | 'flex-separator'>;
-interface ItemStyle {
+interface PaletteSlot {
     fg?: string;
     bg?: string;
+}
+interface ItemStyle {
     merge?: boolean;
     align?: Align;
     rawValue?: boolean;
@@ -44,10 +46,7 @@ interface ToastSurface {
     enabled: boolean;
     rules: ToastRule[];
 }
-type Theme = Record<string, {
-    fg?: string;
-    bg?: string;
-}>;
+type Theme = PaletteSlot[];
 interface Defaults {
     separator: SeparatorMode;
     padding: number;
@@ -251,4 +250,4 @@ declare const rendererColor: (fg?: string) => string | undefined;
  */
 declare const rendererBg: (bg?: string) => string | undefined;
 
-export { type Align, COLORS, type Config, type CustomCommandItem, type CustomTextItem, type DataItem, type DataWidgetType, type Defaults, type FlexSeparatorItem, type Item, type ItemStyle, LINKABLE, type LinkableSurface, type RenderLine, type RenderModel, type RenderOptions, type Segment, type SegmentKind, type SeparatorMode, type Snapshot, type StylableItem, type SurfaceLayout, TOAST_FIELDS, type Theme, type ToastRule, type ToastSurface, type WidgetContext, type WidgetDef, type WidgetType, builtinThemes, defaultConfig, evalWhen, importCcstatusline, isColor, isValidWhen, linkedSurfaces, loadConfig, register, registry, render, rendererBg, rendererColor, toAnsi, writeLinkedLines };
+export { type Align, COLORS, type Config, type CustomCommandItem, type CustomTextItem, type DataItem, type DataWidgetType, type Defaults, type FlexSeparatorItem, type Item, type ItemStyle, LINKABLE, type LinkableSurface, type PaletteSlot, type RenderLine, type RenderModel, type RenderOptions, type Segment, type SegmentKind, type SeparatorMode, type Snapshot, type StylableItem, type SurfaceLayout, TOAST_FIELDS, type Theme, type ToastRule, type ToastSurface, type WidgetContext, type WidgetDef, type WidgetType, builtinThemes, defaultConfig, evalWhen, importCcstatusline, isColor, isValidWhen, linkedSurfaces, loadConfig, register, registry, render, rendererBg, rendererColor, toAnsi, writeLinkedLines };

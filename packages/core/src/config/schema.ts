@@ -37,9 +37,7 @@ const toastRuleSchema = z.object({
 export const configSchema = z.object({
   version: z.literal(1).catch(1),
   theme: z.string().default('default'),
-  themes: z
-    .record(z.record(z.object({ fg: z.string().optional(), bg: z.string().optional() })))
-    .default({}),
+  themes: z.record(z.unknown()).default({}),
   defaults: z
     .object({
       separator: sep,

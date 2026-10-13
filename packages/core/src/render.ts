@@ -1,6 +1,7 @@
 import type { Config } from './config/types.js';
 import { lineToCells } from './layout/cells.js';
 import { composeLine } from './layout/compose.js';
+import { assignPaletteColors } from './layout/palette.js';
 import type { RenderModel } from './render-model.js';
 import type { Snapshot } from './snapshot.js';
 
@@ -32,10 +33,18 @@ export function render(config: Config, snapshot: Snapshot, opts: RenderOptions):
     return { lines: [] };
   }
   const outputs = opts.commandOutputs ?? {};
+  // hasOwn guards against a hand-built Config whose active name is a prototype key
+  // (e.g. "toString"), which bracket access would resolve to an inherited member.
+  // An absent name or empty palette leaves the line uncolored, which is the intended
+  // "no theme" behavior (see DEC-0020); loadConfig normally guarantees a valid own key.
+  const theme = Object.hasOwn(config.themes, config.theme)
+    ? (config.themes[config.theme] ?? [])
+    : [];
 
   const lines = surface.lines
     .map((items) => lineToCells(items, config, snapshot, outputs))
     .filter((cells) => cells.length > 0)
+    .map((cells) => assignPaletteColors(cells, theme))
     .map((cells) => ({
       segments: composeLine(cells, config.defaults.separator, opts.width, config.defaults.glyph),
     }));

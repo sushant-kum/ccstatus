@@ -1,55 +1,17 @@
-import type { Config, Item, Theme } from '../config/types.js';
-
-/**
- * Resolves the foreground and background colors for an item from its style and the active theme.
- * @param item   - The item to resolve colors for.
- * @param config - The active config providing the current theme.
- * @returns      The resolved foreground and background color names, each possibly undefined.
- */
-export function resolveColors(item: Item, config: Config): { fg?: string; bg?: string } {
-  const themeEntry = config.themes[config.theme]?.[item.type];
-  const fg = item.type === 'flex-separator' ? undefined : item.fg;
-  const bg = item.type === 'flex-separator' ? undefined : item.bg;
-  return {
-    fg: fg ?? themeEntry?.fg,
-    bg: bg ?? themeEntry?.bg,
-  };
-}
+import type { Theme } from '../config/types.js';
 
 type P = [fg: string, bg: string];
-// model, version, context-percentage, git-branch, git-changes, tokens-input, tokens-output, tokens-total
-const WIDGETS = [
-  'model',
-  'version',
-  'context-percentage',
-  'git-branch',
-  'git-changes',
-  'tokens-input',
-  'tokens-output',
-  'tokens-total',
-] as const;
-const mk = (rows: P[]): Theme => {
-  const t: Theme = {};
-  WIDGETS.forEach((w, i) => {
-    const row = rows[i];
-    if (!row) {
-      throw new Error(`theme definition is missing a color row for widget "${w}"`);
-    }
-    const [fg, bg] = row;
-    t[w] = { fg, bg };
-  });
-  return t;
-};
+const mk = (rows: P[]): Theme => rows.map(([fg, bg]) => ({ fg, bg }));
 
-// Named-terminal-color approximations of ccstatusline's built-in palettes.
+// Named-terminal-color approximations of ccstatusline's built-in palettes, applied positionally.
 export const builtinThemes: Record<string, Theme> = {
-  default: {
-    model: { fg: 'black', bg: 'bgCyan' },
-    version: { fg: 'white', bg: 'bgBlue' },
-    'context-percentage': { fg: 'black', bg: 'bgBrightYellow' },
-    'git-branch': { fg: 'black', bg: 'bgCyan' },
-    'git-changes': { fg: 'white', bg: 'bgBrightBlack' },
-  },
+  default: [
+    { fg: 'black', bg: 'bgCyan' },
+    { fg: 'white', bg: 'bgBlue' },
+    { fg: 'black', bg: 'bgBrightYellow' },
+    { fg: 'white', bg: 'bgBrightBlack' },
+    { fg: 'black', bg: 'bgGreen' },
+  ],
   classic: mk([
     ['black', 'bgYellow'],
     ['black', 'bgWhite'],

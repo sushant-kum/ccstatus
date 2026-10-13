@@ -11,8 +11,6 @@ import { Box, Text, useInput } from 'ink';
 import { useState, type ReactElement, type ReactNode } from 'react';
 
 import type { ScreenProps } from '../app.js';
-import { NAMED_COLORS } from '../named-colors.js';
-import { inkBg, inkColor } from '../paint.js';
 
 // Keys — strip: ←/→ select · [ / ] move item left/right · a add · x remove · e edit · l link · u unlink · tab surface · esc back
 //        editor: ↑/↓ field · ←/→ change · esc back to strip
@@ -23,10 +21,8 @@ import { inkBg, inkColor } from '../paint.js';
 // reuses it so the two can't drift.
 const SURFACES = LINKABLE;
 type Surface = LinkableSurface;
-const FIELDS = ['fg', 'bg', 'raw', 'merge', 'align'] as const;
+const FIELDS = ['raw', 'merge', 'align'] as const;
 const ALIGNS: Align[] = ['left', 'center', 'right'];
-const FG = NAMED_COLORS.filter((c) => !c.startsWith('bg'));
-const BG = ['(none)', ...NAMED_COLORS.filter((c) => c.startsWith('bg'))];
 const WIDGETS = Object.values(registry) as { type: WidgetType; label: string }[];
 
 const wrap = (i: number, n: number): number => (i + n) % n;
@@ -44,32 +40,7 @@ const isStylable = (item: Item): item is StylableItem => item.type !== 'flex-sep
  * @returns              The chip element.
  */
 function Chip({ item, selected }: { item: Item; selected: boolean }): ReactElement {
-  const fg = isStylable(item) ? item.fg : undefined;
-  const bg = isStylable(item) ? item.bg : undefined;
-  return (
-    <Text inverse={selected} color={inkColor(fg)} backgroundColor={inkBg(bg)}>
-      [ {item.type} ]
-    </Text>
-  );
-}
-
-/**
- * Renders a color swatch for a named color, or a dimmed placeholder when unset.
- * @param root0      - The swatch props.
- * @param root0.name - The color name, if any.
- * @param root0.bg   - Whether the color is a background color.
- * @returns          The swatch element.
- */
-function Swatch({ name, bg }: { name?: string; bg?: boolean }): ReactElement {
-  if (!name) {
-    return <Text dimColor>(none)</Text>;
-  }
-  return (
-    <Text color={bg ? undefined : inkColor(name)} backgroundColor={bg ? inkBg(name) : undefined}>
-      {' '}
-      {name}{' '}
-    </Text>
-  );
+  return <Text inverse={selected}>[ {item.type} ]</Text>;
 }
 
 /**
@@ -112,22 +83,12 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
     }
     commit(items.map((it, i) => (i === idx ? item : it)));
   };
-  const cycleColor = (list: string[], cur: string | undefined, dir: 1 | -1): string | undefined => {
-    const n =
-      list[wrap(Math.max(0, list.indexOf(cur ?? '(none)')) + dir + list.length, list.length)] ??
-      '(none)';
-    return n === '(none)' ? undefined : n;
-  };
   const change = (dir: 1 | -1): void => {
     if (!cur || !isStylable(cur)) {
       return;
     }
     const f = FIELDS[field];
-    if (f === 'fg') {
-      patch({ fg: cycleColor(FG, cur.fg, dir) });
-    } else if (f === 'bg') {
-      patch({ bg: cycleColor(BG, cur.bg, dir) });
-    } else if (f === 'raw') {
+    if (f === 'raw') {
       patch({ rawValue: !cur.rawValue });
     } else if (f === 'merge') {
       patch({ merge: !cur.merge });
@@ -371,11 +332,9 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
         (isStylable(cur) ? (
           <Box flexDirection="column" marginTop={1} borderStyle="round" paddingX={1}>
             <Text>type: {cur.type}</Text>
-            {row(0, 'fg', <Swatch name={cur.fg} />)}
-            {row(1, 'bg', <Swatch name={cur.bg} bg />)}
-            {row(2, 'raw', <Text>{cur.rawValue ? 'on' : 'off'}</Text>)}
-            {row(3, 'merge', <Text>{cur.merge ? 'on' : 'off'}</Text>)}
-            {row(4, 'align', <Text>{cur.align ?? 'left'}</Text>)}
+            {row(0, 'raw', <Text>{cur.rawValue ? 'on' : 'off'}</Text>)}
+            {row(1, 'merge', <Text>{cur.merge ? 'on' : 'off'}</Text>)}
+            {row(2, 'align', <Text>{cur.align ?? 'left'}</Text>)}
           </Box>
         ) : (
           <Box flexDirection="column" marginTop={1} borderStyle="round" paddingX={1}>

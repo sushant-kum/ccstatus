@@ -1,6 +1,5 @@
 import type { Config, Item } from '../config/types.js';
 import type { Snapshot } from '../snapshot.js';
-import { resolveColors } from '../theme/themes.js';
 import { registry } from '../widgets/registry.js';
 
 export interface Cell {
@@ -12,9 +11,10 @@ export interface Cell {
 }
 
 /**
- * Formats a single item into a renderable cell, applying padding and resolved colors.
+ * Formats a single item into a renderable cell, applying padding. Palette colors are assigned
+ * later, by position, in `assignPaletteColors`; a cell leaves this function uncolored.
  * @param item           - The config item to render.
- * @param config         - The active config, used for padding and theme colors.
+ * @param config         - The active config, used for padding.
  * @param snapshot       - The live snapshot the widget formats from.
  * @param commandOutputs - Cached outputs for custom-command widgets, keyed by item id.
  * @returns              The rendered cell, or `null` when the widget omits itself.
@@ -38,15 +38,14 @@ export function itemToCell(
   // Defense in depth: the schema already clamps padding, but core must never throw
   // on a hand-constructed Config either (' '.repeat throws on negative counts).
   const pad = flex ? '' : ' '.repeat(Math.max(0, Math.floor(config.defaults.padding)));
-  const { fg, bg } = resolveColors(item, config);
   const merge = item.type === 'flex-separator' ? false : (item.merge ?? false);
-  return { text: flex ? '' : `${pad}${value}${pad}`, fg, bg, merge, flex };
+  return { text: flex ? '' : `${pad}${value}${pad}`, merge, flex };
 }
 
 /**
  * Formats a line of items into cells, omitting items whose widgets return null.
  * @param items          - The config items on one line.
- * @param config         - The active config, used for padding and theme colors.
+ * @param config         - The active config, used for padding.
  * @param snapshot       - The live snapshot the widgets format from.
  * @param commandOutputs - Cached outputs for custom-command widgets, keyed by item id.
  * @returns              The rendered cells for the line, in order.

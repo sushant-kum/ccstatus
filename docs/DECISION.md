@@ -68,6 +68,8 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0017 | 2026-10-12 | Publish on tag via GitHub Actions; npm auth by OIDC Trusted Publishing                   | Accepted | repo-wide      |
 | DEC-0018 | 2026-10-12 | Linked surface layouts: a `SurfaceLayout.linked` flag mirrored on write + on load        | Accepted | core \| tui    |
 | DEC-0019 | 2026-10-12 | Centralize linked-surface line mirroring in a core helper (`writeLinkedLines`)           | Accepted | core \| tui    |
+| DEC-0020 | 2026-10-12 | Theme colors are a positional palette, not per widget type                               | Accepted | core \| tui    |
+| DEC-0021 | 2026-10-12 | Breaking config migration to positional palettes                                         | Accepted | core           |
 
 ---
 
@@ -943,3 +945,69 @@ helpers.
 - `LINKABLE`/`LinkableSurface` are the single source of truth for which surfaces are linkable; the
   "single group is fully general" reasoning still holds only while `LINKABLE.length === 3`.
 - Core changed, so the plugin bundle is regenerated (`npm run build:plugin-core`).
+
+---
+
+## DEC-0020 — Theme colors are a positional palette, not per widget type
+
+- **Date:** 2026-10-12
+- **Status:** Accepted
+- **Scope:** core | tui
+- **Related:** DEC-0005, DEC-0002, DEC-0008, [spec](./superpowers/specs/2026-10-12-positional-palette-theming-design.md)
+
+### Context
+
+Themes were keyed by widget type and covered only 5-8 of the ~36 types, so every uncovered widget
+rendered in the terminal-default grey. Color also followed widget identity rather than position,
+unlike ccstatusline's powerline themes, where colors cycle across the visible segments.
+
+### Decision
+
+A theme is `PaletteSlot[]` (`{ fg?, bg? }`), cycled across the visible items of each line by
+position. Merged cells share the preceding slot, flex separators are skipped (left uncolored), and
+the counter resets per line. A bg-only slot gets an auto-contrast fg from `contrastFg` (named colors
+only, black/white lookup, per DEC-0005). Assignment is a separate pure pass,
+`packages/core/src/layout/palette.ts` (`assignPaletteColors`), wired into `render` between
+`lineToCells` and `composeLine`.
+
+### Alternatives considered
+
+- **Extend the per-widget map to every widget type** — still ties color to identity, needs ~36
+  entries per theme, and gives no powerline-style cycling.
+
+### Consequences
+
+- Per-item `fg`/`bg` are removed from `ItemStyle`; the item editor is palette-only.
+- Every surface is colored by position through the one `render` path (DEC-0002).
+- New widgets need no theme entries.
+- Core changed, so the plugin bundle is regenerated (`npm run build:plugin-core`).
+
+---
+
+## DEC-0021 — Breaking config migration to positional palettes
+
+- **Date:** 2026-10-12
+- **Status:** Accepted
+- **Scope:** core
+- **Related:** DEC-0004, DEC-0020
+
+### Context
+
+Existing configs carry per-item `fg`/`bg` and per-widget (object-shaped) themes, neither of which
+exists in the positional model.
+
+### Decision
+
+`loadConfig` drops per-item colors with a warning, drops legacy object-shaped themes with a warning
+and falls back to the builtin palettes, guarantees a `default` palette, and reassigns an unknown
+active theme to `default`.
+
+### Alternatives considered
+
+- **Translate old per-widget themes into palettes** — there is no faithful mapping from identity-keyed
+  colors to positions; rejected as guesswork.
+
+### Consequences
+
+- A one-time visible restyle of existing configs, accepted while pre-1.0.
+- `loadConfig` stays non-throwing (DEC-0004); the user sees the drops as warnings.

@@ -4,129 +4,6 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// packages/core/src/theme/themes.ts
-function resolveColors(item, config) {
-  var _a;
-  const themeEntry = (_a = config.themes[config.theme]) == null ? void 0 : _a[item.type];
-  const fg2 = item.type === "flex-separator" ? void 0 : item.fg;
-  const bg2 = item.type === "flex-separator" ? void 0 : item.bg;
-  return {
-    fg: fg2 ?? (themeEntry == null ? void 0 : themeEntry.fg),
-    bg: bg2 ?? (themeEntry == null ? void 0 : themeEntry.bg)
-  };
-}
-var WIDGETS = [
-  "model",
-  "version",
-  "context-percentage",
-  "git-branch",
-  "git-changes",
-  "tokens-input",
-  "tokens-output",
-  "tokens-total"
-];
-var mk = (rows) => {
-  const t = {};
-  WIDGETS.forEach((w, i) => {
-    const row = rows[i];
-    if (!row) {
-      throw new Error(`theme definition is missing a color row for widget "${w}"`);
-    }
-    const [fg2, bg2] = row;
-    t[w] = { fg: fg2, bg: bg2 };
-  });
-  return t;
-};
-var builtinThemes = {
-  default: {
-    model: { fg: "black", bg: "bgCyan" },
-    version: { fg: "white", bg: "bgBlue" },
-    "context-percentage": { fg: "black", bg: "bgBrightYellow" },
-    "git-branch": { fg: "black", bg: "bgCyan" },
-    "git-changes": { fg: "white", bg: "bgBrightBlack" }
-  },
-  classic: mk([
-    ["black", "bgYellow"],
-    ["black", "bgWhite"],
-    ["black", "bgGreen"],
-    ["white", "bgBlue"],
-    ["black", "bgMagenta"],
-    ["black", "bgCyan"],
-    ["black", "bgBrightYellow"],
-    ["white", "bgRed"]
-  ]),
-  nord: mk([
-    ["black", "bgBrightCyan"],
-    ["black", "bgCyan"],
-    ["black", "bgBlue"],
-    ["white", "bgBrightBlack"],
-    ["black", "bgBrightBlue"],
-    ["black", "bgGreen"],
-    ["black", "bgYellow"],
-    ["white", "bgBlack"]
-  ]),
-  dracula: mk([
-    ["black", "bgMagenta"],
-    ["black", "bgBrightMagenta"],
-    ["black", "bgBrightGreen"],
-    ["black", "bgBrightCyan"],
-    ["black", "bgBrightYellow"],
-    ["black", "bgBrightRed"],
-    ["white", "bgBrightBlack"],
-    ["white", "bgMagenta"]
-  ]),
-  gruvbox: mk([
-    ["black", "bgYellow"],
-    ["black", "bgBrightYellow"],
-    ["black", "bgGreen"],
-    ["black", "bgCyan"],
-    ["black", "bgRed"],
-    ["black", "bgMagenta"],
-    ["white", "bgBrightBlack"],
-    ["white", "bgBlack"]
-  ]),
-  monokai: mk([
-    ["black", "bgBrightGreen"],
-    ["black", "bgBrightYellow"],
-    ["black", "bgBrightMagenta"],
-    ["black", "bgBrightCyan"],
-    ["black", "bgBrightRed"],
-    ["white", "bgBrightBlack"],
-    ["black", "bgYellow"],
-    ["white", "bgBlack"]
-  ]),
-  "one-dark": mk([
-    ["black", "bgBlue"],
-    ["black", "bgBrightBlue"],
-    ["black", "bgGreen"],
-    ["black", "bgMagenta"],
-    ["black", "bgYellow"],
-    ["black", "bgCyan"],
-    ["white", "bgBrightBlack"],
-    ["white", "bgBlack"]
-  ]),
-  solarized: mk([
-    ["white", "bgBlue"],
-    ["black", "bgCyan"],
-    ["black", "bgYellow"],
-    ["white", "bgGreen"],
-    ["white", "bgMagenta"],
-    ["white", "bgRed"],
-    ["white", "bgBrightBlack"],
-    ["white", "bgBlack"]
-  ]),
-  "tokyo-night": mk([
-    ["black", "bgBrightBlue"],
-    ["black", "bgBlue"],
-    ["black", "bgBrightGreen"],
-    ["black", "bgBrightMagenta"],
-    ["black", "bgBrightYellow"],
-    ["black", "bgBrightCyan"],
-    ["white", "bgBrightBlack"],
-    ["white", "bgBlack"]
-  ])
-};
-
 // packages/core/src/widgets/registry.ts
 var registry = {};
 function register(def) {
@@ -145,9 +22,8 @@ function itemToCell(item, config, snapshot, commandOutputs) {
   }
   const flex = item.type === "flex-separator";
   const pad = flex ? "" : " ".repeat(Math.max(0, Math.floor(config.defaults.padding)));
-  const { fg: fg2, bg: bg2 } = resolveColors(item, config);
   const merge = item.type === "flex-separator" ? false : item.merge ?? false;
-  return { text: flex ? "" : `${pad}${value}${pad}`, fg: fg2, bg: bg2, merge, flex };
+  return { text: flex ? "" : `${pad}${value}${pad}`, merge, flex };
 }
 function lineToCells(items, config, snapshot, commandOutputs) {
   return items.map((it) => itemToCell(it, config, snapshot, commandOutputs)).filter((c) => c !== null);
@@ -249,6 +125,55 @@ function composeLine(cells, mode, width, glyph = "\u2592") {
     segs.push({ kind: "cap", text: glyph, fg: bgToFg((_b = content[content.length - 1]) == null ? void 0 : _b.bg) });
   }
   return truncate(segs, width);
+}
+
+// packages/core/src/theme/contrast.ts
+var LIGHT_BG = /* @__PURE__ */ new Set([
+  "green",
+  "yellow",
+  "cyan",
+  "white",
+  "brightGreen",
+  "brightYellow",
+  "brightCyan",
+  "brightWhite"
+]);
+var baseColor = (bg2) => {
+  if (!bg2.startsWith("bg")) {
+    return bg2;
+  }
+  const rest = bg2.slice(2);
+  return rest.charAt(0).toLowerCase() + rest.slice(1);
+};
+function contrastFg(bg2) {
+  return LIGHT_BG.has(baseColor(bg2)) ? "black" : "white";
+}
+
+// packages/core/src/layout/palette.ts
+function assignPaletteColors(cells, theme) {
+  if (theme.length === 0) {
+    return cells.map((c) => ({ ...c }));
+  }
+  const out = [];
+  let slot = -1;
+  let prev;
+  for (const c of cells) {
+    if (c.flex) {
+      out.push({ ...c });
+      prev = c;
+      continue;
+    }
+    const continuation = c.merge === true && prev !== void 0 && !prev.flex;
+    if (!continuation) {
+      slot += 1;
+    }
+    const pal = theme[slot % theme.length];
+    const bg2 = pal == null ? void 0 : pal.bg;
+    const fg2 = (pal == null ? void 0 : pal.fg) ?? (bg2 !== void 0 ? contrastFg(bg2) : void 0);
+    out.push({ ...c, fg: fg2, bg: bg2 });
+    prev = c;
+  }
+  return out;
 }
 
 // packages/core/src/format.ts
@@ -526,7 +451,8 @@ function render(config, snapshot, opts) {
     return { lines: [] };
   }
   const outputs = opts.commandOutputs ?? {};
-  const lines = surface.lines.map((items) => lineToCells(items, config, snapshot, outputs)).filter((cells) => cells.length > 0).map((cells) => ({
+  const theme = Object.hasOwn(config.themes, config.theme) ? config.themes[config.theme] ?? [] : [];
+  const lines = surface.lines.map((items) => lineToCells(items, config, snapshot, outputs)).filter((cells) => cells.length > 0).map((cells) => assignPaletteColors(cells, theme)).map((cells) => ({
     segments: composeLine(cells, config.defaults.separator, opts.width, config.defaults.glyph)
   }));
   return { lines };
@@ -609,6 +535,98 @@ var COLORS = /* @__PURE__ */ new Set([...fg, ...bg]);
 function isColor(x) {
   return typeof x === "string" && COLORS.has(x);
 }
+
+// packages/core/src/theme/themes.ts
+var mk = (rows) => rows.map(([fg2, bg2]) => ({ fg: fg2, bg: bg2 }));
+var builtinThemes = {
+  default: [
+    { fg: "black", bg: "bgCyan" },
+    { fg: "white", bg: "bgBlue" },
+    { fg: "black", bg: "bgBrightYellow" },
+    { fg: "white", bg: "bgBrightBlack" },
+    { fg: "black", bg: "bgGreen" }
+  ],
+  classic: mk([
+    ["black", "bgYellow"],
+    ["black", "bgWhite"],
+    ["black", "bgGreen"],
+    ["white", "bgBlue"],
+    ["black", "bgMagenta"],
+    ["black", "bgCyan"],
+    ["black", "bgBrightYellow"],
+    ["white", "bgRed"]
+  ]),
+  nord: mk([
+    ["black", "bgBrightCyan"],
+    ["black", "bgCyan"],
+    ["black", "bgBlue"],
+    ["white", "bgBrightBlack"],
+    ["black", "bgBrightBlue"],
+    ["black", "bgGreen"],
+    ["black", "bgYellow"],
+    ["white", "bgBlack"]
+  ]),
+  dracula: mk([
+    ["black", "bgMagenta"],
+    ["black", "bgBrightMagenta"],
+    ["black", "bgBrightGreen"],
+    ["black", "bgBrightCyan"],
+    ["black", "bgBrightYellow"],
+    ["black", "bgBrightRed"],
+    ["white", "bgBrightBlack"],
+    ["white", "bgMagenta"]
+  ]),
+  gruvbox: mk([
+    ["black", "bgYellow"],
+    ["black", "bgBrightYellow"],
+    ["black", "bgGreen"],
+    ["black", "bgCyan"],
+    ["black", "bgRed"],
+    ["black", "bgMagenta"],
+    ["white", "bgBrightBlack"],
+    ["white", "bgBlack"]
+  ]),
+  monokai: mk([
+    ["black", "bgBrightGreen"],
+    ["black", "bgBrightYellow"],
+    ["black", "bgBrightMagenta"],
+    ["black", "bgBrightCyan"],
+    ["black", "bgBrightRed"],
+    ["white", "bgBrightBlack"],
+    ["black", "bgYellow"],
+    ["white", "bgBlack"]
+  ]),
+  "one-dark": mk([
+    ["black", "bgBlue"],
+    ["black", "bgBrightBlue"],
+    ["black", "bgGreen"],
+    ["black", "bgMagenta"],
+    ["black", "bgYellow"],
+    ["black", "bgCyan"],
+    ["white", "bgBrightBlack"],
+    ["white", "bgBlack"]
+  ]),
+  solarized: mk([
+    ["white", "bgBlue"],
+    ["black", "bgCyan"],
+    ["black", "bgYellow"],
+    ["white", "bgGreen"],
+    ["white", "bgMagenta"],
+    ["white", "bgRed"],
+    ["white", "bgBrightBlack"],
+    ["white", "bgBlack"]
+  ]),
+  "tokyo-night": mk([
+    ["black", "bgBrightBlue"],
+    ["black", "bgBlue"],
+    ["black", "bgBrightGreen"],
+    ["black", "bgBrightMagenta"],
+    ["black", "bgBrightYellow"],
+    ["black", "bgBrightCyan"],
+    ["white", "bgBrightBlack"],
+    ["white", "bgBlack"]
+  ])
+};
 
 // packages/core/src/toast.ts
 var TOAST_FIELDS = {
@@ -4804,7 +4822,7 @@ var toastRuleSchema = external_exports.object({
 var configSchema = external_exports.object({
   version: external_exports.literal(1).catch(1),
   theme: external_exports.string().default("default"),
-  themes: external_exports.record(external_exports.record(external_exports.object({ fg: external_exports.string().optional(), bg: external_exports.string().optional() }))).default({}),
+  themes: external_exports.record(external_exports.unknown()).default({}),
   defaults: external_exports.object({
     separator: sep,
     padding: external_exports.number().int().min(0).catch(1),
@@ -4874,16 +4892,8 @@ function cleanStyle(raw, type, warn) {
   if (raw.rawValue !== void 0) {
     style.rawValue = raw.rawValue;
   }
-  for (const key of ["fg", "bg"]) {
-    const v = raw[key];
-    if (v === void 0) {
-      continue;
-    }
-    if (isColor(v)) {
-      style[key] = v;
-    } else {
-      warn(`stripped unknown color "${v}" on a ${type} item`);
-    }
+  if (raw.fg !== void 0 || raw.bg !== void 0) {
+    warn(`dropped per-item color on a ${type} item; colors now come from the theme palette`);
   }
   return style;
 }
@@ -4917,22 +4927,36 @@ function cleanItem(raw, warn) {
   return { id, type, ...style };
 }
 function cleanThemes(themes, warn) {
-  const cleaned = {};
-  for (const [themeName, themeEntries] of Object.entries(themes)) {
-    const cleanedEntries = {};
-    for (const [widgetName, entry] of Object.entries(themeEntries)) {
-      const cleanedEntry = { ...entry };
+  const cleaned = /* @__PURE__ */ Object.create(null);
+  for (const [name, value] of Object.entries(themes)) {
+    if (!Array.isArray(value)) {
+      const message = value !== null && typeof value === "object" ? `theme "${name}" uses the old per-widget format and was dropped; colors are now a positional palette` : `theme "${name}" is not a palette array and was dropped; colors are now a positional palette`;
+      warn(message);
+      continue;
+    }
+    const slots = [];
+    value.forEach((rawSlot, i) => {
+      if (!rawSlot || typeof rawSlot !== "object") {
+        warn(`replaced invalid slot ${i} in theme "${name}" with an empty slot`);
+        slots.push({});
+        return;
+      }
+      const entry = rawSlot;
+      const slot = {};
       for (const key of ["fg", "bg"]) {
-        if (cleanedEntry[key] !== void 0 && !isColor(cleanedEntry[key])) {
-          warn(
-            `stripped unknown color "${cleanedEntry[key]}" in theme "${themeName}" (${widgetName})`
-          );
-          cleanedEntry[key] = void 0;
+        const v = entry[key];
+        if (v === void 0) {
+          continue;
+        }
+        if (typeof v === "string" && isColor(v)) {
+          slot[key] = v;
+        } else {
+          warn(`stripped unknown color "${String(v)}" in theme "${name}" (slot ${i})`);
         }
       }
-      cleanedEntries[widgetName] = cleanedEntry;
-    }
-    cleaned[themeName] = cleanedEntries;
+      slots.push(slot);
+    });
+    cleaned[name] = slots;
   }
   return cleaned;
 }
@@ -4983,11 +5007,20 @@ function loadConfig(raw) {
     }
     return layout;
   };
-  const themesToUse = Object.keys(p.themes).length ? p.themes : clone2(defaultConfig.themes);
+  const cleaned = cleanThemes(p.themes, warn);
+  const themes = Object.keys(cleaned).length ? cleaned : clone2(builtinThemes);
+  if (!Object.hasOwn(themes, "default")) {
+    themes["default"] = clone2(builtinThemes["default"] ?? []);
+  }
+  let theme = p.theme;
+  if (!Object.hasOwn(themes, theme)) {
+    warn(`theme "${theme}" not found; using "default"`);
+    theme = "default";
+  }
   const config = {
     version: 1,
-    theme: p.theme,
-    themes: cleanThemes(themesToUse, warn),
+    theme,
+    themes,
     defaults: { ...defaultConfig.defaults, ...p.defaults },
     surfaces: {
       band: surf("band"),
@@ -5092,7 +5125,6 @@ var UNSUPPORTED = {
 function baseStyle(raw, idFallback) {
   return {
     id: String(raw["id"] ?? `${idFallback}-${Math.random().toString(36).slice(2)}`),
-    bg: typeof raw["backgroundColor"] === "string" ? raw["backgroundColor"] : void 0,
     rawValue: raw["rawValue"] === true || void 0,
     merge: raw["merge"] === true || void 0
   };
