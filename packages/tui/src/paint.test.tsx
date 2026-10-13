@@ -11,18 +11,18 @@ beforeAll(() => {
 const model = (seg: object): RenderModel =>
   ({ lines: [{ segments: [{ text: 'X', kind: 'text', ...seg }] }] }) as unknown as RenderModel;
 
-test('bright bg maps to ANSI bright background', async () => {
+test('numeric bg paints as a hex truecolor background', async () => {
   const { default: chalk } = await import('chalk');
-  chalk.level = 1;
-  const { lastFrame, unmount } = render(paintModel(model({ bg: 'bgBrightYellow' })));
-  expect(lastFrame()).toContain('\u001b[103m');
+  chalk.level = 3;
+  const { lastFrame, unmount } = render(paintModel(model({ bg: 226 })));
+  expect(lastFrame()).toContain('\u001b[48;2;255;255;0m');
   unmount();
 });
 
-test('bright fg maps to ANSI bright foreground', async () => {
+test('numeric fg paints as a hex truecolor foreground', async () => {
   const { default: chalk } = await import('chalk');
-  chalk.level = 1;
-  const { lastFrame, unmount } = render(paintModel(model({ fg: 'brightBlack' })));
-  expect(lastFrame()).toContain('\u001b[90m');
+  chalk.level = 3;
+  const { lastFrame, unmount } = render(paintModel(model({ fg: 196 })));
+  expect(lastFrame()).toContain('\u001b[38;2;255;0;0m');
   unmount();
 });
