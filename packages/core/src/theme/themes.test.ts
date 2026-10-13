@@ -34,3 +34,13 @@ test('defaultConfig folds in all builtin themes, default active', () => {
   expect(Object.keys(defaultConfig.themes)).toHaveLength(9);
   expect(defaultConfig.theme).toBe('default');
 });
+
+test('no builtin theme uses dim plain white for text (DEC-0022)', () => {
+  // 'white' is SGR 37 (a dim grey); light text must be 'brightWhite' (SGR 97).
+  // 'bgWhite' is a legitimate light background, so only the fg is guarded.
+  for (const [name, theme] of Object.entries(builtinThemes)) {
+    for (const slot of theme) {
+      expect(slot.fg, `${name} slot fg`).not.toBe('white');
+    }
+  }
+});

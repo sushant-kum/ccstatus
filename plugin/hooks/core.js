@@ -146,7 +146,7 @@ var baseColor = (bg2) => {
   return rest.charAt(0).toLowerCase() + rest.slice(1);
 };
 function contrastFg(bg2) {
-  return LIGHT_BG.has(baseColor(bg2)) ? "black" : "white";
+  return LIGHT_BG.has(baseColor(bg2)) ? "black" : "brightWhite";
 }
 
 // packages/core/src/layout/palette.ts
@@ -541,30 +541,30 @@ var mk = (rows) => rows.map(([fg2, bg2]) => ({ fg: fg2, bg: bg2 }));
 var builtinThemes = {
   default: [
     { fg: "black", bg: "bgCyan" },
-    { fg: "white", bg: "bgBlue" },
+    { fg: "brightWhite", bg: "bgBlue" },
     { fg: "black", bg: "bgBrightYellow" },
-    { fg: "white", bg: "bgBrightBlack" },
+    { fg: "brightWhite", bg: "bgBrightBlack" },
     { fg: "black", bg: "bgGreen" }
   ],
   classic: mk([
     ["black", "bgYellow"],
     ["black", "bgWhite"],
     ["black", "bgGreen"],
-    ["white", "bgBlue"],
+    ["brightWhite", "bgBlue"],
     ["black", "bgMagenta"],
     ["black", "bgCyan"],
     ["black", "bgBrightYellow"],
-    ["white", "bgRed"]
+    ["brightWhite", "bgRed"]
   ]),
   nord: mk([
     ["black", "bgBrightCyan"],
     ["black", "bgCyan"],
     ["black", "bgBlue"],
-    ["white", "bgBrightBlack"],
+    ["brightWhite", "bgBrightBlack"],
     ["black", "bgBrightBlue"],
     ["black", "bgGreen"],
     ["black", "bgYellow"],
-    ["white", "bgBlack"]
+    ["brightWhite", "bgBlack"]
   ]),
   dracula: mk([
     ["black", "bgMagenta"],
@@ -573,8 +573,8 @@ var builtinThemes = {
     ["black", "bgBrightCyan"],
     ["black", "bgBrightYellow"],
     ["black", "bgBrightRed"],
-    ["white", "bgBrightBlack"],
-    ["white", "bgMagenta"]
+    ["brightWhite", "bgBrightBlack"],
+    ["brightWhite", "bgMagenta"]
   ]),
   gruvbox: mk([
     ["black", "bgYellow"],
@@ -583,8 +583,8 @@ var builtinThemes = {
     ["black", "bgCyan"],
     ["black", "bgRed"],
     ["black", "bgMagenta"],
-    ["white", "bgBrightBlack"],
-    ["white", "bgBlack"]
+    ["brightWhite", "bgBrightBlack"],
+    ["brightWhite", "bgBlack"]
   ]),
   monokai: mk([
     ["black", "bgBrightGreen"],
@@ -592,9 +592,9 @@ var builtinThemes = {
     ["black", "bgBrightMagenta"],
     ["black", "bgBrightCyan"],
     ["black", "bgBrightRed"],
-    ["white", "bgBrightBlack"],
+    ["brightWhite", "bgBrightBlack"],
     ["black", "bgYellow"],
-    ["white", "bgBlack"]
+    ["brightWhite", "bgBlack"]
   ]),
   "one-dark": mk([
     ["black", "bgBlue"],
@@ -603,18 +603,18 @@ var builtinThemes = {
     ["black", "bgMagenta"],
     ["black", "bgYellow"],
     ["black", "bgCyan"],
-    ["white", "bgBrightBlack"],
-    ["white", "bgBlack"]
+    ["brightWhite", "bgBrightBlack"],
+    ["brightWhite", "bgBlack"]
   ]),
   solarized: mk([
-    ["white", "bgBlue"],
+    ["brightWhite", "bgBlue"],
     ["black", "bgCyan"],
     ["black", "bgYellow"],
-    ["white", "bgGreen"],
-    ["white", "bgMagenta"],
-    ["white", "bgRed"],
-    ["white", "bgBrightBlack"],
-    ["white", "bgBlack"]
+    ["brightWhite", "bgGreen"],
+    ["brightWhite", "bgMagenta"],
+    ["brightWhite", "bgRed"],
+    ["brightWhite", "bgBrightBlack"],
+    ["brightWhite", "bgBlack"]
   ]),
   "tokyo-night": mk([
     ["black", "bgBrightBlue"],
@@ -623,8 +623,8 @@ var builtinThemes = {
     ["black", "bgBrightMagenta"],
     ["black", "bgBrightYellow"],
     ["black", "bgBrightCyan"],
-    ["white", "bgBrightBlack"],
-    ["white", "bgBlack"]
+    ["brightWhite", "bgBrightBlack"],
+    ["brightWhite", "bgBlack"]
   ])
 };
 

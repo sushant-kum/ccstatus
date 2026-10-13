@@ -24,9 +24,13 @@ const baseColor = (bg: string): string => {
 
 /**
  * Returns a readable foreground color name for a named background.
+ *
+ * Dark backgrounds get "brightWhite" (SGR 97), not "white" (SGR 37): most terminals
+ * render plain "white" as a dim light-grey, which is low-contrast on dark — and barely
+ * readable on a grey like bgBrightBlack. "brightWhite" is crisp. See DEC-0022.
  * @param bg - A background color name (e.g. "bgCyan", "bgBrightBlack").
- * @returns  "black" on light backgrounds, "white" on dark ones.
+ * @returns  "black" on light backgrounds, "brightWhite" on dark ones.
  */
 export function contrastFg(bg: string): string {
-  return LIGHT_BG.has(baseColor(bg)) ? 'black' : 'white';
+  return LIGHT_BG.has(baseColor(bg)) ? 'black' : 'brightWhite';
 }
