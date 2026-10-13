@@ -1,5 +1,5 @@
-import { indexToHex } from '@ccstatus/core';
-import type { PaletteSlot, Theme } from '@ccstatus/core';
+import { asIndex, indexToHex } from '@ccstatus/core';
+import type { ColorIndex, PaletteSlot, Theme } from '@ccstatus/core';
 import { Box, Text, useInput } from 'ink';
 import { Fragment, useState } from 'react';
 import type { ReactElement } from 'react';
@@ -10,7 +10,7 @@ import type { ScreenProps } from '../app.js';
 // slots: ↑/↓ slot · ←/→ fg/bg · ⏎ pick · a add slot · x remove slot · esc back
 // picker: ↑/↓ row · ←/→ swatch · ⏎ set · esc cancel
 // Pickable sequence: the 6x6x6 colour cube (16-231) then the 24-step grayscale ramp (232-255).
-const PICK_INDICES: number[] = Array.from({ length: 240 }, (_, i) => 16 + i);
+export const PICK_INDICES: ColorIndex[] = Array.from({ length: 240 }, (_, i) => asIndex(16 + i));
 // Display grid: rows 0-5 show the 6 cube blocks side by side (36 swatches wide); row 6 is the ramp
 // (24 wide); row 7 is the single (none) entry that clears the field.
 const CUBE_ROWS = 6;
@@ -40,7 +40,7 @@ const rowWidth = (row: number): number =>
  * @param pos.col - The swatch column within the row.
  * @returns       The index into PICK_INDICES, or undefined for (none).
  */
-const posToPick = ({ row, col }: PickPos): number | undefined => {
+export const posToPick = ({ row, col }: PickPos): number | undefined => {
   if (row >= NONE_ROW) {
     return undefined;
   }
@@ -55,7 +55,7 @@ const posToPick = ({ row, col }: PickPos): number | undefined => {
  * @param idx - The current color index, if any.
  * @returns   The grid position to start the cursor on.
  */
-const indexToPos = (idx: number | undefined): PickPos => {
+const indexToPos = (idx: ColorIndex | undefined): PickPos => {
   if (idx === undefined || idx < 16 || idx > 255) {
     return { row: NONE_ROW, col: 0 };
   }

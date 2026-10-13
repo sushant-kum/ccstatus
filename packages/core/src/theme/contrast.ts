@@ -1,3 +1,5 @@
+import type { ColorIndex } from '../colors.js';
+
 import { BLACK, indexToRgb, WHITE } from './xterm256.js';
 
 /**
@@ -12,7 +14,7 @@ const LUMA_THRESHOLD = 128;
  * @param bg - The background palette index (16–255).
  * @returns  `16` (black) on light backgrounds, `231` (white) on dark ones.
  */
-export function contrastFg(bg: number): number {
+export function contrastFg(bg: ColorIndex): ColorIndex {
   const [r, g, b] = indexToRgb(bg);
   const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
   return luma >= LUMA_THRESHOLD ? BLACK : WHITE;

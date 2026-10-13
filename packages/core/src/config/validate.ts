@@ -1,4 +1,5 @@
-import { isColorIndex } from '../colors.js';
+import { asIndex, isColorIndex } from '../colors.js';
+import type { ColorIndex } from '../colors.js';
 import { builtinThemes } from '../theme/themes.js';
 import { NAMED_INDEX } from '../theme/xterm256.js';
 import { isValidWhen } from '../toast.js';
@@ -22,10 +23,10 @@ import type {
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
-/** Cube equivalents for the legacy ANSI 0-15 indices (which dim in the status line). */
-const ANSI16: readonly number[] = [
+/** 256-color equivalents (cube or grayscale) for the legacy ANSI 0-15 indices (which dim in the status line). */
+const ANSI16: readonly ColorIndex[] = [
   16, 160, 40, 184, 20, 164, 44, 250, 240, 196, 46, 226, 21, 201, 51, 231,
-];
+].map(asIndex);
 
 /**
  * Strips a `bg` prefix and lowercases the first remaining char (`bgCyan` becomes `cyan`).
@@ -42,8 +43,8 @@ const WIDGET_TYPE_SET = new Set<WidgetType>(WIDGET_TYPES);
 interface RawItem {
   id: string;
   type: string;
-  fg?: string;
-  bg?: string;
+  fg?: unknown;
+  bg?: unknown;
   merge?: boolean;
   align?: Align;
   rawValue?: boolean;
@@ -117,7 +118,8 @@ function cleanItem(raw: RawItem, warn: (s: string) => void): Item | null {
 
 /**
  * Validates themes as positional palettes, dropping legacy per-widget themes and replacing
- * invalid slots.
+ * invalid slots. Legacy named colors and 0–15 indices are migrated to 256-color indices (with
+ * warnings), not only dropped.
  * @param themes - The raw themes keyed by name; each value should be an array of palette slots.
  * @param warn   - Callback invoked for each dropped theme, replaced slot, or stripped slot color.
  * @returns      The valid palette themes keyed by name.
@@ -157,33 +159,25 @@ function cleanThemes(
         if (isColorIndex(v)) {
           slot[key] = v;
         } else if (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 15) {
-          const mapped = ANSI16[v] ?? 16;
+          const mapped = ANSI16[v] ?? asIndex(16);
           slot[key] = mapped;
           warn(
             `color index ${v} dims in the status line; using ${mapped} in theme "${name}" (slot ${i})`
           );
-        } else if (typeof v === 'string' && Object.hasOwn(NAMED_INDEX, v)) {
-          const mapped = NAMED_INDEX[v];
-          if (mapped !== undefined) {
-            slot[key] = mapped;
-            warn(
-              `named colors are now 256-color indices; using ${mapped} for "${v}" in theme "${name}"`
-            );
-          }
-        } else if (
-          typeof v === 'string' &&
-          v.startsWith('bg') &&
-          Object.hasOwn(NAMED_INDEX, baseName(v))
-        ) {
-          const mapped = NAMED_INDEX[baseName(v)];
-          if (mapped !== undefined) {
-            slot[key] = mapped;
-            warn(
-              `named colors are now 256-color indices; using ${mapped} for "${v}" in theme "${name}"`
-            );
-          }
         } else {
-          warn(`dropped invalid color ${String(v)} in theme "${name}" (slot ${i})`);
+          const named =
+            typeof v === 'string'
+              ? (NAMED_INDEX.get(v) ??
+                (v.startsWith('bg') ? NAMED_INDEX.get(baseName(v)) : undefined))
+              : undefined;
+          if (named !== undefined) {
+            slot[key] = named;
+            warn(
+              `named colors are now 256-color indices; using ${named} for "${String(v)}" in theme "${name}"`
+            );
+          } else {
+            warn(`dropped invalid color ${String(v)} in theme "${name}" (slot ${i})`);
+          }
         }
       }
       slots.push(slot);

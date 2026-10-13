@@ -1,3 +1,4 @@
+import type { ColorIndex } from '../colors.js';
 export type Align = 'left' | 'center' | 'right';
 export type SeparatorMode = 'powerline' | 'space' | 'none';
 
@@ -53,8 +54,8 @@ export type DataWidgetType = Exclude<
 // A single palette slot. Colors are xterm-256 indices (16–255). Both optional:
 // bg-only → auto-contrast fg; fg-only → colored text, no block; neither → terminal default.
 export interface PaletteSlot {
-  fg?: number;
-  bg?: number;
+  fg?: ColorIndex;
+  bg?: ColorIndex;
 }
 
 // Styling an item may carry. Colors are NOT here — they come from the theme palette by position.

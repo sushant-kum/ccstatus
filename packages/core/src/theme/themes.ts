@@ -1,7 +1,8 @@
+import { asIndex } from '../colors.js';
 import type { Theme } from '../config/types.js';
 
 type P = [fg: number, bg: number];
-const mk = (rows: P[]): Theme => rows.map(([fg, bg]) => ({ fg, bg }));
+const mk = (rows: P[]): Theme => rows.map(([fg, bg]) => ({ fg: asIndex(fg), bg: asIndex(bg) }));
 
 // Builtin positional palettes as xterm-256 indices (16–255). Translated from the previous
 // named palettes via NAMED_INDEX (black=16, brightWhite=231; see xterm256.ts) — see DEC-0023.
