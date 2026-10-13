@@ -288,10 +288,21 @@ test('a legacy string color migrates to its index with a warning', () => {
   expect(warnings.some((w) => w.includes('256-color'))).toBe(true);
 });
 
-test('a 0-15 index migrates to its cube equivalent with a warning', () => {
+test('a 0-15 index migrates to its 256-color equivalent with a warning', () => {
   const { config, warnings } = loadConfig({ version: 1, theme: 'm', themes: { m: [{ bg: 7 }] } });
   expect(config.themes.m).toEqual([{ bg: 250 }]);
   expect(warnings.some((w) => w.includes('dims'))).toBe(true);
+});
+
+test('every 0-15 index migrates to a valid 16-255 palette index', () => {
+  // Pins the whole ANSI16 table through the public load path (no interior value is stranded).
+  for (let v = 0; v <= 15; v++) {
+    const { config } = loadConfig({ version: 1, theme: 'm', themes: { m: [{ fg: v }] } });
+    const fg = config.themes.m?.[0]?.fg;
+    expect(Number.isInteger(fg)).toBe(true);
+    expect(fg).toBeGreaterThanOrEqual(16);
+    expect(fg).toBeLessThanOrEqual(255);
+  }
 });
 
 test('an out-of-range / garbage color drops the field with a warning, never throws', () => {
