@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.0](https://github.com/sushant-kum/ccstatus/compare/0.2.1...0.3.0) (2026-10-13)
+
+### ⚠ BREAKING CHANGES
+
+- 256-color palette (xterm-256 indices, fixes status-line dimming) ([#10](https://github.com/sushant-kum/ccstatus/issues/10))
+
+### Features
+
+- 256-color palette (xterm-256 indices, fixes status-line dimming) ([#10](https://github.com/sushant-kum/ccstatus/issues/10)) ([3c952a4](https://github.com/sushant-kum/ccstatus/commit/3c952a4e274e7fa24fc4d79cd9bc35bd74fe8249))
+
 ## [0.2.1](https://github.com/sushant-kum/ccstatus/compare/0.2.0...0.2.1) (2026-10-13)
 
 ### Bug Fixes
