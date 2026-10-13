@@ -117,11 +117,18 @@ function composeLine(cells, mode, width, glyph = "\u2592") {
   return truncate(segs, width);
 }
 
+// packages/core/src/colors.ts
+function isColorIndex(x) {
+  return typeof x === "number" && Number.isInteger(x) && x >= 16 && x <= 255;
+}
+var asIndex = (n) => n;
+
 // packages/core/src/theme/xterm256.ts
-var BLACK = 16;
-var WHITE = 231;
+var BLACK = asIndex(16);
+var WHITE = asIndex(231);
 var LEVEL = [0, 95, 135, 175, 215, 255];
-function indexToRgb(i) {
+function indexToRgb(idx) {
+  const i = Math.min(255, Math.max(16, Math.round(idx)));
   if (i >= 232) {
     const g = 8 + (i - 232) * 10;
     return [g, g, g];
@@ -134,25 +141,25 @@ function indexToHex(i) {
   const [r, g, b] = indexToRgb(i);
   return `#${hex2(r)}${hex2(g)}${hex2(b)}`;
 }
-var NAMED_INDEX = {
-  black: 16,
-  brightBlack: 240,
-  gray: 240,
-  red: 160,
-  brightRed: 196,
-  green: 40,
-  brightGreen: 46,
-  yellow: 184,
-  brightYellow: 226,
-  blue: 20,
-  brightBlue: 21,
-  magenta: 164,
-  brightMagenta: 201,
-  cyan: 44,
-  brightCyan: 51,
-  white: 250,
-  brightWhite: 231
-};
+var NAMED_INDEX = /* @__PURE__ */ new Map([
+  ["black", asIndex(16)],
+  ["brightBlack", asIndex(240)],
+  ["gray", asIndex(240)],
+  ["red", asIndex(160)],
+  ["brightRed", asIndex(196)],
+  ["green", asIndex(40)],
+  ["brightGreen", asIndex(46)],
+  ["yellow", asIndex(184)],
+  ["brightYellow", asIndex(226)],
+  ["blue", asIndex(20)],
+  ["brightBlue", asIndex(21)],
+  ["magenta", asIndex(164)],
+  ["brightMagenta", asIndex(201)],
+  ["cyan", asIndex(44)],
+  ["brightCyan", asIndex(51)],
+  ["white", asIndex(250)],
+  ["brightWhite", asIndex(231)]
+]);
 
 // packages/core/src/theme/contrast.ts
 var LUMA_THRESHOLD = 128;
@@ -472,13 +479,14 @@ function render(config, snapshot, opts) {
 }
 
 // packages/core/src/ansi.ts
+var clampIndex = (i) => Math.min(255, Math.max(16, Math.round(i)));
 function sgr(seg) {
   const codes = [];
   if (seg.fg !== void 0) {
-    codes.push(`\x1B[38;5;${seg.fg}m`);
+    codes.push(`\x1B[38;5;${clampIndex(seg.fg)}m`);
   }
   if (seg.bg !== void 0) {
-    codes.push(`\x1B[48;5;${seg.bg}m`);
+    codes.push(`\x1B[48;5;${clampIndex(seg.bg)}m`);
   }
   if (!codes.length) {
     return seg.text;
@@ -489,13 +497,8 @@ function toAnsi(model) {
   return model.lines.map((line) => line.segments.map(sgr).join("")).join("\n");
 }
 
-// packages/core/src/colors.ts
-function isColorIndex(x) {
-  return typeof x === "number" && Number.isInteger(x) && x >= 16 && x <= 255;
-}
-
 // packages/core/src/theme/themes.ts
-var mk = (rows) => rows.map(([fg, bg]) => ({ fg, bg }));
+var mk = (rows) => rows.map(([fg, bg]) => ({ fg: asIndex(fg), bg: asIndex(bg) }));
 var builtinThemes = {
   default: mk([
     [16, 44],
@@ -4758,8 +4761,8 @@ var sep = external_exports.enum(["powerline", "space", "none"]);
 var itemSchema = external_exports.object({
   id: external_exports.string(),
   type: external_exports.string(),
-  fg: external_exports.string().optional(),
-  bg: external_exports.string().optional(),
+  fg: external_exports.unknown().optional(),
+  bg: external_exports.unknown().optional(),
   merge: external_exports.boolean().optional(),
   align: align.optional(),
   rawValue: external_exports.boolean().optional(),
@@ -4855,7 +4858,7 @@ var ANSI16 = [
   201,
   51,
   231
-];
+].map(asIndex);
 var baseName = (name) => {
   const rest = name.slice(2);
   return rest.charAt(0).toLowerCase() + rest.slice(1);
@@ -4931,29 +4934,21 @@ function cleanThemes(themes, warn) {
         if (isColorIndex(v)) {
           slot[key] = v;
         } else if (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 15) {
-          const mapped = ANSI16[v] ?? 16;
+          const mapped = ANSI16[v] ?? asIndex(16);
           slot[key] = mapped;
           warn(
             `color index ${v} dims in the status line; using ${mapped} in theme "${name}" (slot ${i})`
           );
-        } else if (typeof v === "string" && Object.hasOwn(NAMED_INDEX, v)) {
-          const mapped = NAMED_INDEX[v];
-          if (mapped !== void 0) {
-            slot[key] = mapped;
-            warn(
-              `named colors are now 256-color indices; using ${mapped} for "${v}" in theme "${name}"`
-            );
-          }
-        } else if (typeof v === "string" && v.startsWith("bg") && Object.hasOwn(NAMED_INDEX, baseName(v))) {
-          const mapped = NAMED_INDEX[baseName(v)];
-          if (mapped !== void 0) {
-            slot[key] = mapped;
-            warn(
-              `named colors are now 256-color indices; using ${mapped} for "${v}" in theme "${name}"`
-            );
-          }
         } else {
-          warn(`dropped invalid color ${String(v)} in theme "${name}" (slot ${i})`);
+          const named = typeof v === "string" ? NAMED_INDEX.get(v) ?? (v.startsWith("bg") ? NAMED_INDEX.get(baseName(v)) : void 0) : void 0;
+          if (named !== void 0) {
+            slot[key] = named;
+            warn(
+              `named colors are now 256-color indices; using ${named} for "${String(v)}" in theme "${name}"`
+            );
+          } else {
+            warn(`dropped invalid color ${String(v)} in theme "${name}" (slot ${i})`);
+          }
         }
       }
       slots.push(slot);
@@ -5191,6 +5186,7 @@ var rendererBg = (bg) => bg === void 0 ? void 0 : indexToHex(bg);
 export {
   LINKABLE,
   TOAST_FIELDS,
+  asIndex,
   builtinThemes,
   defaultConfig,
   evalWhen,
