@@ -178,6 +178,38 @@ test('the bg picker (none) option clears a slot bg', async () => {
   unmount();
 });
 
+test('the fg picker (none) option clears a slot fg (enabling auto-contrast)', async () => {
+  const setConfig = vi.fn();
+  const { stdin, unmount } = render(
+    <Themes
+      config={defaultConfig}
+      setConfig={setConfig}
+      goHome={() => {
+        /* no-op */
+      }}
+    />
+  );
+  await tick();
+  stdin.write(RIGHT);
+  await tick();
+  await tick(); // into slots, fg field is selected by default
+  stdin.write('\r');
+  await tick();
+  await tick(); // picker, cursor on current fg
+  for (let i = 0; i < 40; i++) {
+    stdin.write('\u001B[A'); // up to (none), the first option
+  }
+  await tick();
+  await tick();
+  stdin.write('\r');
+  await tick();
+  const slot = setConfig.mock.calls[0]?.[0].themes.default[0];
+  expect(slot.fg).toBeUndefined();
+  expect(slot.bg).toBe('bgCyan'); // bg kept, so the slot now auto-contrasts
+  expect(defaultConfig.themes.default?.[0]?.fg).toBeDefined(); // prop not mutated
+  unmount();
+});
+
 test('a new empty theme shows the empty palette and right-arrow does not enter slots', async () => {
   const { stdin, lastFrame, unmount } = render(<Stateful onConfig={() => undefined} />);
   await tick();

@@ -10,6 +10,7 @@ import { inkBg, inkColor } from '../paint.js';
 // list: ↑/↓ select · ⏎ activate · → slots · n new · d duplicate · esc home
 // slots: ↑/↓ slot · ←/→ fg/bg · ⏎ pick · a add slot · x remove slot · esc back
 // picker: ↑/↓ · ⏎ set · esc cancel
+// NAMED_COLORS already begins with '(none)', so FG keeps it; the bg filter drops it, so BG re-adds it.
 const FG = NAMED_COLORS.filter((c) => !c.startsWith('bg'));
 const BG = ['(none)', ...NAMED_COLORS.filter((c) => c.startsWith('bg'))];
 const FIELDS = ['fg', 'bg'] as const;
