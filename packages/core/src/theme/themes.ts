@@ -4,7 +4,7 @@ type P = [fg: number, bg: number];
 const mk = (rows: P[]): Theme => rows.map(([fg, bg]) => ({ fg, bg }));
 
 // Builtin positional palettes as xterm-256 indices (16–255). Translated from the previous
-// named palettes via NAMED_INDEX (black=16, brightWhite=231; see xterm256.ts) — see DEC for 256.
+// named palettes via NAMED_INDEX (black=16, brightWhite=231; see xterm256.ts) — see DEC-0023.
 export const builtinThemes: Record<string, Theme> = {
   default: mk([
     [16, 44],

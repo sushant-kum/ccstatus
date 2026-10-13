@@ -1,6 +1,9 @@
 import { BLACK, indexToRgb, WHITE } from './xterm256.js';
 
-/** Rec.709 luma threshold (0–255): at or above → dark text, below → light text. */
+/**
+ * Approximate luma threshold (0–255; Rec.709 coefficients applied to sRGB bytes, no gamma
+ * correction): at or above → dark text, below → light text.
+ */
 const LUMA_THRESHOLD = 128;
 
 /**
