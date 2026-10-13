@@ -70,9 +70,10 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0019 | 2026-10-12 | Centralize linked-surface line mirroring in a core helper (`writeLinkedLines`)           | Accepted               | core \| tui    |
 | DEC-0020 | 2026-10-12 | Theme colors are a positional palette, not per widget type                               | Accepted               | core \| tui    |
 | DEC-0021 | 2026-10-12 | Breaking config migration to positional palettes                                         | Accepted               | core           |
-| DEC-0022 | 2026-10-13 | Light palette text is `brightWhite` (SGR 97), not `white` (SGR 37)                       | Accepted               | core           |
+| DEC-0022 | 2026-10-13 | Light palette text is `brightWhite` (SGR 97), not `white` (SGR 37)                       | Superseded by DEC-0023 | core           |
 | DEC-0023 | 2026-10-13 | Colors are an xterm-256 palette (indices 16-255), not named terminal colors              | Accepted               | core \| tui    |
 | DEC-0024 | 2026-10-13 | Breaking migration to 256-color indices                                                  | Accepted               | core           |
+| DEC-0025 | 2026-10-13 | Branded `ColorIndex` type minted only by `isColorIndex` / `asIndex`                      | Accepted               | core \| tui    |
 
 ---
 
@@ -1020,7 +1021,7 @@ active theme to `default`.
 ## DEC-0022 — Light palette text is `brightWhite` (SGR 97), not `white` (SGR 37)
 
 - **Date:** 2026-10-13
-- **Status:** Accepted
+- **Status:** Superseded by DEC-0023
 - **Scope:** core
 - **Related:** DEC-0005, DEC-0020
 
@@ -1077,7 +1078,7 @@ status line, which is why the fix is 256 colors and not hex.
 
 - Colors are xterm-256 indices **16–255**; 0–15 are rejected.
 - `PaletteSlot` is `{ fg?: number; bg?: number }`.
-- One `indexToRgb` table (`theme/xterm256.ts`) feeds both painters: `toAnsi` emits
+- One `indexToRgb` function/mapping (`theme/xterm256.ts`) feeds both painters: `toAnsi` emits
   `ESC[38;5;Nm` / `ESC[48;5;Nm`, and Ink receives `#rrggbb`.
 - `contrastFg` is luminance-based and returns 16 (black) or 231 (white).
 
@@ -1110,7 +1111,7 @@ Saved configs hold legacy string color names and 0–15 indices, which DEC-0023 
 
 ### Decision
 
-`cleanThemes` maps legacy string names and 0–15 indices to the nearest cube indices, with a warning
+`cleanThemes` maps legacy string names and 0–15 indices to fixed 256-color equivalents (cube or grayscale), with a warning
 for each, and drops out-of-range values. `loadConfig` stays non-throwing. This mirrors DEC-0021.
 
 ### Alternatives considered
@@ -1121,3 +1122,29 @@ for each, and drops out-of-range values. `loadConfig` stays non-throwing. This m
 
 - A one-time, slight visible restyle of existing configs, accepted while pre-1.0.
 - The user sees every mapping and drop as a warning (DEC-0004).
+
+## DEC-0025 — Branded `ColorIndex` type minted only by `isColorIndex` / `asIndex`
+
+- **Date:** 2026-10-13
+- **Status:** Accepted
+- **Scope:** core | tui
+- **Related:** DEC-0023, DEC-0024
+
+The "integer 16–255" invariant of DEC-0023 was only a runtime check on a plain `number`, so any code path could hand
+`indexToRgb`, `contrastFg`, or `toAnsi` an arbitrary number.
+
+### Decision
+
+`ColorIndex = number & { readonly __colorIndex: unique symbol }` (`colors.ts`) is threaded through `PaletteSlot`,
+`Cell`, `Segment`, `indexToRgb`/`indexToHex`, `contrastFg`, and the renderer-color helpers. The only mints are
+`isColorIndex` (runtime-validated) and `asIndex` (authored constants; guarded by tests over every table). The legacy-name
+table `NAMED_INDEX` is a `ReadonlyMap` (prototype-safe `get`). `indexToRgb` and the ANSI serializer additionally clamp to
+16–255 so even a bad cast cannot emit a malformed or dimming code.
+
+### Alternatives considered
+
+- **Plain `number` plus runtime checks only** — rejected: nothing stops an unvalidated number reaching the painters.
+
+### Consequences
+
+Tests that build colors from literals must use `asIndex(...)`.

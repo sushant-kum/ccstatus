@@ -85,7 +85,7 @@ invalid items/colors with warnings. Both hosts rely on this — the mod falls ba
 a `.bak`), so the TUI can never persist an invalid config. See [DEC-0004](./docs/DECISION.md#dec-0004--config-is-external-shared-json-at-the-xdg-path) and [FLOW-0002](./docs/FLOW.md#flow-0002--config-edit--shared-file--mod-reload).
 
 **Colors are xterm-256 indices 16–255.** CC's status line dims the basic colors 0–15, so they are rejected. One
-`indexToRgb` table (`packages/core/src/theme/xterm256.ts`) feeds both painters: `toAnsi` emits `38;5;N`/`48;5;N` and
+`indexToRgb` function/mapping (`packages/core/src/theme/xterm256.ts`) feeds both painters: `toAnsi` emits `38;5;N`/`48;5;N` and
 Ink gets `#rrggbb`. `contrastFg` is luminance-based (returns 16 or 231). Truecolor is not supported in the status
 line. See [DEC-0023](./docs/DECISION.md#dec-0023--colors-are-an-xterm-256-palette-indices-16255-not-named-terminal-colors), [DEC-0024](./docs/DECISION.md#dec-0024--breaking-migration-to-256-color-indices) and [DEC-0013](./docs/DECISION.md#dec-0013--status-line-is-rendered-by-a-native-settingsjson-command-not-the-mod).
 
