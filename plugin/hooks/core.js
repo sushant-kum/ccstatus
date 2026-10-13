@@ -30,16 +30,6 @@ function lineToCells(items, config, snapshot, commandOutputs) {
 }
 
 // packages/core/src/layout/compose.ts
-function bgToFg(bg2) {
-  if (!bg2) {
-    return void 0;
-  }
-  if (!bg2.startsWith("bg")) {
-    return bg2;
-  }
-  const rest = bg2.slice(2);
-  return rest.charAt(0).toLowerCase() + rest.slice(1);
-}
 function mergeCells(cells) {
   const out = [];
   for (const c of cells) {
@@ -101,7 +91,7 @@ function composeLine(cells, mode, width, glyph = "\u2592") {
   const segs = [];
   const emitStartCap = mode === "powerline" && content.length > 0;
   if (emitStartCap) {
-    segs.push({ kind: "cap", text: glyph, fg: bgToFg((_a = content[0]) == null ? void 0 : _a.bg) });
+    segs.push({ kind: "cap", text: glyph, fg: (_a = content[0]) == null ? void 0 : _a.bg });
   }
   let ci = 0;
   for (const c of merged) {
@@ -114,7 +104,7 @@ function composeLine(cells, mode, width, glyph = "\u2592") {
     const next = content[ci + 1];
     if (!isLast && next) {
       if (mode === "powerline") {
-        segs.push({ kind: "separator", text: glyph, fg: bgToFg(c.bg), bg: next.bg });
+        segs.push({ kind: "separator", text: glyph, fg: c.bg, bg: next.bg });
       } else if (mode === "space") {
         segs.push({ kind: "separator", text: " " });
       }
@@ -122,31 +112,61 @@ function composeLine(cells, mode, width, glyph = "\u2592") {
     ci += 1;
   }
   if (emitStartCap) {
-    segs.push({ kind: "cap", text: glyph, fg: bgToFg((_b = content[content.length - 1]) == null ? void 0 : _b.bg) });
+    segs.push({ kind: "cap", text: glyph, fg: (_b = content[content.length - 1]) == null ? void 0 : _b.bg });
   }
   return truncate(segs, width);
 }
 
-// packages/core/src/theme/contrast.ts
-var LIGHT_BG = /* @__PURE__ */ new Set([
-  "green",
-  "yellow",
-  "cyan",
-  "white",
-  "brightGreen",
-  "brightYellow",
-  "brightCyan",
-  "brightWhite"
-]);
-var baseColor = (bg2) => {
-  if (!bg2.startsWith("bg")) {
-    return bg2;
+// packages/core/src/colors.ts
+function isColorIndex(x) {
+  return typeof x === "number" && Number.isInteger(x) && x >= 16 && x <= 255;
+}
+var asIndex = (n) => n;
+
+// packages/core/src/theme/xterm256.ts
+var BLACK = asIndex(16);
+var WHITE = asIndex(231);
+var LEVEL = [0, 95, 135, 175, 215, 255];
+function indexToRgb(idx) {
+  const i = Math.min(255, Math.max(16, Math.round(idx)));
+  if (i >= 232) {
+    const g = 8 + (i - 232) * 10;
+    return [g, g, g];
   }
-  const rest = bg2.slice(2);
-  return rest.charAt(0).toLowerCase() + rest.slice(1);
-};
-function contrastFg(bg2) {
-  return LIGHT_BG.has(baseColor(bg2)) ? "black" : "brightWhite";
+  const n = i - 16;
+  return [LEVEL[Math.floor(n / 36)] ?? 0, LEVEL[Math.floor(n % 36 / 6)] ?? 0, LEVEL[n % 6] ?? 0];
+}
+var hex2 = (v) => v.toString(16).padStart(2, "0");
+function indexToHex(i) {
+  const [r, g, b] = indexToRgb(i);
+  return `#${hex2(r)}${hex2(g)}${hex2(b)}`;
+}
+var NAMED_INDEX = /* @__PURE__ */ new Map([
+  ["black", asIndex(16)],
+  ["brightBlack", asIndex(240)],
+  ["gray", asIndex(240)],
+  ["red", asIndex(160)],
+  ["brightRed", asIndex(196)],
+  ["green", asIndex(40)],
+  ["brightGreen", asIndex(46)],
+  ["yellow", asIndex(184)],
+  ["brightYellow", asIndex(226)],
+  ["blue", asIndex(20)],
+  ["brightBlue", asIndex(21)],
+  ["magenta", asIndex(164)],
+  ["brightMagenta", asIndex(201)],
+  ["cyan", asIndex(44)],
+  ["brightCyan", asIndex(51)],
+  ["white", asIndex(250)],
+  ["brightWhite", asIndex(231)]
+]);
+
+// packages/core/src/theme/contrast.ts
+var LUMA_THRESHOLD = 128;
+function contrastFg(bg) {
+  const [r, g, b] = indexToRgb(bg);
+  const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luma >= LUMA_THRESHOLD ? BLACK : WHITE;
 }
 
 // packages/core/src/layout/palette.ts
@@ -168,9 +188,9 @@ function assignPaletteColors(cells, theme) {
       slot += 1;
     }
     const pal = theme[slot % theme.length];
-    const bg2 = pal == null ? void 0 : pal.bg;
-    const fg2 = (pal == null ? void 0 : pal.fg) ?? (bg2 !== void 0 ? contrastFg(bg2) : void 0);
-    out.push({ ...c, fg: fg2, bg: bg2 });
+    const bg = pal == null ? void 0 : pal.bg;
+    const fg = (pal == null ? void 0 : pal.fg) ?? (bg !== void 0 ? contrastFg(bg) : void 0);
+    out.push({ ...c, fg, bg });
     prev = c;
   }
   return out;
@@ -459,53 +479,14 @@ function render(config, snapshot, opts) {
 }
 
 // packages/core/src/ansi.ts
-var FG = {
-  black: 30,
-  red: 31,
-  green: 32,
-  yellow: 33,
-  blue: 34,
-  magenta: 35,
-  cyan: 36,
-  white: 37,
-  gray: 90,
-  brightBlack: 90,
-  brightRed: 91,
-  brightGreen: 92,
-  brightYellow: 93,
-  brightBlue: 94,
-  brightMagenta: 95,
-  brightCyan: 96,
-  brightWhite: 97,
-  brightGray: 97
-};
-var BG = {
-  bgBlack: 40,
-  bgRed: 41,
-  bgGreen: 42,
-  bgYellow: 43,
-  bgBlue: 44,
-  bgMagenta: 45,
-  bgCyan: 46,
-  bgWhite: 47,
-  bgGray: 100,
-  bgBrightBlack: 100,
-  bgBrightRed: 101,
-  bgBrightGreen: 102,
-  bgBrightYellow: 103,
-  bgBrightBlue: 104,
-  bgBrightMagenta: 105,
-  bgBrightCyan: 106,
-  bgBrightWhite: 107,
-  bgBrightGray: 107
-};
+var clampIndex = (i) => Math.min(255, Math.max(16, Math.round(i)));
 function sgr(seg) {
   const codes = [];
-  if (seg.fg && FG[seg.fg] !== void 0) {
-    codes.push(`\x1B[${FG[seg.fg]}m`);
+  if (seg.fg !== void 0) {
+    codes.push(`\x1B[38;5;${clampIndex(seg.fg)}m`);
   }
-  if (seg.bg && BG[seg.bg] !== void 0) {
-    codes.push(`\x1B[${BG[seg.bg]}m`);
+  if (seg.bg !== void 0) {
+    codes.push(`\x1B[48;5;${clampIndex(seg.bg)}m`);
   }
   if (!codes.length) {
     return seg.text;
@@ -516,115 +497,95 @@ function toAnsi(model) {
   return model.lines.map((line) => line.segments.map(sgr).join("")).join("\n");
 }
 
-// packages/core/src/colors.ts
-var BASE = [
-  "black",
-  "white",
-  "red",
-  "green",
-  "yellow",
-  "blue",
-  "magenta",
-  "cyan",
-  "gray"
-];
-var cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-var fg = BASE.flatMap((c) => [c, `bright${cap(c)}`]);
-var bg = BASE.flatMap((c) => [`bg${cap(c)}`, `bgBright${cap(c)}`]);
-var COLORS = /* @__PURE__ */ new Set([...fg, ...bg]);
-function isColor(x) {
-  return typeof x === "string" && COLORS.has(x);
-}
-
 // packages/core/src/theme/themes.ts
-var mk = (rows) => rows.map(([fg2, bg2]) => ({ fg: fg2, bg: bg2 }));
+var mk = (rows) => rows.map(([fg, bg]) => ({ fg: asIndex(fg), bg: asIndex(bg) }));
 var builtinThemes = {
-  default: [
-    { fg: "black", bg: "bgCyan" },
-    { fg: "brightWhite", bg: "bgBlue" },
-    { fg: "black", bg: "bgBrightYellow" },
-    { fg: "brightWhite", bg: "bgBrightBlack" },
-    { fg: "black", bg: "bgGreen" }
-  ],
+  default: mk([
+    [16, 44],
+    [231, 20],
+    [16, 226],
+    [231, 240],
+    [16, 40]
+  ]),
   classic: mk([
-    ["black", "bgYellow"],
-    ["black", "bgWhite"],
-    ["black", "bgGreen"],
-    ["brightWhite", "bgBlue"],
-    ["black", "bgMagenta"],
-    ["black", "bgCyan"],
-    ["black", "bgBrightYellow"],
-    ["brightWhite", "bgRed"]
+    [16, 184],
+    [16, 250],
+    [16, 40],
+    [231, 20],
+    [16, 164],
+    [16, 44],
+    [16, 226],
+    [231, 160]
   ]),
   nord: mk([
-    ["black", "bgBrightCyan"],
-    ["black", "bgCyan"],
-    ["black", "bgBlue"],
-    ["brightWhite", "bgBrightBlack"],
-    ["black", "bgBrightBlue"],
-    ["black", "bgGreen"],
-    ["black", "bgYellow"],
-    ["brightWhite", "bgBlack"]
+    [16, 51],
+    [16, 44],
+    [16, 20],
+    [231, 240],
+    [16, 21],
+    [16, 40],
+    [16, 184],
+    [231, 16]
   ]),
   dracula: mk([
-    ["black", "bgMagenta"],
-    ["black", "bgBrightMagenta"],
-    ["black", "bgBrightGreen"],
-    ["black", "bgBrightCyan"],
-    ["black", "bgBrightYellow"],
-    ["black", "bgBrightRed"],
-    ["brightWhite", "bgBrightBlack"],
-    ["brightWhite", "bgMagenta"]
+    [16, 164],
+    [16, 201],
+    [16, 46],
+    [16, 51],
+    [16, 226],
+    [16, 196],
+    [231, 240],
+    [231, 164]
   ]),
   gruvbox: mk([
-    ["black", "bgYellow"],
-    ["black", "bgBrightYellow"],
-    ["black", "bgGreen"],
-    ["black", "bgCyan"],
-    ["black", "bgRed"],
-    ["black", "bgMagenta"],
-    ["brightWhite", "bgBrightBlack"],
-    ["brightWhite", "bgBlack"]
+    [16, 184],
+    [16, 226],
+    [16, 40],
+    [16, 44],
+    [16, 160],
+    [16, 164],
+    [231, 240],
+    [231, 16]
   ]),
   monokai: mk([
-    ["black", "bgBrightGreen"],
-    ["black", "bgBrightYellow"],
-    ["black", "bgBrightMagenta"],
-    ["black", "bgBrightCyan"],
-    ["black", "bgBrightRed"],
-    ["brightWhite", "bgBrightBlack"],
-    ["black", "bgYellow"],
-    ["brightWhite", "bgBlack"]
+    [16, 46],
+    [16, 226],
+    [16, 201],
+    [16, 51],
+    [16, 196],
+    [231, 240],
+    [16, 184],
+    [231, 16]
   ]),
   "one-dark": mk([
-    ["black", "bgBlue"],
-    ["black", "bgBrightBlue"],
-    ["black", "bgGreen"],
-    ["black", "bgMagenta"],
-    ["black", "bgYellow"],
-    ["black", "bgCyan"],
-    ["brightWhite", "bgBrightBlack"],
-    ["brightWhite", "bgBlack"]
+    [16, 20],
+    [16, 21],
+    [16, 40],
+    [16, 164],
+    [16, 184],
+    [16, 44],
+    [231, 240],
+    [231, 16]
   ]),
   solarized: mk([
-    ["brightWhite", "bgBlue"],
-    ["black", "bgCyan"],
-    ["black", "bgYellow"],
-    ["brightWhite", "bgGreen"],
-    ["brightWhite", "bgMagenta"],
-    ["brightWhite", "bgRed"],
-    ["brightWhite", "bgBrightBlack"],
-    ["brightWhite", "bgBlack"]
+    [231, 20],
+    [16, 44],
+    [16, 184],
+    [231, 40],
+    [231, 164],
+    [231, 160],
+    [231, 240],
+    [231, 16]
   ]),
   "tokyo-night": mk([
-    ["black", "bgBrightBlue"],
-    ["black", "bgBlue"],
-    ["black", "bgBrightGreen"],
-    ["black", "bgBrightMagenta"],
-    ["black", "bgBrightYellow"],
-    ["black", "bgBrightCyan"],
-    ["brightWhite", "bgBrightBlack"],
-    ["brightWhite", "bgBlack"]
+    [16, 21],
+    [16, 20],
+    [16, 46],
+    [16, 201],
+    [16, 226],
+    [16, 51],
+    [231, 240],
+    [231, 16]
   ])
 };
 
@@ -4800,8 +4761,8 @@ var sep = external_exports.enum(["powerline", "space", "none"]);
 var itemSchema = external_exports.object({
   id: external_exports.string(),
   type: external_exports.string(),
-  fg: external_exports.string().optional(),
-  bg: external_exports.string().optional(),
+  fg: external_exports.unknown().optional(),
+  bg: external_exports.unknown().optional(),
   merge: external_exports.boolean().optional(),
   align: align.optional(),
   rawValue: external_exports.boolean().optional(),
@@ -4880,6 +4841,28 @@ var WIDGET_TYPES = [
 
 // packages/core/src/config/validate.ts
 var clone2 = (v) => JSON.parse(JSON.stringify(v));
+var ANSI16 = [
+  16,
+  160,
+  40,
+  184,
+  20,
+  164,
+  44,
+  250,
+  240,
+  196,
+  46,
+  226,
+  21,
+  201,
+  51,
+  231
+].map(asIndex);
+var baseName = (name) => {
+  const rest = name.slice(2);
+  return rest.charAt(0).toLowerCase() + rest.slice(1);
+};
 var WIDGET_TYPE_SET = new Set(WIDGET_TYPES);
 function cleanStyle(raw, type, warn) {
   const style = {};
@@ -4948,10 +4931,24 @@ function cleanThemes(themes, warn) {
         if (v === void 0) {
           continue;
         }
-        if (typeof v === "string" && isColor(v)) {
+        if (isColorIndex(v)) {
           slot[key] = v;
+        } else if (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 15) {
+          const mapped = ANSI16[v] ?? asIndex(16);
+          slot[key] = mapped;
+          warn(
+            `color index ${v} dims in the status line; using ${mapped} in theme "${name}" (slot ${i})`
+          );
         } else {
-          warn(`stripped unknown color "${String(v)}" in theme "${name}" (slot ${i})`);
+          const named = typeof v === "string" ? NAMED_INDEX.get(v) ?? (v.startsWith("bg") ? NAMED_INDEX.get(baseName(v)) : void 0) : void 0;
+          if (named !== void 0) {
+            slot[key] = named;
+            warn(
+              `named colors are now 256-color indices; using ${named} for "${String(v)}" in theme "${name}"`
+            );
+          } else {
+            warn(`dropped invalid color ${String(v)} in theme "${name}" (slot ${i})`);
+          }
         }
       }
       slots.push(slot);
@@ -5184,28 +5181,19 @@ function importCcstatusline(raw) {
 }
 
 // packages/core/src/renderer-colors.ts
-var toInk = (n) => {
-  if (!n) {
-    return void 0;
-  }
-  return n.startsWith("bright") ? (n[6] ?? "").toLowerCase() + n.slice(7) + "Bright" : n;
-};
-var rendererColor = (fg2) => toInk(fg2);
-var rendererBg = (bg2) => {
-  if (!bg2) {
-    return void 0;
-  }
-  return toInk(bg2.startsWith("bg") ? (bg2[2] ?? "").toLowerCase() + bg2.slice(3) : bg2);
-};
+var rendererColor = (fg) => fg === void 0 ? void 0 : indexToHex(fg);
+var rendererBg = (bg) => bg === void 0 ? void 0 : indexToHex(bg);
 export {
-  COLORS,
   LINKABLE,
   TOAST_FIELDS,
+  asIndex,
   builtinThemes,
   defaultConfig,
   evalWhen,
   importCcstatusline,
-  isColor,
+  indexToHex,
+  indexToRgb,
+  isColorIndex,
   isValidWhen,
   linkedSurfaces,
   loadConfig,

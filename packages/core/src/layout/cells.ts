@@ -1,11 +1,12 @@
+import type { ColorIndex } from '../colors.js';
 import type { Config, Item } from '../config/types.js';
 import type { Snapshot } from '../snapshot.js';
 import { registry } from '../widgets/registry.js';
 
 export interface Cell {
   text: string;
-  fg?: string;
-  bg?: string;
+  fg?: ColorIndex;
+  bg?: ColorIndex;
   merge: boolean;
   flex: boolean;
 }

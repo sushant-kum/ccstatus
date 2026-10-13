@@ -1,58 +1,24 @@
 import type { RenderModel, Segment } from './render-model.js';
 
-const FG: Record<string, number> = {
-  black: 30,
-  red: 31,
-  green: 32,
-  yellow: 33,
-  blue: 34,
-  magenta: 35,
-  cyan: 36,
-  white: 37,
-  gray: 90,
-  brightBlack: 90,
-  brightRed: 91,
-  brightGreen: 92,
-  brightYellow: 93,
-  brightBlue: 94,
-  brightMagenta: 95,
-  brightCyan: 96,
-  brightWhite: 97,
-  brightGray: 97,
-};
-const BG: Record<string, number> = {
-  bgBlack: 40,
-  bgRed: 41,
-  bgGreen: 42,
-  bgYellow: 43,
-  bgBlue: 44,
-  bgMagenta: 45,
-  bgCyan: 46,
-  bgWhite: 47,
-  bgGray: 100,
-  bgBrightBlack: 100,
-  bgBrightRed: 101,
-  bgBrightGreen: 102,
-  bgBrightYellow: 103,
-  bgBrightBlue: 104,
-  bgBrightMagenta: 105,
-  bgBrightCyan: 106,
-  bgBrightWhite: 107,
-  bgBrightGray: 107,
-};
+/**
+ * Clamps a palette index to 16–255 so the serializer never emits a dimming or malformed code.
+ * @param i - The index to clamp.
+ * @returns The index within 16–255.
+ */
+const clampIndex = (i: number): number => Math.min(255, Math.max(16, Math.round(i)));
 
 /**
- * Serializes a single styled segment to an ANSI SGR-wrapped string.
- * @param seg - The styled segment to serialize.
- * @returns   The segment text wrapped in SGR color codes, or the plain text when it has no colors.
+ * Serializes a styled segment to a 256-color SGR-wrapped string.
+ * @param seg - The styled segment (fg/bg are xterm-256 indices).
+ * @returns   The text wrapped in `38;5;`/`48;5;` codes, or plain text when it has no colors.
  */
 function sgr(seg: Segment): string {
   const codes: string[] = [];
-  if (seg.fg && FG[seg.fg] !== undefined) {
-    codes.push(`\x1b[${FG[seg.fg]}m`);
+  if (seg.fg !== undefined) {
+    codes.push(`\x1b[38;5;${clampIndex(seg.fg)}m`);
   }
-  if (seg.bg && BG[seg.bg] !== undefined) {
-    codes.push(`\x1b[${BG[seg.bg]}m`);
+  if (seg.bg !== undefined) {
+    codes.push(`\x1b[48;5;${clampIndex(seg.bg)}m`);
   }
   if (!codes.length) {
     return seg.text;
@@ -61,7 +27,7 @@ function sgr(seg: Segment): string {
 }
 
 /**
- * Serializes a render model into an ANSI string for the native status line.
+ * Serializes a render model into a 256-color ANSI string for the native status line.
  * @param model - The render model whose lines and segments are serialized.
  * @returns     The rendered lines joined by newlines, with each segment wrapped in ANSI color codes.
  */

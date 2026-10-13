@@ -1,13 +1,14 @@
 import { expect, test } from 'vitest';
 
 import { toAnsi } from '../ansi.js';
+import { asIndex } from '../colors.js';
 
 import type { Cell } from './cells.js';
 import { composeLine } from './compose.js';
 
-const cell = (text: string, bg?: string, extra: Partial<Cell> = {}): Cell => ({
+const cell = (text: string, bg?: number, extra: Partial<Cell> = {}): Cell => ({
   text,
-  bg,
+  bg: bg === undefined ? undefined : asIndex(bg),
   merge: false,
   flex: false,
   ...extra,
@@ -15,10 +16,10 @@ const cell = (text: string, bg?: string, extra: Partial<Cell> = {}): Cell => ({
 const visible = (segs: { text: string }[]): number => segs.map((s) => s.text).join('').length;
 
 test('powerline inserts separators colored prevBg/nextBg plus caps', () => {
-  const segs = composeLine([cell(' a ', 'bgRed'), cell(' b ', 'bgBlue')], 'powerline', 100);
+  const segs = composeLine([cell(' a ', 160), cell(' b ', 20)], 'powerline', 100);
   expect(segs.map((s) => s.kind)).toEqual(['cap', 'cell', 'separator', 'cell', 'cap']);
   const sep = segs[2];
-  expect(sep).toMatchObject({ text: '▒', fg: 'red', bg: 'bgBlue' });
+  expect(sep).toMatchObject({ text: '▒', fg: 160, bg: 20 });
 });
 
 test('space mode joins with single spaces, no caps', () => {
@@ -28,11 +29,7 @@ test('space mode joins with single spaces, no caps', () => {
 });
 
 test('merge concatenates onto previous cell with no separator', () => {
-  const segs = composeLine(
-    [cell(' a ', 'bgRed'), cell('b', 'bgRed', { merge: true })],
-    'powerline',
-    100
-  );
+  const segs = composeLine([cell(' a ', 160), cell('b', 160, { merge: true })], 'powerline', 100);
   const cells = segs.filter((s) => s.kind === 'cell');
   expect(cells).toHaveLength(1);
   expect(cells[0]?.text).toBe(' a b');
@@ -68,7 +65,7 @@ test('multiple flex separators split the leftover, giving the remainder to the f
 test('flex accounts for powerline caps and separators when sizing', () => {
   // powerline over one content cell + a flex: caps (2) + content (3) consume width.
   const segs = composeLine(
-    [cell(' a ', 'bgRed'), cell('', undefined, { flex: true })],
+    [cell(' a ', 160), cell('', undefined, { flex: true })],
     'powerline',
     10
   );
@@ -85,7 +82,7 @@ test('truncation keeps visible width within bounds and never throws', () => {
 
 test('a truncated powerline line does not end on a dangling separator', () => {
   const segs = composeLine(
-    [cell(' aaa ', 'bgRed'), cell(' bbb ', 'bgBlue'), cell(' ccc ', 'bgGreen')],
+    [cell(' aaa ', 160), cell(' bbb ', 20), cell(' ccc ', 40)],
     'powerline',
     8
   );
@@ -96,7 +93,7 @@ test('a truncated powerline line does not end on a dangling separator', () => {
 });
 
 test('powerline separator reaches ANSI with both fg and bg SGR codes', () => {
-  const segs = composeLine([cell(' a ', 'bgRed'), cell(' b ', 'bgBlue')], 'powerline', 100);
+  const segs = composeLine([cell(' a ', 160), cell(' b ', 20)], 'powerline', 100);
   const out = toAnsi({ lines: [{ segments: segs }] });
-  expect(out).toContain('\x1b[31m\x1b[44m▒');
+  expect(out).toContain('\x1b[38;5;160m\x1b[48;5;20m▒');
 });

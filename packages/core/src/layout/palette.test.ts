@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
 
+import { asIndex } from '../colors.js';
 import type { Theme } from '../config/types.js';
 
 import type { Cell } from './cells.js';
@@ -12,49 +13,49 @@ const cell = (text: string, o: Partial<Cell> = {}): Cell => ({
   ...o,
 });
 const theme: Theme = [
-  { fg: 'black', bg: 'bgCyan' },
-  { fg: 'white', bg: 'bgBlue' },
+  { fg: asIndex(16), bg: asIndex(44) },
+  { fg: asIndex(231), bg: asIndex(20) },
 ];
 
 test('cycles the palette across positions', () => {
   const out = assignPaletteColors([cell('a'), cell('b'), cell('c')], theme);
-  expect(out.map((c) => c.bg)).toEqual(['bgCyan', 'bgBlue', 'bgCyan']);
-  expect(out.map((c) => c.fg)).toEqual(['black', 'white', 'black']);
+  expect(out.map((c) => c.bg)).toEqual([44, 20, 44]);
+  expect(out.map((c) => c.fg)).toEqual([16, 231, 16]);
 });
 
 test('auto-contrasts a bg-only slot', () => {
-  const out = assignPaletteColors([cell('a')], [{ bg: 'bgYellow' }]);
-  expect(out[0]).toMatchObject({ bg: 'bgYellow', fg: 'black' });
+  const out = assignPaletteColors([cell('a')], [{ bg: asIndex(184) }]);
+  expect(out[0]).toMatchObject({ bg: asIndex(184), fg: asIndex(16) });
 });
 
 test('an fg-only slot sets fg and no bg', () => {
-  const out = assignPaletteColors([cell('a')], [{ fg: 'red' }]);
-  expect(out[0]?.fg).toBe('red');
+  const out = assignPaletteColors([cell('a')], [{ fg: asIndex(160) }]);
+  expect(out[0]?.fg).toBe(160);
   expect(out[0]?.bg).toBeUndefined();
 });
 
 test('an explicit fg wins over the auto-contrast color when a slot sets both fg and bg', () => {
-  // contrastFg('bgCyan') is 'black'; the slot's explicit 'red' must take precedence.
-  const out = assignPaletteColors([cell('a')], [{ fg: 'red', bg: 'bgCyan' }]);
-  expect(out[0]).toMatchObject({ fg: 'red', bg: 'bgCyan' });
+  // contrastFg(44) is 16; the slot's explicit 160 must take precedence.
+  const out = assignPaletteColors([cell('a')], [{ fg: asIndex(160), bg: asIndex(44) }]);
+  expect(out[0]).toMatchObject({ fg: asIndex(160), bg: asIndex(44) });
 });
 
 test('merged cell shares the preceding slot and does not advance the counter', () => {
   const out = assignPaletteColors([cell('a'), cell('b', { merge: true }), cell('c')], theme);
-  expect(out.map((c) => c.bg)).toEqual(['bgCyan', 'bgCyan', 'bgBlue']);
+  expect(out.map((c) => c.bg)).toEqual([44, 44, 20]);
 });
 
 test('a merge flag on the first cell still takes slot 0', () => {
   const out = assignPaletteColors([cell('a', { merge: true }), cell('b')], theme);
-  expect(out.map((c) => c.bg)).toEqual(['bgCyan', 'bgBlue']);
+  expect(out.map((c) => c.bg)).toEqual([44, 20]);
 });
 
 test('flex cells are uncolored and consume no slot', () => {
   const out = assignPaletteColors([cell('a'), cell('', { flex: true }), cell('b')], theme);
-  expect(out[0]?.bg).toBe('bgCyan');
+  expect(out[0]?.bg).toBe(44);
   expect(out[1]?.bg).toBeUndefined();
   expect(out[1]?.fg).toBeUndefined();
-  expect(out[2]?.bg).toBe('bgBlue');
+  expect(out[2]?.bg).toBe(20);
 });
 
 test('empty palette leaves cells uncolored', () => {
@@ -67,6 +68,6 @@ test('a merge immediately after a flex separator is not a continuation', () => {
     [cell('a'), cell('', { flex: true }), cell('b', { merge: true })],
     theme
   );
-  expect(out[0]?.bg).toBe('bgCyan'); // slot 0
-  expect(out[2]?.bg).toBe('bgBlue'); // slot 1 — NOT shared with 'a'
+  expect(out[0]?.bg).toBe(44); // slot 0
+  expect(out[2]?.bg).toBe(20); // slot 1 — NOT shared with 'a'
 });

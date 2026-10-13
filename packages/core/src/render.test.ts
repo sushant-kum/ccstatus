@@ -76,9 +76,10 @@ test('the palette counter resets per line', () => {
   cfg.surfaces.band.lines = [[{ id: 'a', type: 'model' }], [{ id: 'b', type: 'model' }]];
   const model = render(cfg, snap, { surface: 'band', width: 120 });
   expect(model.lines).toHaveLength(2);
-  const firstBg = (li: number): string | undefined =>
+  const firstBg = (li: number): number | undefined =>
     model.lines[li]?.segments.find((s) => s.kind === 'cell')?.bg;
   expect(firstBg(0)).toBeDefined();
+  expect(typeof firstBg(0)).toBe('number');
   expect(firstBg(1)).toBe(firstBg(0)); // line 2 did not continue line 1's counter
 });
 
@@ -91,8 +92,8 @@ test('positional palette colors every segment and alternates backgrounds', () =>
   const cells = line.segments.filter((s) => s.kind === 'cell');
   expect(cells.length).toBeGreaterThanOrEqual(2);
   for (const c of cells) {
-    expect(c.bg).toBeDefined(); // no terminal-default grey
-    expect(c.fg).toBeDefined();
+    expect(typeof c.bg).toBe('number'); // no terminal-default grey
+    expect(typeof c.fg).toBe('number');
   }
   expect(cells[0]?.bg).not.toBe(cells[1]?.bg); // positional alternation
 });

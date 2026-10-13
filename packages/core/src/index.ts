@@ -7,7 +7,9 @@ export type { LinkableSurface } from './config/links.js';
 export { defaultConfig } from './config/defaults.js';
 export { importCcstatusline } from './config/import-ccstatusline.js';
 export { register, registry } from './widgets/registry.js';
-export { COLORS, isColor } from './colors.js';
+export { asIndex, isColorIndex } from './colors.js';
+export type { ColorIndex } from './colors.js';
+export { indexToHex, indexToRgb } from './theme/xterm256.js';
 export { evalWhen, isValidWhen, TOAST_FIELDS } from './toast.js';
 
 export type { Snapshot } from './snapshot.js';

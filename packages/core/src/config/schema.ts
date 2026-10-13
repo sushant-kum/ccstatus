@@ -12,8 +12,8 @@ const sep = z.enum(['powerline', 'space', 'none']);
 const itemSchema = z.object({
   id: z.string(),
   type: z.string(),
-  fg: z.string().optional(),
-  bg: z.string().optional(),
+  fg: z.unknown().optional(),
+  bg: z.unknown().optional(),
   merge: z.boolean().optional(),
   align: align.optional(),
   rawValue: z.boolean().optional(),

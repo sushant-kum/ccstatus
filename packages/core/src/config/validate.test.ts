@@ -212,7 +212,7 @@ test('a non-array, non-object theme value is dropped with a "not a palette array
 });
 
 test('defining one custom theme keeps default but does not fold in the other builtins', () => {
-  const raw = { version: 1, theme: 'mine', themes: { mine: [{ fg: 'white', bg: 'bgRed' }] } };
+  const raw = { version: 1, theme: 'mine', themes: { mine: [{ fg: 231, bg: 160 }] } };
   const { config } = loadConfig(raw);
   expect(Object.keys(config.themes).sort()).toEqual(['default', 'mine']);
   expect(config.themes.nord).toBeUndefined();
@@ -222,10 +222,10 @@ test('a non-object slot is replaced with an empty slot, preserving later positio
   const raw = {
     version: 1,
     theme: 'mine',
-    themes: { mine: [{ fg: 'white', bg: 'bgRed' }, null, { bg: 'bgBlue' }] },
+    themes: { mine: [{ fg: 231, bg: 160 }, null, { bg: 20 }] },
   };
   const { config, warnings } = loadConfig(raw);
-  expect(config.themes.mine).toEqual([{ fg: 'white', bg: 'bgRed' }, {}, { bg: 'bgBlue' }]);
+  expect(config.themes.mine).toEqual([{ fg: 231, bg: 160 }, {}, { bg: 20 }]);
   expect(warnings.some((w) => w.includes('slot 1'))).toBe(true);
 });
 
@@ -235,14 +235,26 @@ test('a positional palette theme with a bad slot color is stripped with a warnin
     theme: 'mine',
     themes: {
       mine: [
-        { fg: 'black', bg: 'bgCyan' },
-        { fg: 'fuchsia', bg: 'bgBlue' },
+        { fg: 16, bg: 44 },
+        { fg: 999, bg: 20 },
       ],
     },
   };
   const { config, warnings } = loadConfig(raw);
-  expect(config.themes.mine?.[1]).toEqual({ bg: 'bgBlue' });
-  expect(warnings.some((w) => w.includes('fuchsia'))).toBe(true);
+  expect(config.themes.mine?.[1]).toEqual({ bg: 20 });
+  expect(warnings.some((w) => w.includes('999'))).toBe(true);
+});
+
+test('non-mappable slot colors (-1, garbage) are dropped with warnings and never throw', () => {
+  const raw = {
+    version: 1,
+    theme: 'mine',
+    themes: { mine: [{ fg: -1, bg: 'garbage' }, { fg: 45 }] },
+  };
+  const { config, warnings } = loadConfig(raw);
+  expect(config.themes.mine).toEqual([{}, { fg: 45 }]);
+  expect(warnings.some((w) => w.includes('-1'))).toBe(true);
+  expect(warnings.some((w) => w.includes('garbage'))).toBe(true);
 });
 
 test('an unknown active theme name falls back to default with a warning', () => {
@@ -252,9 +264,9 @@ test('an unknown active theme name falls back to default with a warning', () => 
 });
 
 test('a valid positional palette theme is preserved', () => {
-  const raw = { version: 1, theme: 'mine', themes: { mine: [{ fg: 'white', bg: 'bgRed' }] } };
+  const raw = { version: 1, theme: 'mine', themes: { mine: [{ fg: 231, bg: 160 }] } };
   const { config } = loadConfig(raw);
-  expect(config.themes.mine).toEqual([{ fg: 'white', bg: 'bgRed' }]);
+  expect(config.themes.mine).toEqual([{ fg: 231, bg: 160 }]);
   expect(config.theme).toBe('mine');
 });
 
@@ -263,4 +275,80 @@ test('an active theme name matching a prototype key falls back to default', () =
   expect(config.theme).toBe('default');
   expect(Array.isArray(config.themes.default)).toBe(true);
   expect(warnings.some((w) => w.includes('toString') && w.includes('default'))).toBe(true);
+});
+
+test('a legacy string color migrates to its index with a warning', () => {
+  const raw = {
+    version: 1,
+    theme: 'mine',
+    themes: { mine: [{ fg: 'brightWhite', bg: 'bgCyan' }] },
+  };
+  const { config, warnings } = loadConfig(raw);
+  expect(config.themes.mine).toEqual([{ fg: 231, bg: 44 }]);
+  expect(warnings.some((w) => w.includes('256-color'))).toBe(true);
+});
+
+test('a 0-15 index migrates to its 256-color equivalent with a warning', () => {
+  const { config, warnings } = loadConfig({ version: 1, theme: 'm', themes: { m: [{ bg: 7 }] } });
+  expect(config.themes.m).toEqual([{ bg: 250 }]);
+  expect(warnings.some((w) => w.includes('dims'))).toBe(true);
+});
+
+test('every 0-15 index migrates to a valid 16-255 palette index', () => {
+  // Pins the whole ANSI16 table through the public load path (no interior value is stranded).
+  for (let v = 0; v <= 15; v++) {
+    const { config } = loadConfig({ version: 1, theme: 'm', themes: { m: [{ fg: v }] } });
+    const fg = config.themes.m?.[0]?.fg;
+    expect(Number.isInteger(fg)).toBe(true);
+    expect(fg).toBeGreaterThanOrEqual(16);
+    expect(fg).toBeLessThanOrEqual(255);
+  }
+});
+
+test('an out-of-range / garbage color drops the field with a warning, never throws', () => {
+  const raw = { version: 1, theme: 'm', themes: { m: [{ fg: 300, bg: 'notacolor' }] } };
+  const { config, warnings } = loadConfig(raw);
+  expect(config.themes.m).toEqual([{}]);
+  expect(warnings.length).toBeGreaterThan(0);
+});
+
+test('prototype-key color names are dropped with warnings and never throw', () => {
+  const raw = {
+    version: 1,
+    theme: 'm',
+    themes: { m: [{ fg: 'toString', bg: 'valueOf' }], p: [{ fg: 'bgToString' }] },
+  };
+  const { config, warnings } = loadConfig(raw);
+  expect(config.themes.m).toEqual([{}]);
+  expect(config.themes.p).toEqual([{}]);
+  expect(warnings.filter((w) => w.includes('dropped invalid color'))).toHaveLength(3);
+});
+
+test('ANSI16 ends map to 16 and 231 with a dims warning', () => {
+  const { config, warnings } = loadConfig({
+    version: 1,
+    theme: 'm',
+    themes: { m: [{ fg: 0 }, { bg: 15 }] },
+  });
+  expect(config.themes.m).toEqual([{ fg: 16 }, { bg: 231 }]);
+  expect(warnings.filter((w) => w.includes('dims'))).toHaveLength(2);
+});
+
+test('a multi-word bg-prefixed legacy name migrates via its CamelCase base', () => {
+  const { config } = loadConfig({
+    version: 1,
+    theme: 'm',
+    themes: { m: [{ fg: 'bgBrightBlack' }] },
+  });
+  expect(config.themes.m).toEqual([{ fg: 240 }]);
+});
+
+test('a numeric per-item color is dropped with a warning', () => {
+  const raw = {
+    version: 1,
+    surfaces: { band: { enabled: true, lines: [[{ id: 'a', type: 'model', fg: 45, bg: 3 }]] } },
+  };
+  const { config, warnings } = loadConfig(raw);
+  expect(config.surfaces.band.lines[0]?.[0]).toEqual({ id: 'a', type: 'model' });
+  expect(warnings.some((w) => w.includes('per-item color'))).toBe(true);
 });

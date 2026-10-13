@@ -1,36 +1,21 @@
-// Named-background → readable foreground, for palette slots that give a background but no explicit
-// foreground. Backgrounds are named terminal colors (DEC-0005), so contrast is a fixed lookup, not a
-// luminance computation.
+import type { ColorIndex } from '../colors.js';
 
-// Base color names (bg-prefix stripped) whose backgrounds are light enough to need black text.
-const LIGHT_BG = new Set<string>([
-  'green',
-  'yellow',
-  'cyan',
-  'white',
-  'brightGreen',
-  'brightYellow',
-  'brightCyan',
-  'brightWhite',
-]);
-
-const baseColor = (bg: string): string => {
-  if (!bg.startsWith('bg')) {
-    return bg;
-  }
-  const rest = bg.slice(2);
-  return rest.charAt(0).toLowerCase() + rest.slice(1);
-};
+import { BLACK, indexToRgb, WHITE } from './xterm256.js';
 
 /**
- * Returns a readable foreground color name for a named background.
- *
- * Dark backgrounds get "brightWhite" (SGR 97), not "white" (SGR 37): most terminals
- * render plain "white" as a dim light-grey, which is low-contrast on dark — and barely
- * readable on a grey like bgBrightBlack. "brightWhite" is crisp. See DEC-0022.
- * @param bg - A background color name (e.g. "bgCyan", "bgBrightBlack").
- * @returns  "black" on light backgrounds, "brightWhite" on dark ones.
+ * Approximate luma threshold (0–255; Rec.709 coefficients applied to sRGB bytes, no gamma
+ * correction): at or above → dark text, below → light text.
  */
-export function contrastFg(bg: string): string {
-  return LIGHT_BG.has(baseColor(bg)) ? 'black' : 'brightWhite';
+const LUMA_THRESHOLD = 128;
+
+/**
+ * Returns a readable foreground index (black 16 or white 231) for a background index,
+ * from the background's luminance. Used for palette slots that set a bg but no fg.
+ * @param bg - The background palette index (16–255).
+ * @returns  `16` (black) on light backgrounds, `231` (white) on dark ones.
+ */
+export function contrastFg(bg: ColorIndex): ColorIndex {
+  const [r, g, b] = indexToRgb(bg);
+  const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luma >= LUMA_THRESHOLD ? BLACK : WHITE;
 }

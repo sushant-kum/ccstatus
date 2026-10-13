@@ -1,11 +1,29 @@
+/** An xterm-256 palette index, integer 16–255. Mint only via `isColorIndex` or `asIndex`. */
+type ColorIndex = number & {
+    readonly __colorIndex: unique symbol;
+};
+/**
+ * Checks whether a value is a usable xterm-256 palette index (integer 16–255).
+ * Indices 0–15 are excluded — Claude Code dims them in the status line.
+ * @param x - The value to test.
+ * @returns `true` when the value is an integer in 16–255.
+ */
+declare function isColorIndex(x: unknown): x is ColorIndex;
+/**
+ * Mint a ColorIndex from an authored constant known to be 16–255 (test-guarded, not runtime-validated).
+ * @param n - The authored palette index.
+ * @returns The branded index.
+ */
+declare const asIndex: (n: number) => ColorIndex;
+
 type Align = 'left' | 'center' | 'right';
 type SeparatorMode = 'powerline' | 'space' | 'none';
 declare const WIDGET_TYPES: readonly ["model", "version", "context-length", "context-percentage", "tokens-input", "tokens-output", "tokens-cached", "tokens-total", "session-clock", "cwd", "git-branch", "git-changes", "git-worktree", "git-root-dir", "cost", "rate-limit-5h", "rate-limit-week", "block-timer", "session-usage", "weekly-usage", "reset-timer", "weekly-reset-timer", "context-bar", "context-remaining", "thinking-effort", "git-insertions", "git-deletions", "session-id", "context-window", "session-cost-rate", "git-sha", "output-style", "terminal-width", "custom-text", "custom-command", "flex-separator"];
 type WidgetType = (typeof WIDGET_TYPES)[number];
 type DataWidgetType = Exclude<WidgetType, 'custom-text' | 'custom-command' | 'flex-separator'>;
 interface PaletteSlot {
-    fg?: string;
-    bg?: string;
+    fg?: ColorIndex;
+    bg?: ColorIndex;
 }
 interface ItemStyle {
     merge?: boolean;
@@ -70,8 +88,8 @@ interface Config {
 type SegmentKind = 'cell' | 'separator' | 'cap' | 'flex';
 interface Segment {
     text: string;
-    fg?: string;
-    bg?: string;
+    fg?: ColorIndex;
+    bg?: ColorIndex;
     kind: SegmentKind;
 }
 interface RenderLine {
@@ -134,7 +152,7 @@ interface RenderOptions {
 declare function render(config: Config, snapshot: Snapshot, opts: RenderOptions): RenderModel;
 
 /**
- * Serializes a render model into an ANSI string for the native status line.
+ * Serializes a render model into a 256-color ANSI string for the native status line.
  * @param model - The render model whose lines and segments are serialized.
  * @returns     The rendered lines joined by newlines, with each segment wrapped in ANSI color codes.
  */
@@ -209,13 +227,18 @@ declare const registry: Partial<Record<WidgetType, WidgetDef>>;
  */
 declare function register(def: WidgetDef): void;
 
-declare const COLORS: ReadonlySet<string>;
 /**
- * Checks whether a value is one of the supported named terminal colors.
- * @param x - The value to test.
- * @returns `true` when the value is a string naming a known color.
+ * Returns the sRGB bytes for an xterm-256 index in 16–255 (216-cube then 24-step grayscale).
+ * @param idx - The palette index (clamped to 16–255 defensively).
+ * @returns   The [r, g, b] bytes, each 0–255.
  */
-declare function isColor(x: unknown): x is string;
+declare function indexToRgb(idx: ColorIndex): [number, number, number];
+/**
+ * Returns the `#rrggbb` hex string for an xterm-256 index, for Ink's color props.
+ * @param i - The palette index (16–255).
+ * @returns The lowercase 6-digit hex color.
+ */
+declare function indexToHex(i: ColorIndex): string;
 
 declare const TOAST_FIELDS: Record<string, (s: Snapshot) => number | null>;
 /**
@@ -238,16 +261,16 @@ declare function evalWhen(when: string, snapshot: Snapshot): boolean;
 declare const builtinThemes: Record<string, Theme>;
 
 /**
- * Maps a core foreground colour name to the renderer's (Ink/chalk) colour name.
- * @param fg - The core foreground colour name, if any.
- * @returns  The renderer colour name, or undefined when no colour is given.
+ * Maps a core foreground index to an Ink/chalk hex color.
+ * @param fg - The foreground palette index, if any.
+ * @returns  The `#rrggbb` hex, or undefined when no color is given.
  */
-declare const rendererColor: (fg?: string) => string | undefined;
+declare const rendererColor: (fg?: ColorIndex) => string | undefined;
 /**
- * Maps a core background colour name to the renderer's base colour name.
- * @param bg - The core background colour name, if any.
- * @returns  The renderer background colour name, or undefined when no colour is given.
+ * Maps a core background index to an Ink/chalk hex color.
+ * @param bg - The background palette index, if any.
+ * @returns  The `#rrggbb` hex, or undefined when no color is given.
  */
-declare const rendererBg: (bg?: string) => string | undefined;
+declare const rendererBg: (bg?: ColorIndex) => string | undefined;
 
-export { type Align, COLORS, type Config, type CustomCommandItem, type CustomTextItem, type DataItem, type DataWidgetType, type Defaults, type FlexSeparatorItem, type Item, type ItemStyle, LINKABLE, type LinkableSurface, type PaletteSlot, type RenderLine, type RenderModel, type RenderOptions, type Segment, type SegmentKind, type SeparatorMode, type Snapshot, type StylableItem, type SurfaceLayout, TOAST_FIELDS, type Theme, type ToastRule, type ToastSurface, type WidgetContext, type WidgetDef, type WidgetType, builtinThemes, defaultConfig, evalWhen, importCcstatusline, isColor, isValidWhen, linkedSurfaces, loadConfig, register, registry, render, rendererBg, rendererColor, toAnsi, writeLinkedLines };
+export { type Align, type ColorIndex, type Config, type CustomCommandItem, type CustomTextItem, type DataItem, type DataWidgetType, type Defaults, type FlexSeparatorItem, type Item, type ItemStyle, LINKABLE, type LinkableSurface, type PaletteSlot, type RenderLine, type RenderModel, type RenderOptions, type Segment, type SegmentKind, type SeparatorMode, type Snapshot, type StylableItem, type SurfaceLayout, TOAST_FIELDS, type Theme, type ToastRule, type ToastSurface, type WidgetContext, type WidgetDef, type WidgetType, asIndex, builtinThemes, defaultConfig, evalWhen, importCcstatusline, indexToHex, indexToRgb, isColorIndex, isValidWhen, linkedSurfaces, loadConfig, register, registry, render, rendererBg, rendererColor, toAnsi, writeLinkedLines };

@@ -11,8 +11,9 @@ test('public API is exported', () => {
     'defaultConfig',
     'importCcstatusline',
     'registry',
-    'isColor',
-    'COLORS',
+    'isColorIndex',
+    'indexToRgb',
+    'indexToHex',
   ]) {
     expect(core).toHaveProperty(name);
   }
