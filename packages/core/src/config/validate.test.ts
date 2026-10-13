@@ -196,9 +196,37 @@ test('a legacy per-widget theme is dropped and builtins are used', () => {
     themes: { default: { model: { fg: 'black', bg: 'bgCyan' } } },
   };
   const { config, warnings } = loadConfig(raw);
-  expect(Array.isArray(config.themes.default)).toBe(true);
+  // With every custom theme dropped, the full builtin set is restored (not an empty default).
+  expect(Object.keys(config.themes)).toHaveLength(Object.keys(defaultConfig.themes).length);
+  expect(config.themes.default?.length ?? 0).toBeGreaterThan(0);
   expect(config.theme).toBe('default');
   expect(warnings.some((w) => w.includes('old per-widget format'))).toBe(true);
+});
+
+test('a non-array, non-object theme value is dropped with a "not a palette array" warning', () => {
+  const { config, warnings } = loadConfig({ version: 1, themes: { mine: 42 } });
+  expect(config.themes.mine).toBeUndefined();
+  expect(warnings.some((w) => w.includes('not a palette array'))).toBe(true);
+  // It must NOT claim the value was the legacy per-widget object format.
+  expect(warnings.some((w) => w.includes('old per-widget format'))).toBe(false);
+});
+
+test('defining one custom theme keeps default but does not fold in the other builtins', () => {
+  const raw = { version: 1, theme: 'mine', themes: { mine: [{ fg: 'white', bg: 'bgRed' }] } };
+  const { config } = loadConfig(raw);
+  expect(Object.keys(config.themes).sort()).toEqual(['default', 'mine']);
+  expect(config.themes.nord).toBeUndefined();
+});
+
+test('a non-object slot is replaced with an empty slot, preserving later positions', () => {
+  const raw = {
+    version: 1,
+    theme: 'mine',
+    themes: { mine: [{ fg: 'white', bg: 'bgRed' }, null, { bg: 'bgBlue' }] },
+  };
+  const { config, warnings } = loadConfig(raw);
+  expect(config.themes.mine).toEqual([{ fg: 'white', bg: 'bgRed' }, {}, { bg: 'bgBlue' }]);
+  expect(warnings.some((w) => w.includes('slot 1'))).toBe(true);
 });
 
 test('a positional palette theme with a bad slot color is stripped with a warning', () => {

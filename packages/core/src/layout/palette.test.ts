@@ -33,6 +33,12 @@ test('an fg-only slot sets fg and no bg', () => {
   expect(out[0]?.bg).toBeUndefined();
 });
 
+test('an explicit fg wins over the auto-contrast color when a slot sets both fg and bg', () => {
+  // contrastFg('bgCyan') is 'black'; the slot's explicit 'red' must take precedence.
+  const out = assignPaletteColors([cell('a')], [{ fg: 'red', bg: 'bgCyan' }]);
+  expect(out[0]).toMatchObject({ fg: 'red', bg: 'bgCyan' });
+});
+
 test('merged cell shares the preceding slot and does not advance the counter', () => {
   const out = assignPaletteColors([cell('a'), cell('b', { merge: true }), cell('c')], theme);
   expect(out.map((c) => c.bg)).toEqual(['bgCyan', 'bgCyan', 'bgBlue']);

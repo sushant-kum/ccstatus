@@ -33,7 +33,13 @@ export function render(config: Config, snapshot: Snapshot, opts: RenderOptions):
     return { lines: [] };
   }
   const outputs = opts.commandOutputs ?? {};
-  const theme = config.themes[config.theme] ?? [];
+  // hasOwn guards against a hand-built Config whose active name is a prototype key
+  // (e.g. "toString"), which bracket access would resolve to an inherited member.
+  // An absent name or empty palette leaves the line uncolored, which is the intended
+  // "no theme" behavior (see DEC-0020); loadConfig normally guarantees a valid own key.
+  const theme = Object.hasOwn(config.themes, config.theme)
+    ? (config.themes[config.theme] ?? [])
+    : [];
 
   const lines = surface.lines
     .map((items) => lineToCells(items, config, snapshot, outputs))

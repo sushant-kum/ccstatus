@@ -40,7 +40,7 @@ interface RawItem {
  * Carries the common styling fields of a raw item, dropping any per-item color with a warning.
  * @param raw  - The parsed item row to read styling fields from.
  * @param type - The item's widget type, used in warning messages.
- * @param warn - Callback invoked with a message for each stripped field.
+ * @param warn - Callback invoked once with a message when the item carries any per-item color.
  * @returns    The validated styling fields for the item.
  */
 function cleanStyle(raw: RawItem, type: string, warn: (s: string) => void): ItemStyle {
@@ -100,27 +100,35 @@ function cleanItem(raw: RawItem, warn: (s: string) => void): Item | null {
 }
 
 /**
- * Validates themes as positional palettes, dropping legacy per-widget themes and invalid slots.
+ * Validates themes as positional palettes, dropping legacy per-widget themes and replacing
+ * invalid slots.
  * @param themes - The raw themes keyed by name; each value should be an array of palette slots.
- * @param warn   - Callback invoked for each dropped theme or stripped slot color.
+ * @param warn   - Callback invoked for each dropped theme, replaced slot, or stripped slot color.
  * @returns      The valid palette themes keyed by name.
  */
 function cleanThemes(
   themes: Record<string, unknown>,
   warn: (s: string) => void
 ): Record<string, Theme> {
-  const cleaned: Record<string, Theme> = {};
+  // Prototype-free so a theme literally named "__proto__" becomes an own key rather than
+  // mutating the container's prototype; the active-theme lookup also uses Object.hasOwn.
+  const cleaned: Record<string, Theme> = Object.create(null) as Record<string, Theme>;
   for (const [name, value] of Object.entries(themes)) {
     if (!Array.isArray(value)) {
-      warn(
-        `theme "${name}" uses the old per-widget format and was dropped; colors are now a positional palette`
-      );
+      const message =
+        value !== null && typeof value === 'object'
+          ? `theme "${name}" uses the old per-widget format and was dropped; colors are now a positional palette`
+          : `theme "${name}" is not a palette array and was dropped; colors are now a positional palette`;
+      warn(message);
       continue;
     }
     const slots: PaletteSlot[] = [];
     value.forEach((rawSlot, i) => {
       if (!rawSlot || typeof rawSlot !== 'object') {
-        warn(`dropped invalid slot ${i} in theme "${name}"`);
+        // Keep the position: a positional palette colors by slot index, so dropping a slot
+        // would re-color every later item. Replace it with an empty (terminal-default) slot.
+        warn(`replaced invalid slot ${i} in theme "${name}" with an empty slot`);
+        slots.push({});
         return;
       }
       const entry = rawSlot as { fg?: unknown; bg?: unknown };

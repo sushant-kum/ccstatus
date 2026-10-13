@@ -4,9 +4,11 @@ import { contrastFg } from '../theme/contrast.js';
 import type { Cell } from './cells.js';
 
 /**
- * Assigns palette colors to cells by position, cycling the palette. Merged cells reuse the preceding
- * non-flex cell's slot (so a merged run is one color and the next independent cell keeps the correct slot); flex cells
- * stay uncolored and consume no slot. Pure: returns new cells and never mutates the input.
+ * Assigns palette colors to cells by position, cycling the palette. A merged cell reuses the
+ * immediately-preceding cell's slot, but only when that cell is not a flex separator (a merge right
+ * after a flex starts a new slot), so a merged run is one color and the next independent cell keeps
+ * the correct slot; flex cells stay uncolored and consume no slot. Pure: returns new cells and never
+ * mutates the input.
  * @param cells - The cells for one line, in order (nulls already dropped, not yet merged).
  * @param theme - The active palette; an empty palette leaves every cell uncolored.
  * @returns     New cells with fg/bg filled from the palette.

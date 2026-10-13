@@ -11,9 +11,10 @@ export interface Cell {
 }
 
 /**
- * Formats a single item into a renderable cell, applying padding and resolved colors.
+ * Formats a single item into a renderable cell, applying padding. Palette colors are assigned
+ * later, by position, in `assignPaletteColors`; a cell leaves this function uncolored.
  * @param item           - The config item to render.
- * @param config         - The active config, used for padding and theme colors.
+ * @param config         - The active config, used for padding.
  * @param snapshot       - The live snapshot the widget formats from.
  * @param commandOutputs - Cached outputs for custom-command widgets, keyed by item id.
  * @returns              The rendered cell, or `null` when the widget omits itself.
@@ -44,7 +45,7 @@ export function itemToCell(
 /**
  * Formats a line of items into cells, omitting items whose widgets return null.
  * @param items          - The config items on one line.
- * @param config         - The active config, used for padding and theme colors.
+ * @param config         - The active config, used for padding.
  * @param snapshot       - The live snapshot the widgets format from.
  * @param commandOutputs - Cached outputs for custom-command widgets, keyed by item id.
  * @returns              The rendered cells for the line, in order.
