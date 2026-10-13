@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.1](https://github.com/sushant-kum/ccstatus/compare/0.2.0...0.2.1) (2026-10-13)
+
+### Bug Fixes
+
+- **core:** use brightWhite (SGR 97) for light palette text, not dim white ([#9](https://github.com/sushant-kum/ccstatus/issues/9)) ([00f99e3](https://github.com/sushant-kum/ccstatus/commit/00f99e3887fe2f37c3282bd3848a7a239577878b))
+
 ## [0.2.0](https://github.com/sushant-kum/ccstatus/compare/0.1.2...0.2.0) (2026-10-13)
 
 ### ⚠ BREAKING CHANGES
