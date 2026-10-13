@@ -70,6 +70,7 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0019 | 2026-10-12 | Centralize linked-surface line mirroring in a core helper (`writeLinkedLines`)           | Accepted | core \| tui    |
 | DEC-0020 | 2026-10-12 | Theme colors are a positional palette, not per widget type                               | Accepted | core \| tui    |
 | DEC-0021 | 2026-10-12 | Breaking config migration to positional palettes                                         | Accepted | core           |
+| DEC-0022 | 2026-10-13 | Light palette text is `brightWhite` (SGR 97), not `white` (SGR 37)                       | Accepted | core           |
 
 ---
 
@@ -1011,3 +1012,45 @@ active theme to `default`.
 
 - A one-time visible restyle of existing configs, accepted while pre-1.0.
 - `loadConfig` stays non-throwing (DEC-0004); the user sees the drops as warnings.
+
+---
+
+## DEC-0022 — Light palette text is `brightWhite` (SGR 97), not `white` (SGR 37)
+
+- **Date:** 2026-10-13
+- **Status:** Accepted
+- **Scope:** core
+- **Related:** DEC-0005, DEC-0020
+
+### Context
+
+Reported as "statusline text looks greyish." Investigation proved the mod (Ink) and native status
+line (`toAnsi`) emit byte-identical SGR for a given palette — so the surfaces are not colored
+differently. The real cause is the color itself: the named color `white` serializes to SGR **37**,
+which most terminals render as a dim light-grey, not a crisp white. On a dark or grey background
+(e.g. a `bgBrightBlack` slot) that is low-contrast and reads as "greyish." `brightWhite` is SGR
+**97**, the crisp white, and both render paths map it identically (`toAnsi` 97; Ink/chalk
+`whiteBright` 97).
+
+### Decision
+
+For readable light-on-dark text, use `brightWhite`, not `white`:
+
+- `contrastFg` returns `brightWhite` (was `white`) for any background not in `LIGHT_BG`.
+- Every builtin theme's light-text slot uses `brightWhite`; `black` stays for light backgrounds.
+
+`white` remains a valid, selectable color (DEC-0005) — a user may still choose it explicitly; it is
+simply not the auto-contrast or builtin default.
+
+### Alternatives considered
+
+- **Keep `white` and treat it as a host/terminal problem** — rejected: the dim-white is a real,
+  controllable contrast weakness in our defaults, independent of the painter.
+- **Luminance/auto-brighten in the renderer** — rejected; DEC-0005 keeps color a fixed named lookup.
+
+### Consequences
+
+- Builtin palettes and auto-contrast gain crisp light text; no API or schema change.
+- Existing saved configs that baked in literal `white` are unchanged (their choice is preserved);
+  re-activating or re-picking a builtin refreshes them.
+- Core changed, so the plugin bundle is regenerated (`npm run build:plugin-core`).

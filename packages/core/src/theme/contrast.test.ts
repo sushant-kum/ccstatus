@@ -17,7 +17,7 @@ test('black on light backgrounds', () => {
   }
 });
 
-test('white on dark backgrounds', () => {
+test('brightWhite on dark backgrounds (crisp, not dim SGR-37 grey)', () => {
   for (const bg of [
     'bgBlack',
     'bgRed',
@@ -28,14 +28,14 @@ test('white on dark backgrounds', () => {
     'bgBrightBlue',
     'bgBrightMagenta',
   ]) {
-    expect(contrastFg(bg)).toBe('white');
+    expect(contrastFg(bg)).toBe('brightWhite');
   }
 });
 
-test('normalizes the bg prefix and defaults unknown to white', () => {
+test('normalizes the bg prefix and defaults unknown to brightWhite', () => {
   expect(contrastFg('bgCyan')).toBe('black');
-  expect(contrastFg('bgBrightGray')).toBe('white'); // renders uncolored, but fg stays defined
-  expect(contrastFg('totally-unknown')).toBe('white');
+  expect(contrastFg('bgBrightGray')).toBe('brightWhite'); // renders uncolored, but fg stays defined
+  expect(contrastFg('totally-unknown')).toBe('brightWhite');
   expect(contrastFg('cyan')).toBe('black');
-  expect(contrastFg('red')).toBe('white');
+  expect(contrastFg('red')).toBe('brightWhite');
 });
