@@ -1,6 +1,6 @@
 {
   "name": "@sushant-kum/ccstatus",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Interactive configurator (npx @sushant-kum/ccstatus) for the ccstatus Claude Code status bar — band, status line, pane, and threshold toasts from one config.",
   "license": "MIT",
   "author": "Sushant Kumar",
