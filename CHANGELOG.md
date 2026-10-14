@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.2](https://github.com/sushant-kum/ccstatus/compare/0.3.1...0.3.2) (2026-10-14)
+
+### Features
+
+- **plugin:** make bare /ccstatus show help, add toggle subcommand ([fa4e405](https://github.com/sushant-kum/ccstatus/commit/fa4e4050b8e91c1eee234f56dba582e33ca59106))
+
 ## [0.3.1](https://github.com/sushant-kum/ccstatus/compare/0.3.0...0.3.1) (2026-10-14)
 
 ### Features
