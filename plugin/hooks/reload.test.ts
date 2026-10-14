@@ -151,7 +151,7 @@ test('the command registers with an argument hint listing its operations', async
   const spec = w.registerSpecs.find((s) => s.name === 'ccstatus');
   expect(spec).toBeDefined();
   expect(typeof spec.argumentHint).toBe('string');
-  for (const op of ['pane', 'theme', 'reload', 'edit', 'help']) {
+  for (const op of ['toggle', 'pane', 'theme', 'reload', 'edit', 'help']) {
     expect(spec.argumentHint).toContain(op);
   }
 });
@@ -160,12 +160,34 @@ test('/ccstatus help lists every operation', async ($, on) => {
   setup($, on);
   await $.session.start({ cwd: '', surface: 'terminal', isInteractive: true });
   const r = await $.command.run({ command: 'ccstatus', args: 'help' } as any);
-  for (const op of ['pane', 'theme', 'reload', 'edit', 'help']) {
+  for (const op of ['toggle', 'pane', 'theme', 'reload', 'edit', 'help']) {
     expect(r.text).toContain(op);
   }
-  // bare `/ccstatus` keeps toggling the band — help must not describe itself as the default
+  // help itself must not toggle the band
   expect(r.text).not.toContain('band shown');
   expect(r.text).not.toContain('band hidden');
+});
+
+test('bare /ccstatus shows the help menu instead of toggling', async ($, on) => {
+  setup($, on);
+  await $.session.start({ cwd: '', surface: 'terminal', isInteractive: true });
+  const r = await $.command.run({ command: 'ccstatus', args: '' } as any);
+  expect(r.text).toContain('ccstatus commands:');
+  expect(r.text).toContain('toggle');
+  // bare command no longer toggles — it must not report a shown/hidden state
+  expect(r.text).not.toContain('band shown');
+  expect(r.text).not.toContain('band hidden');
+});
+
+test('/ccstatus toggle flips the band visibility', async ($, on) => {
+  setup($, on);
+  await $.session.start({ cwd: '', surface: 'terminal', isInteractive: true });
+  const first = await $.command.run({ command: 'ccstatus', args: 'toggle' } as any);
+  expect(first.text).toMatch(/band (shown|hidden)/);
+  const second = await $.command.run({ command: 'ccstatus', args: 'toggle' } as any);
+  // a second toggle reports the opposite state
+  expect(second.text).toMatch(/band (shown|hidden)/);
+  expect(second.text).not.toBe(first.text);
 });
 
 test('an unknown subcommand shows help instead of silently toggling the band', async ($, on) => {

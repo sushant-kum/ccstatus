@@ -386,7 +386,8 @@ function captureEffort($: EngineInterface, e: unknown): Promise<void> {
 function commandHelp(): string {
   return [
     'ccstatus commands:',
-    '  /ccstatus              toggle the band above the prompt',
+    '  /ccstatus              show this help',
+    '  /ccstatus toggle       toggle the band above the prompt',
     '  /ccstatus pane         toggle the ccstatus pane',
     '  /ccstatus theme <name> switch the palette theme',
     '  /ccstatus reload       reload config from disk',
@@ -400,8 +401,8 @@ export const register: Register = (on) => {
     try {
       await $.command.register({
         name: 'ccstatus',
-        description: 'Toggle the ccstatus band above the prompt',
-        argumentHint: '[pane | theme <name> | reload | edit | help]',
+        description: 'Show the ccstatus command menu',
+        argumentHint: '[toggle | pane | theme <name> | reload | edit | help]',
       });
       await reloadConfig($, true);
       await refresh($);
@@ -439,6 +440,11 @@ export const register: Register = (on) => {
     try {
       const args = String((e as { args?: unknown })?.args ?? '').trim();
       const [sub = '', ...rest] = args.split(/\s+/);
+      if (sub === 'toggle') {
+        const now = !(await read($, visible));
+        await update($, visible, () => now);
+        return { text: now ? 'ccstatus band shown.' : 'ccstatus band hidden.' };
+      }
       if (sub === 'pane') {
         return { text: await togglePane($) };
       }
@@ -457,15 +463,10 @@ export const register: Register = (on) => {
             'Changes are picked up automatically.',
         };
       }
-      if (sub === 'help') {
+      if (sub === '' || sub === 'help') {
         return { text: commandHelp() };
       }
-      if (sub !== '') {
-        return { text: `unknown command: ${sub}\n\n${commandHelp()}` };
-      }
-      const now = !(await read($, visible));
-      await update($, visible, () => now);
-      return { text: now ? 'ccstatus band shown.' : 'ccstatus band hidden.' };
+      return { text: `unknown command: ${sub}\n\n${commandHelp()}` };
     } catch {
       return { text: 'ccstatus: command failed.' };
     }
