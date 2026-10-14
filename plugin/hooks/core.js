@@ -297,7 +297,10 @@ register({
 register({
   type: "thinking-effort",
   label: "Effort",
-  format: ({ snapshot, item }) => snapshot.effort ? labeled(rawOf(item), "Effort", snapshot.effort) : null
+  // The engine only reports an explicit effort level; when none is set it exposes
+  // nothing, so we can't derive a level here. Match ccstatusline and label that
+  // case "default" rather than inventing a level or hiding the widget. See DEC-0026.
+  format: ({ snapshot, item }) => labeled(rawOf(item), "Effort", snapshot.effort || "default")
 });
 register({
   type: "session-id",
@@ -339,7 +342,9 @@ register({
 register({
   type: "git-worktree",
   label: "Worktree",
-  format: ({ snapshot }) => snapshot.repo && snapshot.gitWorktree ? `\u2387 ${snapshot.gitWorktree}` : null
+  // Inside a repo the widget stays visible: the worktree name, or a placeholder
+  // when the checkout is the main working tree rather than a linked worktree.
+  format: ({ snapshot }) => snapshot.repo ? `\u2387 ${snapshot.gitWorktree || "\u2014"}` : null
 });
 register({
   type: "git-insertions",

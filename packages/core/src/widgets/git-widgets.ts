@@ -19,8 +19,9 @@ register({
 register({
   type: 'git-worktree',
   label: 'Worktree',
-  format: ({ snapshot }) =>
-    snapshot.repo && snapshot.gitWorktree ? `⎇ ${snapshot.gitWorktree}` : null,
+  // Inside a repo the widget stays visible: the worktree name, or a placeholder
+  // when the checkout is the main working tree rather than a linked worktree.
+  format: ({ snapshot }) => (snapshot.repo ? `⎇ ${snapshot.gitWorktree || '—'}` : null),
 });
 register({
   type: 'git-insertions',

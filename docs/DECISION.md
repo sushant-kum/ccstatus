@@ -74,6 +74,7 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0023 | 2026-10-13 | Colors are an xterm-256 palette (indices 16-255), not named terminal colors              | Accepted               | core \| tui    |
 | DEC-0024 | 2026-10-13 | Breaking migration to 256-color indices                                                  | Accepted               | core           |
 | DEC-0025 | 2026-10-13 | Branded `ColorIndex` type minted only by `isColorIndex` / `asIndex`                      | Accepted               | core \| tui    |
+| DEC-0026 | 2026-10-14 | Conditional widgets stay visible with a placeholder (ccstatusline parity)                | Accepted               | core           |
 
 ---
 
@@ -1148,3 +1149,42 @@ table `NAMED_INDEX` is a `ReadonlyMap` (prototype-safe `get`). `indexToRgb` and 
 ### Consequences
 
 Tests that build colors from literals must use `asIndex(...)`.
+
+---
+
+## DEC-0026 — Conditional widgets stay visible with a placeholder (ccstatusline parity)
+
+- **Date:** 2026-10-14
+- **Status:** Accepted
+- **Scope:** core
+- **Related:** DEC-0015, PR #12
+
+### Context
+
+Most data widgets return `null` from `format(ctx)` to omit themselves when their snapshot field is empty (the
+documented "`null` = omit" contract). For `thinking-effort` and `git-worktree` this made them invisible in the common
+case: the mod only captures a reasoning effort from an `effort.active` engine event (none until the user sets one, and
+`$.session` exposes no getter to derive one), and `gitWorktree` is only set inside a linked `git worktree` checkout —
+so on a normal clone with no explicit effort, both widgets rendered nothing even when added to the bar, which reads as
+"broken".
+
+### Decision
+
+Make these two widgets stay visible with a meaningful placeholder instead of omitting:
+`thinking-effort` shows the captured level or `default` when none is set (matching ccstatusline, which labels the unset
+case `default` rather than inventing a level); `git-worktree` shows the worktree name or `⎇ —` on the main working
+tree, while still returning `null` outside a repo (consistent with every other git widget). This mirrors the existing
+in-repo placeholder pattern already used by `git-branch` and `git-root-dir` (`|| '?'`).
+
+### Alternatives considered
+
+- **Keep omitting when empty** — rejected: the item disappears despite being configured, which looks broken.
+- **Derive/guess a concrete effort (e.g. map "default" → "high")** — rejected: the engine withholds a concrete level at
+  default and there is no honest source to derive one; a guessed level would be wrong.
+- **A per-item "hide when empty" toggle** — rejected as over-engineering for two widgets; revisit if more widgets need it.
+
+### Consequences
+
+- `thinking-effort` and `git-worktree` deliberately deviate from the "`null` = omit" convention (DEC-0008 note /
+  CLAUDE.md); the deviation is documented inline on each `format`.
+- The ccstatusline-parity label `default` is now part of the ported-widget behavior tracked by DEC-0015.
