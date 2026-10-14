@@ -66,8 +66,8 @@ test('git widgets omit when not in a repo', () => {
   }
 });
 
-test('worktree omits when empty', () => {
-  expect(fmt('git-worktree', { ...base, gitWorktree: '' })).toBeNull();
+test('worktree shows a placeholder when empty but in a repo', () => {
+  expect(fmt('git-worktree', { ...base, gitWorktree: '' })).toBe('⎇ —');
 });
 
 test('git-insertions/deletions show counts in a repo', () => {
