@@ -1,0 +1,36 @@
+{
+  "brand": "ccstatus",
+  "tagline": "A configurable powerline status bar for Claude Code",
+  "brief": "ccstatus renders a configurable status bar for Claude Code across four surfaces. The mark is the direction the user chose: H — a doubled left chevron («) built from the tool's powerline separator, reading as the two C's of Claude Code.",
+  "adjectives": ["configurable", "live", "segmented", "developer-native", "crisp"],
+  "criteria": "Recognisable at 16 px, works in one colour, native to a terminal, and reads as « / CC rather than a forward arrow.",
+  "industry": "software",
+  "nav": ["Install", "Configure", "Docs"],
+  "brand_color": "#C15F3C",
+  "greyscale": false,
+  "designer": "ccstatus brand kit",
+  "round": 2,
+  "concepts": [
+    {
+      "name": "H — Flow «",
+      "symbol": "ccstatus-symbol.svg",
+      "lockup": "ccstatus-horizontal.svg",
+      "symbol_on_tile": "ccstatus-app-icon.svg",
+      "lockup_on_dark": "ccstatus-horizontal-reversed.svg",
+      "tile_color": "#14171C",
+      "idea": "The powerline separator doubled and reversed to point back — the two C's of Claude Code.",
+      "rationale": [
+        "Built from the exact glyph ccstatus paints: the powerline chevron",
+        "Points back («) so it reads as CC, not a forward/next arrow",
+        "Two separated chevrons stay legible down to 16 px",
+        "Ink + terracotta nods to Claude; works in one colour and reversed"
+      ]
+    }
+  ],
+  "recommendation": "H — Flow «, delivered as the full kit: symbol, reversed, one-colour, app icon, lockups, favicon/web-icon set and guidelines.",
+  "next_steps": [
+    "Drop /brand into the repo",
+    "Wire favicon/web-icons into any docs site",
+    "Outline the wordmark with licensed IBM Plex Mono for final lockups"
+  ]
+}

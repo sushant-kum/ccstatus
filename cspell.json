@@ -21,6 +21,7 @@
     "configurator",
     "ctxp",
     "cycleable",
+    "dataviz",
     "dotfiles",
     "ENOENT",
     "entrancy",
@@ -65,6 +66,8 @@
     "verbatim",
     "versionrc",
     "vitest",
+    "wordmark",
+    "wordmarks",
     "worktrees",
     "yellowbright",
     "zod"
@@ -78,6 +81,9 @@
     "plugin/hooks/core.js",
     "plugin/hooks/core.d.ts",
     ".superpowers/**",
-    ".git/**"
+    ".git/**",
+    "brand/*.svg",
+    "brand/*.html",
+    "brand/board-spec.json"
   ]
 }
