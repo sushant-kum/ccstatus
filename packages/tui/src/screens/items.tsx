@@ -89,6 +89,11 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
     setSel(0);
   };
   const removeLine = (): void => {
+    // Removing the sole, already-empty line would write an identical config (and
+    // re-mirror to linked surfaces) for no change — skip it.
+    if (lineCount <= 1 && items.length === 0) {
+      return;
+    }
     const lines = lineCount <= 1 ? [[]] : displayLines.filter((_, i) => i !== curLine);
     commitLines(lines);
     setLine(Math.min(curLine, lines.length - 1));
@@ -351,10 +356,11 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
         </Text>
       )}
       <Box flexDirection="column">
-        {/* One strip per line; ↑/↓ pick the line, the ▸ marks it. Item ids are
-            unique within a surface (DEC-0018) so chip keys are scoped by line too
-            to stay collision-proof. The live Preview renders a RenderModel of
-            positional segments — paint.tsx keys by index, not item id. */}
+        {/* One strip per line; ↑/↓ pick the line, the ▸ marks it. Each line is its
+            own <Box>, so chips only need to be unique among their line siblings; the
+            `${li}-` prefix on the key is defensive belt-and-suspenders. The live
+            Preview renders a RenderModel of positional segments — paint.tsx keys by
+            index, not item id. */}
         {displayLines.map((lineItems, li) => (
           <Box key={li}>
             <Text color={li === curLine ? 'cyan' : undefined}>

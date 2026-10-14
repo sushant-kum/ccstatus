@@ -458,3 +458,132 @@ test('confirm names every surface a link replaces, including existing group memb
   expect(frame).toContain('Replace band, statusline layout');
   unmount();
 });
+
+// Build a band config with explicit line 0 and line 1 contents.
+const twoLineBand = (
+  line0: Config['surfaces']['band']['lines'][number],
+  line1: Config['surfaces']['band']['lines'][number]
+): Config => ({
+  ...defaultConfig,
+  surfaces: {
+    ...defaultConfig.surfaces,
+    band: { ...defaultConfig.surfaces.band, lines: [line0, line1] },
+  },
+});
+
+test('X on a single-line surface collapses it to one empty line', async () => {
+  let last: Config = defaultConfig;
+  const { stdin, unmount } = render(
+    <Harness
+      initial={defaultConfig}
+      onChange={(c) => {
+        last = c;
+      }}
+    />
+  );
+  await tick();
+  stdin.write('X'); // remove the only line -> must keep exactly one empty line
+  await tick();
+  expect(last.surfaces.band.lines.length).toBe(1);
+  expect(last.surfaces.band.lines[0]?.length).toBe(0);
+  unmount();
+});
+
+test('X on the sole empty line is a no-op (no spurious write)', async () => {
+  const cfg: Config = {
+    ...defaultConfig,
+    surfaces: { ...defaultConfig.surfaces, band: { ...defaultConfig.surfaces.band, lines: [[]] } },
+  };
+  const setConfig = vi.fn();
+  const { stdin, unmount } = render(
+    <Items
+      config={cfg}
+      setConfig={setConfig}
+      goHome={() => {
+        /* no-op */
+      }}
+    />
+  );
+  await tick();
+  stdin.write('X');
+  await tick();
+  expect(setConfig).not.toHaveBeenCalled();
+  unmount();
+});
+
+test('item ops act on the current line after navigating down (selection clamped)', async () => {
+  const line0 = [
+    { id: 'c0', type: 'cwd' as const },
+    { id: 'c1', type: 'model' as const },
+    { id: 'c2', type: 'cwd' as const },
+  ];
+  const line1 = [{ id: 'd0', type: 'model' as const }];
+  let last: Config = defaultConfig;
+  const { stdin, unmount } = render(
+    <Harness
+      initial={twoLineBand(line0, line1)}
+      onChange={(c) => {
+        last = c;
+      }}
+    />
+  );
+  await tick();
+  stdin.write(RIGHT); // select item 1 on line 0
+  stdin.write(RIGHT); // select item 2 (last) on line 0
+  await tick();
+  stdin.write(DOWN); // move to the shorter line 1 — selection must clamp into range
+  await tick();
+  stdin.write('x'); // remove on line 1, not line 0
+  await tick();
+  expect(last.surfaces.band.lines[1]?.length).toBe(0); // line 1's only item removed
+  expect(last.surfaces.band.lines[0]?.length).toBe(3); // line 0 untouched
+  unmount();
+});
+
+test('] reorders items on a non-zero line, leaving line 0 untouched', async () => {
+  const line0 = defaultConfig.surfaces.band.lines[0] ?? [];
+  const line1 = [
+    { id: 'd0', type: 'cwd' as const },
+    { id: 'd1', type: 'model' as const },
+  ];
+  let last: Config = defaultConfig;
+  const { stdin, unmount } = render(
+    <Harness
+      initial={twoLineBand(line0, line1)}
+      onChange={(c) => {
+        last = c;
+      }}
+    />
+  );
+  await tick();
+  stdin.write(DOWN); // to line 1
+  await tick();
+  stdin.write(']'); // swap d0,d1
+  await tick();
+  expect(last.surfaces.band.lines[1]?.map((i) => i.id)).toEqual(['d1', 'd0']);
+  expect(last.surfaces.band.lines[0]?.length).toBe(len); // line 0 untouched
+  unmount();
+});
+
+test('{ moves the selected item to the previous line, emptying the source', async () => {
+  const line0 = defaultConfig.surfaces.band.lines[0] ?? [];
+  const line1 = [{ id: 'd0', type: 'cwd' as const }];
+  let last: Config = defaultConfig;
+  const { stdin, unmount } = render(
+    <Harness
+      initial={twoLineBand(line0, line1)}
+      onChange={(c) => {
+        last = c;
+      }}
+    />
+  );
+  await tick();
+  stdin.write(DOWN); // to line 1 (its only item selected)
+  await tick();
+  stdin.write('{'); // push it up to line 0
+  await tick();
+  expect(last.surfaces.band.lines[0]?.length).toBe(len + 1);
+  expect(last.surfaces.band.lines[0]?.at(-1)?.id).toBe('d0');
+  expect(last.surfaces.band.lines[1]?.length).toBe(0); // source line now empty
+  unmount();
+});
