@@ -36,6 +36,7 @@ function Harness({
   );
 }
 const DOWN = '\u001B[B',
+  UP = '\u001B[A',
   RIGHT = '\u001B[C';
 const len = defaultConfig.surfaces.band.lines[0]?.length ?? 0;
 
@@ -162,6 +163,73 @@ test('editing line 0 preserves lines[1]', async () => {
   unmount();
 });
 
+test('A adds a new line and items can be added to it; line 0 is untouched', async () => {
+  let last: Config = defaultConfig;
+  const { stdin, unmount } = render(
+    <Harness
+      initial={defaultConfig}
+      onChange={(c) => {
+        last = c;
+      }}
+    />
+  );
+  await tick();
+  stdin.write('A'); // add an empty line below, move cursor to it
+  await tick();
+  expect(last.surfaces.band.lines.length).toBe(2);
+  stdin.write('a'); // open picker on the new line
+  await tick();
+  stdin.write('\r'); // add the first widget to the new line
+  await tick();
+  expect(last.surfaces.band.lines.length).toBe(2);
+  expect(last.surfaces.band.lines[1]?.length).toBe(1);
+  expect(last.surfaces.band.lines[0]?.length).toBe(len); // original line unchanged
+  unmount();
+});
+
+test('X removes the current line', async () => {
+  let last: Config = defaultConfig;
+  const { stdin, unmount } = render(
+    <Harness
+      initial={defaultConfig}
+      onChange={(c) => {
+        last = c;
+      }}
+    />
+  );
+  await tick();
+  stdin.write('A'); // 2 lines, cursor on the new one
+  await tick();
+  expect(last.surfaces.band.lines.length).toBe(2);
+  stdin.write('X'); // remove the current (second) line
+  await tick();
+  expect(last.surfaces.band.lines.length).toBe(1);
+  expect(last.surfaces.band.lines[0]?.length).toBe(len);
+  unmount();
+});
+
+test('} moves the selected item to the next line', async () => {
+  let last: Config = defaultConfig;
+  const { stdin, unmount } = render(
+    <Harness
+      initial={defaultConfig}
+      onChange={(c) => {
+        last = c;
+      }}
+    />
+  );
+  await tick();
+  stdin.write('A'); // add an empty second line (cursor on line 2)
+  await tick();
+  stdin.write(UP); // back up to line 1, first item selected
+  await tick();
+  stdin.write('}'); // push that item down to line 2
+  await tick();
+  expect(last.surfaces.band.lines[0]?.length).toBe(len - 1);
+  expect(last.surfaces.band.lines[1]?.length).toBe(1);
+  unmount();
+});
+
 test('empty line: x, e, → do not throw', async () => {
   const cfg: Config = {
     ...defaultConfig,
@@ -182,7 +250,7 @@ test('empty line: x, e, → do not throw', async () => {
     stdin.write(k);
     await tick();
   }
-  expect(lastFrame()).toContain('no items');
+  expect(lastFrame()).toContain('empty');
   expect(setConfig).not.toHaveBeenCalled();
   unmount();
 });

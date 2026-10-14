@@ -12,13 +12,15 @@ import { useState, type ReactElement, type ReactNode } from 'react';
 
 import type { ScreenProps } from '../app.js';
 
-// Keys — strip: ←/→ select · [ / ] move item left/right · a add · x remove · e edit · l link · u unlink · tab surface · esc back
+// Keys — strip: ↑/↓ select line · ←/→ select item · [ / ] move item within line · { / } move item to prev/next line
+//               a add item · x remove item · A add line · X remove line · e edit · l link · u unlink · tab surface · esc back
 //        editor: ↑/↓ field · ←/→ change · esc back to strip
 //        picker: ↑/↓ choose · enter add · esc cancel
 //        link:   ↑/↓ choose · enter link · esc cancel; confirm (non-empty target): y confirm · n cancel
-// v1 operates on line 0 of each surface (existing extra lines are preserved untouched).
-// Single source of truth lives in core (LINKABLE); the renderer/link logic here
-// reuses it so the two can't drift.
+// The editor operates on all lines of each surface: ↑/↓ pick the line, the item
+// ops act on the current line, and A/X add/remove whole lines (a surface always
+// keeps at least one line, empty if need be). Single source of truth lives in core
+// (LINKABLE); the renderer/link logic here reuses it so the two can't drift.
 const SURFACES = LINKABLE;
 type Surface = LinkableSurface;
 const FIELDS = ['raw', 'merge', 'align'] as const;
@@ -53,6 +55,7 @@ function Chip({ item, selected }: { item: Item; selected: boolean }): ReactEleme
  */
 export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement {
   const [surface, setSurface] = useState<Surface>('band');
+  const [line, setLine] = useState(0);
   const [sel, setSel] = useState(0);
   const [mode, setMode] = useState<'strip' | 'editor' | 'picker' | 'link'>('strip');
   const [linkPick, setLinkPick] = useState(0);
@@ -60,14 +63,56 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
   const [field, setField] = useState(0);
   const [pick, setPick] = useState(0);
 
-  const items: Item[] = config.surfaces[surface].lines[0] ?? [];
+  const allLines: Item[][] = config.surfaces[surface].lines;
+  // A surface always presents at least one (possibly empty) line to edit.
+  const displayLines: Item[][] = allLines.length ? allLines : [[]];
+  const lineCount = displayLines.length;
+  const curLine = Math.min(line, lineCount - 1);
+  const items: Item[] = displayLines[curLine] ?? [];
   const cur = items[Math.min(sel, items.length - 1)];
   const idx = cur ? items.indexOf(cur) : -1;
 
-  const commit = (next: Item[]): void => {
-    const lines = [next, ...config.surfaces[surface].lines.slice(1)];
-    // writeLinkedLines mirrors to every linked member when `surface` is linked.
+  // writeLinkedLines mirrors to every linked member when `surface` is linked.
+  const commitLines = (lines: Item[][]): void => {
     setConfig({ ...config, surfaces: writeLinkedLines(config.surfaces, surface, lines) });
+  };
+  const commit = (next: Item[]): void => {
+    const lines = [...displayLines];
+    lines[curLine] = next;
+    commitLines(lines);
+  };
+  const addLine = (): void => {
+    const lines = [...displayLines];
+    lines.splice(curLine + 1, 0, []);
+    commitLines(lines);
+    setLine(curLine + 1);
+    setSel(0);
+  };
+  const removeLine = (): void => {
+    const lines = lineCount <= 1 ? [[]] : displayLines.filter((_, i) => i !== curLine);
+    commitLines(lines);
+    setLine(Math.min(curLine, lines.length - 1));
+    setSel(0);
+  };
+  const moveItemToLine = (dir: 1 | -1): void => {
+    const target = curLine + dir;
+    if (idx < 0 || target < 0 || target >= lineCount) {
+      return;
+    }
+    const lines = displayLines.map((l) => [...l]);
+    const src = lines[curLine];
+    const tgt = lines[target];
+    if (!src || !tgt) {
+      return;
+    }
+    const [moved] = src.splice(idx, 1);
+    if (!moved) {
+      return;
+    }
+    tgt.push(moved);
+    commitLines(lines);
+    setLine(target);
+    setSel(tgt.length - 1);
   };
   // Style edits only apply to stylable items (never the flex separator).
   const patch = (p: Partial<ItemStyle>): void => {
@@ -234,7 +279,16 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
         goHome();
       } else if (key.tab) {
         setSurface((s) => SURFACES[wrap(SURFACES.indexOf(s) + 1, SURFACES.length)] ?? s);
+        setLine(0);
         setSel(0);
+      } else if (key.upArrow) {
+        const t = Math.max(0, curLine - 1);
+        setLine(t);
+        setSel((s) => Math.min(s, Math.max(0, (displayLines[t]?.length ?? 0) - 1)));
+      } else if (key.downArrow) {
+        const t = Math.min(lineCount - 1, curLine + 1);
+        setLine(t);
+        setSel((s) => Math.min(s, Math.max(0, (displayLines[t]?.length ?? 0) - 1)));
       } else if (key.leftArrow) {
         setSel(Math.max(0, idx - 1));
       } else if (key.rightArrow) {
@@ -243,6 +297,14 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
         move(-1);
       } else if (input === ']') {
         move(1);
+      } else if (input === '{') {
+        moveItemToLine(-1);
+      } else if (input === '}') {
+        moveItemToLine(1);
+      } else if (input === 'A') {
+        addLine();
+      } else if (input === 'X') {
+        removeLine();
       } else if (input === 'a') {
         setPick(0);
         setMode('picker');
@@ -288,16 +350,25 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
           all
         </Text>
       )}
-      <Box>
-        {items.length === 0 ? (
-          <Text dimColor>(no items — press a)</Text>
-        ) : (
-          // Item ids are unique within a surface. Linked surfaces share ids across
-          // surfaces (DEC-0018), but only one surface's items render here at a time,
-          // so these keys never collide. (The live Preview renders a RenderModel of
-          // positional segments — paint.tsx keys by index, not item id.)
-          items.map((it, i) => <Chip key={it.id} item={it} selected={i === idx} />)
-        )}
+      <Box flexDirection="column">
+        {/* One strip per line; ↑/↓ pick the line, the ▸ marks it. Item ids are
+            unique within a surface (DEC-0018) so chip keys are scoped by line too
+            to stay collision-proof. The live Preview renders a RenderModel of
+            positional segments — paint.tsx keys by index, not item id. */}
+        {displayLines.map((lineItems, li) => (
+          <Box key={li}>
+            <Text color={li === curLine ? 'cyan' : undefined}>
+              {li === curLine ? '▸' : ' '} {li + 1}{' '}
+            </Text>
+            {lineItems.length === 0 ? (
+              <Text dimColor>(empty — press a)</Text>
+            ) : (
+              lineItems.map((it, i) => (
+                <Chip key={`${li}-${it.id}`} item={it} selected={li === curLine && i === idx} />
+              ))
+            )}
+          </Box>
+        ))}
       </Box>
       {mode === 'link' ? (
         <Box flexDirection="column" marginTop={1}>
@@ -345,7 +416,7 @@ export function Items({ config, setConfig, goHome }: ScreenProps): ReactElement 
       )}
       <Text dimColor>
         {mode === 'strip'
-          ? '←/→ select · [/] move · a add · x remove · e edit · l link · u unlink · tab surface · esc back'
+          ? '↑/↓ line · ←/→ item · [/] move · {/} to line · a add · x del · A +line · X −line · e edit · l/u link · tab · esc'
           : mode === 'editor'
             ? '↑/↓ field · ←/→ change · esc done'
             : mode === 'link'
