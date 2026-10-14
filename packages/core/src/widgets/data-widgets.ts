@@ -79,8 +79,8 @@ register({
   type: 'thinking-effort',
   label: 'Effort',
   // The engine only reports an explicit effort level; when none is set it exposes
-  // nothing (there is no session getter to derive one). Match ccstatusline and
-  // label that case "default" rather than inventing a level or hiding the widget.
+  // nothing, so we can't derive a level here. Match ccstatusline and label that
+  // case "default" rather than inventing a level or hiding the widget. See DEC-0026.
   format: ({ snapshot, item }) => labeled(rawOf(item), 'Effort', snapshot.effort || 'default'),
 });
 
