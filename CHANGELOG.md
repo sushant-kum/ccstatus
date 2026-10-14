@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.1](https://github.com/sushant-kum/ccstatus/compare/0.3.0...0.3.1) (2026-10-14)
+
+### Features
+
+- **plugin:** surface /ccstatus operations via argument hint and help ([e91677c](https://github.com/sushant-kum/ccstatus/commit/e91677c5ecf19bfd9950ac539d1afd7c2663f0df))
+
 ## [0.3.0](https://github.com/sushant-kum/ccstatus/compare/0.2.1...0.3.0) (2026-10-13)
 
 ### ⚠ BREAKING CHANGES
