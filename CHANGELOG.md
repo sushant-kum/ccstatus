@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.4.1](https://github.com/sushant-kum/ccstatus/compare/0.4.0...0.4.1) (2026-10-15)
+
+### Features
+
+- **core:** align cells into columns across rows (defaults.alignColumns) ([#16](https://github.com/sushant-kum/ccstatus/issues/16)) ([38b930a](https://github.com/sushant-kum/ccstatus/commit/38b930a368b0cfa4f7cc418eac9f81fc0803763e))
+
 ## [0.4.0](https://github.com/sushant-kum/ccstatus/compare/0.3.5...0.4.0) (2026-10-15)
 
 ### ⚠ BREAKING CHANGES
