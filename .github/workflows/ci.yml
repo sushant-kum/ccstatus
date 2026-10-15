@@ -53,6 +53,13 @@ jobs:
           git diff --exit-code plugin/hooks/core.js plugin/hooks/core.d.ts \
             || { echo "::error::plugin/hooks/core.{js,d.ts} is stale — run 'npm run build:plugin-core' and commit"; exit 1; }
 
+      # generated logo art must be committed AND current
+      - name: Logo art is fresh
+        run: |
+          npm run gen:logo-art
+          git diff --exit-code packages/tui/src/logo-art.ts \
+            || { echo "::error::packages/tui/src/logo-art.ts is stale — run 'npm run gen:logo-art' and commit"; exit 1; }
+
   plugin:
     runs-on: ubuntu-latest
     steps:

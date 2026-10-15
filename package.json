@@ -21,6 +21,7 @@
     "test": "npm run test --workspaces --if-present",
     "typecheck": "tsc -b",
     "build:plugin-core": "tsup --entry.core=packages/core/src/index.ts --format esm --dts --clean=false --out-dir plugin/hooks",
+    "gen:logo-art": "node scripts/gen-logo-art.mjs",
     "test:plugin-pure": "vitest run --config plugin/vitest.config.ts",
     "lint": "eslint . --no-error-on-unmatched-pattern",
     "lint:fix": "eslint . --no-error-on-unmatched-pattern --fix",

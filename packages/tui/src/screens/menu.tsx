@@ -1,6 +1,10 @@
 import { Box, Text, useInput } from 'ink';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
+
+import { LOGO_ART, type LogoCell } from '../logo-art.js';
+import { VERSION } from '../version.js';
+
 const ITEMS = [
   ['items', 'Edit items'],
   ['themes', 'Themes'],
@@ -13,6 +17,61 @@ const ITEMS = [
   ['save', 'Save & quit'],
   ['quit', 'Quit without saving'],
 ] as const;
+
+/**
+ * Whether the terminal advertises 24-bit colour, so the half-block logo renders faithfully.
+ * @returns True when `COLORTERM` indicates truecolor.
+ */
+function isTrueColor(): boolean {
+  const ct = process.env.COLORTERM;
+  return ct === 'truecolor' || ct === '24bit';
+}
+
+/**
+ * Renders one half-block logo cell, picking a glyph that respects transparent halves.
+ * @param root0      - The cell props.
+ * @param root0.cell - The `[top, bottom]` colours (null = transparent).
+ * @returns          The cell element.
+ */
+function Cell({ cell }: { cell: LogoCell }): ReactElement {
+  const [top, bottom] = cell;
+  if (top && bottom) {
+    return (
+      <Text color={top} backgroundColor={bottom}>
+        ▀
+      </Text>
+    );
+  }
+  if (top) {
+    return <Text color={top}>▀</Text>;
+  }
+  if (bottom) {
+    return <Text color={bottom}>▄</Text>;
+  }
+  return <Text> </Text>;
+}
+
+/**
+ * Renders the ccstatus logo as a grid of half-block cells, or a `◀◀` glyph on limited terminals.
+ * @returns The logo element.
+ */
+function Logo(): ReactElement {
+  if (!isTrueColor()) {
+    return <Text color="#c15f3c">◀◀</Text>;
+  }
+  return (
+    <Box flexDirection="column">
+      {LOGO_ART.map((row, r) => (
+        <Box key={r}>
+          {row.map((cell, c) => (
+            <Cell key={c} cell={cell} />
+          ))}
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
 /**
  * Renders the top-level configurator menu with keyboard navigation.
  * @param root0          - The menu props.
@@ -21,7 +80,7 @@ const ITEMS = [
  */
 export function Menu({ onSelect }: { onSelect: (id: string) => void }): ReactElement {
   const [i, setI] = useState(0);
-  useInput((input, key) => {
+  useInput((_input, key) => {
     if (key.upArrow) {
       setI((v) => Math.max(0, v - 1));
     } else if (key.downArrow) {
@@ -35,7 +94,16 @@ export function Menu({ onSelect }: { onSelect: (id: string) => void }): ReactEle
   });
   return (
     <Box flexDirection="column">
-      <Text bold>ccstatus · configurator</Text>
+      <Box marginBottom={1}>
+        <Logo />
+        <Box flexDirection="column" marginLeft={2}>
+          <Text>
+            <Text bold>ccstatus</Text>
+            <Text dimColor> v{VERSION}</Text>
+          </Text>
+          <Text dimColor>configurator</Text>
+        </Box>
+      </Box>
       {ITEMS.map(([id, label], idx) => (
         <Text key={id} color={idx === i ? 'cyan' : undefined}>
           {idx === i ? '▸ ' : '  '}
