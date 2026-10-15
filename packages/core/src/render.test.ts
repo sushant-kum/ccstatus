@@ -172,6 +172,16 @@ test('alignColumns aligns by visual column under separator none', () => {
   expect(fullLine(model, 1)).toBe('Ab   Z'); // "b" padded to the 4-wide merged column, no separators
 });
 
+test('alignColumns aligns by visual column under separator powerline', () => {
+  // Powerline is the most complex compose path (caps + a glyph between every visual cell); with equal
+  // visual-column counts and widths, the last column must still start at the same x on both lines.
+  const model = render(gridCfg('powerline'), snap, { surface: 'band', width: 120 });
+  const z0 = fullLine(model, 0).indexOf('Z');
+  const z1 = fullLine(model, 1).indexOf('Z');
+  expect(z0).toBeGreaterThanOrEqual(0);
+  expect(z1).toBe(z0);
+});
+
 test('positional palette colors every segment and alternates backgrounds', () => {
   const model = render(defaultConfig, snap, { surface: 'band', width: 120 });
   const [line] = model.lines;

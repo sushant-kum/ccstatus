@@ -1441,9 +1441,12 @@ therefore sets its column's width and sibling cells span the full width; items a
 because columns are counted after merging, not before. Padding lands on a run's edge members so a merged
 run stays contiguous and reads as one block. `render` no longer computes or passes a separator width.
 
-This adopts the "align over merged runs" option DEC-0031 had **rejected** — that rejection was wrong: it
-assumed differing merge patterns make columns non-correspondent, but merged pairs keep the visual-column
-_count_ equal across rows even as raw indices diverge, which is exactly when raw-index alignment fails.
+This adopts the **principle** DEC-0031 rejected — treating merged runs, not raw items, as the alignment
+unit — while applying it _before_ `composeLine` merges rather than after (aligning on the merged segment
+list is listed as its own rejected alternative below). DEC-0031 rejected that principle on the grounds
+that differing merge patterns make columns non-correspondent; that reasoning was wrong, because merged
+pairs keep the visual-column _count_ equal across rows even as raw indices diverge, which is exactly when
+raw-index alignment fails.
 
 ### Alternatives considered
 
