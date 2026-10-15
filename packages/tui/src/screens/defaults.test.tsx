@@ -6,7 +6,7 @@ import { Defaults } from './defaults.js';
 
 const tick = (): Promise<void> => new Promise<void>((r) => setTimeout(r, 20));
 
-test('Defaults shows separator/padding and greys align', () => {
+test('Defaults shows separator/padding, align columns, and the align note when off', () => {
   const { lastFrame, unmount } = render(
     <Defaults
       config={defaultConfig}
@@ -21,8 +21,31 @@ test('Defaults shows separator/padding and greys align', () => {
   const f = lastFrame() ?? '';
   expect(f).toContain('separator');
   expect(f).toContain('powerline');
-  expect(f).toContain('align');
-  expect(f).toContain('not yet applied');
+  expect(f).toContain('align columns');
+  expect(f).toContain('off');
+  expect(f).toContain('applies when align columns is on'); // align is inert until columns align
+  unmount();
+});
+
+test('→ on align columns toggles it on via setConfig', async () => {
+  const setConfig = vi.fn();
+  const { stdin, unmount } = render(
+    <Defaults
+      config={defaultConfig}
+      setConfig={setConfig}
+      goHome={() => {
+        /* no-op */
+      }}
+    />
+  );
+  await tick();
+  stdin.write('\u001B[B'); // -> padding
+  stdin.write('\u001B[B'); // -> align columns
+  await tick();
+  stdin.write('\u001B[C'); // toggle on
+  await tick();
+  expect(setConfig.mock.calls.at(-1)?.[0].defaults.alignColumns).toBe(true);
+  expect(defaultConfig.defaults.alignColumns).toBe(false); // prop not mutated
   unmount();
 });
 test('← / → changes focused padding via setConfig without mutating', async () => {

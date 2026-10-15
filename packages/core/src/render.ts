@@ -1,5 +1,5 @@
 import type { Config } from './config/types.js';
-import { lineToCells } from './layout/cells.js';
+import { alignColumns, lineToCells } from './layout/cells.js';
 import { composeLine } from './layout/compose.js';
 import { assignPaletteColors } from './layout/palette.js';
 import type { RenderModel } from './render-model.js';
@@ -41,9 +41,14 @@ export function render(config: Config, snapshot: Snapshot, opts: RenderOptions):
     ? (config.themes[config.theme] ?? [])
     : [];
 
-  const lines = surface.lines
+  let lineCells = surface.lines
     .map((items) => lineToCells(items, config, snapshot, outputs))
-    .filter((cells) => cells.length > 0)
+    .filter((cells) => cells.length > 0);
+  // Pad cells into shared columns across lines before coloring/composing, when enabled.
+  if (config.defaults.alignColumns) {
+    lineCells = alignColumns(lineCells, config.defaults.align);
+  }
+  const lines = lineCells
     .map((cells) => assignPaletteColors(cells, theme))
     .map((cells) => ({
       segments: composeLine(cells, config.defaults.separator, opts.width, config.defaults.glyph),

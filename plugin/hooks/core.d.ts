@@ -71,6 +71,7 @@ interface Defaults {
     align: Align;
     glyph: string;
     invert: boolean;
+    alignColumns: boolean;
 }
 interface Config {
     version: 1;

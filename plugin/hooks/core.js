@@ -28,6 +28,35 @@ function itemToCell(item, config, snapshot, commandOutputs) {
 function lineToCells(items, config, snapshot, commandOutputs) {
   return items.map((it) => itemToCell(it, config, snapshot, commandOutputs)).filter((c) => c !== null);
 }
+function justify(text, width, align2) {
+  const deficit = width - text.length;
+  if (deficit <= 0) {
+    return text;
+  }
+  if (align2 === "right") {
+    return " ".repeat(deficit) + text;
+  }
+  if (align2 === "center") {
+    const left = Math.floor(deficit / 2);
+    return " ".repeat(left) + text + " ".repeat(deficit - left);
+  }
+  return text + " ".repeat(deficit);
+}
+function alignColumns(lines, align2) {
+  const widths = [];
+  for (const cells of lines) {
+    cells.forEach((c, i) => {
+      if (!c.flex) {
+        widths[i] = Math.max(widths[i] ?? 0, c.text.length);
+      }
+    });
+  }
+  return lines.map(
+    (cells) => cells.map(
+      (c, i) => c.flex ? c : { ...c, text: justify(c.text, widths[i] ?? c.text.length, align2) }
+    )
+  );
+}
 
 // packages/core/src/layout/compose.ts
 function mergeCells(cells) {
@@ -477,7 +506,11 @@ function render(config, snapshot, opts) {
   }
   const outputs = opts.commandOutputs ?? {};
   const theme = Object.hasOwn(config.themes, config.theme) ? config.themes[config.theme] ?? [] : [];
-  const lines = surface.lines.map((items) => lineToCells(items, config, snapshot, outputs)).filter((cells) => cells.length > 0).map((cells) => assignPaletteColors(cells, theme)).map((cells) => ({
+  let lineCells = surface.lines.map((items) => lineToCells(items, config, snapshot, outputs)).filter((cells) => cells.length > 0);
+  if (config.defaults.alignColumns) {
+    lineCells = alignColumns(lineCells, config.defaults.align);
+  }
+  const lines = lineCells.map((cells) => assignPaletteColors(cells, theme)).map((cells) => ({
     segments: composeLine(cells, config.defaults.separator, opts.width, config.defaults.glyph)
   }));
   return { lines };
@@ -695,7 +728,14 @@ var defaultConfig = {
   version: 1,
   theme: "default",
   themes: structuredClone(builtinThemes),
-  defaults: { separator: "powerline", padding: 1, align: "left", glyph: "\u2592", invert: false },
+  defaults: {
+    separator: "powerline",
+    padding: 1,
+    align: "left",
+    glyph: "\u2592",
+    invert: false,
+    alignColumns: false
+  },
   surfaces: {
     band: {
       enabled: true,
@@ -4841,7 +4881,8 @@ var configSchema = external_exports.object({
     padding: external_exports.number().int().min(0).catch(1),
     align,
     glyph: external_exports.string().min(1),
-    invert: external_exports.boolean()
+    invert: external_exports.boolean(),
+    alignColumns: external_exports.boolean()
   }).partial().default({}),
   surfaces: external_exports.object({
     band: surfaceLayoutSchema.optional(),

@@ -6,7 +6,14 @@ export const defaultConfig: Config = {
   version: 1,
   theme: 'default',
   themes: structuredClone(builtinThemes),
-  defaults: { separator: 'powerline', padding: 1, align: 'left', glyph: '▒', invert: false },
+  defaults: {
+    separator: 'powerline',
+    padding: 1,
+    align: 'left',
+    glyph: '▒',
+    invert: false,
+    alignColumns: false,
+  },
   surfaces: {
     band: {
       enabled: true,
