@@ -3,14 +3,14 @@
   "owner": { "name": "Sushant Kumar", "url": "https://github.com/sushant-kum" },
   "metadata": {
     "description": "A configurable status bar for Claude Code — band, status line, pane, and threshold toasts from one config.",
-    "version": "0.4.3"
+    "version": "0.4.4"
   },
   "plugins": [
     {
       "name": "ccstatus",
       "source": "./plugin",
       "description": "A configurable status bar for Claude Code; configure it with npx @sushant-kum/ccstatus or /ccstatus.",
-      "version": "0.4.3",
+      "version": "0.4.4",
       "author": { "name": "Sushant Kumar", "url": "https://github.com/sushant-kum" },
       "homepage": "https://github.com/sushant-kum/ccstatus",
       "license": "MIT",

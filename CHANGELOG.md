@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.4.4](https://github.com/sushant-kum/ccstatus/compare/0.4.3...0.4.4) (2026-10-15)
+
+### Bug Fixes
+
+- **core:** align columns by visual column, not raw item index ([#19](https://github.com/sushant-kum/ccstatus/issues/19)) ([13b4348](https://github.com/sushant-kum/ccstatus/commit/13b4348e9e839f2fc9257fe9a76bd6e03737dff5))
+
 ## [0.4.3](https://github.com/sushant-kum/ccstatus/compare/0.4.2...0.4.3) (2026-10-15)
 
 ### Bug Fixes
