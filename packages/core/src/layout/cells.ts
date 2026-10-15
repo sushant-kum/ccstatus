@@ -87,12 +87,19 @@ function justify(text: string, width: number, align: Align): string {
 /**
  * Aligns cells into columns across lines: each positional (non-flex) cell is padded to the widest
  * cell at that index across every line, with content justified by `align`. Flex separators are left
- * untouched (they absorb slack in `composeLine`). Returns new cell arrays; inputs are not mutated.
- * @param lines - The per-line cells of one surface.
- * @param align - How to justify each cell's content within its column.
- * @returns     The lines with their cells padded to shared column widths.
+ * untouched (they absorb slack in `composeLine`).
+ *
+ * A cell that will merge into its predecessor loses the separator other rows have at that boundary
+ * (`composeLine` concatenates merged text directly), which would shift that column and everything
+ * after it left by `sepWidth`. Such a cell prepends `sepWidth` spaces to fill the gap, so columns
+ * stay aligned across rows whether or not a row merges there. Returns new cell arrays; inputs are
+ * not mutated.
+ * @param lines    - The per-line cells of one surface.
+ * @param align    - How to justify each cell's content within its column.
+ * @param sepWidth - The width of one inter-cell separator (0 for `none`, else 1).
+ * @returns        The lines with their cells padded to shared column widths.
  */
-export function alignColumns(lines: Cell[][], align: Align): Cell[][] {
+export function alignColumns(lines: Cell[][], align: Align, sepWidth: number): Cell[][] {
   const widths: number[] = [];
   for (const cells of lines) {
     cells.forEach((c, i) => {
@@ -102,8 +109,15 @@ export function alignColumns(lines: Cell[][], align: Align): Cell[][] {
     });
   }
   return lines.map((cells) =>
-    cells.map((c, i) =>
-      c.flex ? c : { ...c, text: justify(c.text, widths[i] ?? c.text.length, align) }
-    )
+    cells.map((c, i) => {
+      if (c.flex) {
+        return c;
+      }
+      const padded = justify(c.text, widths[i] ?? c.text.length, align);
+      // Mirror composeLine's merge rule: a merge cell folds into a non-flex predecessor, dropping
+      // the separator between them — prepend that width so the column still lines up.
+      const merges = c.merge && i > 0 && !(cells[i - 1]?.flex ?? true);
+      return { ...c, text: merges ? ' '.repeat(sepWidth) + padded : padded };
+    })
   );
 }

@@ -42,7 +42,7 @@ function justify(text, width, align2) {
   }
   return text + " ".repeat(deficit);
 }
-function alignColumns(lines, align2) {
+function alignColumns(lines, align2, sepWidth) {
   const widths = [];
   for (const cells of lines) {
     cells.forEach((c, i) => {
@@ -52,9 +52,15 @@ function alignColumns(lines, align2) {
     });
   }
   return lines.map(
-    (cells) => cells.map(
-      (c, i) => c.flex ? c : { ...c, text: justify(c.text, widths[i] ?? c.text.length, align2) }
-    )
+    (cells) => cells.map((c, i) => {
+      var _a;
+      if (c.flex) {
+        return c;
+      }
+      const padded = justify(c.text, widths[i] ?? c.text.length, align2);
+      const merges = c.merge && i > 0 && !(((_a = cells[i - 1]) == null ? void 0 : _a.flex) ?? true);
+      return { ...c, text: merges ? " ".repeat(sepWidth) + padded : padded };
+    })
   );
 }
 
@@ -508,7 +514,8 @@ function render(config, snapshot, opts) {
   const theme = Object.hasOwn(config.themes, config.theme) ? config.themes[config.theme] ?? [] : [];
   let lineCells = surface.lines.map((items) => lineToCells(items, config, snapshot, outputs)).filter((cells) => cells.length > 0);
   if (config.defaults.alignColumns) {
-    lineCells = alignColumns(lineCells, config.defaults.align);
+    const sepWidth = config.defaults.separator === "none" ? 0 : 1;
+    lineCells = alignColumns(lineCells, config.defaults.align, sepWidth);
   }
   const lines = lineCells.map((cells) => assignPaletteColors(cells, theme)).map((cells) => ({
     segments: composeLine(cells, config.defaults.separator, opts.width, config.defaults.glyph)

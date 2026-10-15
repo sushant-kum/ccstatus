@@ -79,6 +79,7 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0028 | 2026-10-15 | Built-in themes mirror ccstatusline's palettes and are always folded into the config     | Accepted               | core           |
 | DEC-0029 | 2026-10-15 | Column alignment (`defaults.alignColumns`) pads cells into shared columns                | Accepted               | core \| tui    |
 | DEC-0030 | 2026-10-15 | Configurator shows a half-block brand logo and the injected version                      | Accepted               | tui            |
+| DEC-0031 | 2026-10-15 | Column alignment compensates the separator a merged cell drops                           | Accepted               | core           |
 
 ---
 
@@ -1367,3 +1368,42 @@ and exposed as `VERSION` from `src/version.ts` — no runtime file read.
   bundle) but kept in `tsc`, and regenerated with `npm run gen:logo-art` when the brand icon changes.
 - The logo looks best on truecolor terminals; 256/16-colour terminals get chalk-degraded colours or
   the `◀◀` fallback. It adds 8 rows of height to the menu header.
+
+---
+
+## DEC-0031 — Column alignment compensates the separator a merged cell drops
+
+- **Date:** 2026-10-15
+- **Status:** Accepted
+- **Scope:** core
+- **Related:** DEC-0029 (column alignment), DEC-0008 (merge flag)
+
+### Context
+
+With `defaults.alignColumns` on (DEC-0029), a row containing a merged cell misaligned every column
+from the merge onward. `alignColumns` pads each positional cell to its column width, but
+`composeLine`'s `mergeCells` then concatenates a `merge: true` cell's text into its predecessor with
+**no separator** between them, while non-merged rows keep a separator at that boundary. The merged
+cell and everything after it therefore sat one separator-width to the left of the matching columns in
+other rows — e.g. a merged `Reset`+`Weekly` pair left `Weekly` and the cell after it out of line.
+
+### Decision
+
+`alignColumns` now takes the separator width (`render` passes 0 for `separator: 'none'`, else 1). A
+cell that will actually merge — `merge: true`, not the first cell, and with a non-flex predecessor
+(the same condition `mergeCells` uses) — prepends that many spaces to its padded text, filling the gap
+the dropped separator would have occupied. Columns then line up across rows whether or not a given
+row merges at that position.
+
+### Alternatives considered
+
+- **Align after merging, over merged runs** — rejected: merge patterns differ per line, so merged-cell
+  indices no longer correspond across rows and positional alignment breaks differently.
+- **Leave it (document as a limitation)** — rejected: users reasonably expect merged cells to align;
+  it read as a bug.
+
+### Consequences
+
+- The compensating spaces render in the predecessor's colour (merged cells already share it — DEC-0008),
+  so in `powerline` mode the filled gap is a flat block rather than a chevron; widths align, the inner
+  chevron is intentionally absent. Consecutive merges each compensate their own dropped separator.

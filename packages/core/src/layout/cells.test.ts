@@ -60,19 +60,20 @@ test('alignColumns pads each column to its widest cell and left-justifies', () =
       [cell('a'), cell('bbbb')],
       [cell('ccc'), cell('d')],
     ],
-    'left'
+    'left',
+    1
   );
   expect(out[0]?.map((c) => c.text)).toEqual(['a  ', 'bbbb']);
   expect(out[1]?.map((c) => c.text)).toEqual(['ccc', 'd   ']);
 });
 
 test('alignColumns right- and center-justifies by align', () => {
-  expect(alignColumns([[cell('a')], [cell('ccc')]], 'right')[0]?.[0]?.text).toBe('  a');
-  expect(alignColumns([[cell('a')], [cell('cccc')]], 'center')[0]?.[0]?.text).toBe(' a  ');
+  expect(alignColumns([[cell('a')], [cell('ccc')]], 'right', 1)[0]?.[0]?.text).toBe('  a');
+  expect(alignColumns([[cell('a')], [cell('cccc')]], 'center', 1)[0]?.[0]?.text).toBe(' a  ');
 });
 
 test('alignColumns skips flex cells and tolerates ragged lines', () => {
-  const out = alignColumns([[cell('a'), cell('', true), cell('xx')], [cell('ccc')]], 'left');
+  const out = alignColumns([[cell('a'), cell('', true), cell('xx')], [cell('ccc')]], 'left', 1);
   expect(out[0]?.[1]).toEqual({ text: '', merge: false, flex: true }); // flex untouched
   expect(out[0]?.[0]?.text).toBe('a  '); // column 0 widened to width 3 ('ccc')
   expect(out[1]?.[0]?.text).toBe('ccc'); // the widest cell sets the column width
@@ -82,20 +83,36 @@ test('alignColumns skips flex cells and tolerates ragged lines', () => {
 
 test('alignColumns does not mutate the input cells', () => {
   const input = [[cell('a')], [cell('ccc')]];
-  alignColumns(input, 'left');
+  alignColumns(input, 'left', 1);
   expect(input[0]?.[0]?.text).toBe('a');
 });
 
-test('alignColumns pads a merge:true cell by its column and preserves the flag', () => {
-  // merge cells are padded like any non-flex cell; composeLine folds them later (DEC-0029).
+test('alignColumns pads a merge:true cell and prepends the lost separator width (DEC-0031)', () => {
   const merged: Cell = { text: 'x', merge: true, flex: false };
   const out = alignColumns(
     [
       [cell('a'), merged],
       [cell('ccc'), cell('yyyy')],
     ],
-    'left'
+    'left',
+    1
   );
-  expect(out[0]?.[1]).toEqual({ text: 'x   ', merge: true, flex: false }); // col1 width 4, flag kept
+  // col1 width 4; merge drops the separator before it, so one leading space is prepended.
+  expect(out[0]?.[1]).toEqual({ text: ' x   ', merge: true, flex: false });
   expect(out[0]?.[0]?.text).toBe('a  '); // col0 widened to 3
+});
+
+test('alignColumns does not prepend for a merge cell with no mergeable predecessor', () => {
+  const firstMerged: Cell = { text: 'x', merge: true, flex: false }; // merge at index 0: no predecessor
+  const afterFlex: Cell = { text: 'y', merge: true, flex: false }; // predecessor is flex -> no merge
+  const out = alignColumns(
+    [
+      [firstMerged, cell('bb')],
+      [cell('', true), afterFlex],
+    ],
+    'left',
+    1
+  );
+  expect(out[0]?.[0]?.text).toBe('x'); // index 0: not merged, no prepend (col0 width 1)
+  expect(out[1]?.[1]?.text).toBe('y '); // predecessor flex: not merged, no prepend (col1 width 2)
 });
