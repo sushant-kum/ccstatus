@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.5](https://github.com/sushant-kum/ccstatus/compare/0.3.4...0.3.5) (2026-10-15)
+
+### Bug Fixes
+
+- **plugin:** capture effort from turn.step, not classic.Stop ([#14](https://github.com/sushant-kum/ccstatus/issues/14)) ([fa49631](https://github.com/sushant-kum/ccstatus/commit/fa49631848656eb89c9a48bad331c7390bdfaf65))
+
 ## [0.3.4](https://github.com/sushant-kum/ccstatus/compare/0.3.3...0.3.4) (2026-10-15)
 
 ### Features
