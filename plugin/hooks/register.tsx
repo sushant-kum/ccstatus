@@ -437,10 +437,10 @@ export const register: Register = (on) => {
   });
 
   // The active reasoning effort rides on the streaming turn.step event
-  // (TurnStepInput.effort, a bare level), the one function-hook event that carries
+  // (TurnStepInput.effort, a bare level), the function-hook event designed to carry
   // it; turn.complete/tool.call do not, and the classic Stop hook is not dispatched
-  // to the mod live. turn.step is a streaming hook (async generator): read the
-  // effort, then forward the stream unchanged with `yield* next(e)`.
+  // to the mod at runtime (observed via a live probe). turn.step is a streaming hook
+  // (async generator): read the effort, then forward the stream with `yield* next(e)`.
   on('turn.step', async function* ($, e, next) {
     await captureEffort($, e);
     return yield* next(e);
