@@ -1,3 +1,4 @@
+// cspell:ignore bbcc Abbcc
 import { expect, test } from 'vitest';
 
 import { defaultConfig } from './config/defaults.js';
@@ -127,62 +128,48 @@ test('alignColumns off: columns stay ragged (the default no-op path)', () => {
   expect(cellTexts(model, 1)[0]).toBe(' ccc ');
 });
 
-test('alignColumns keeps columns aligned across a row with a merged cell', () => {
+// A merged widget pair (model+effort, weekly+reset in the real bar) collapses two items into one
+// visual cell, so a row with a merge has the SAME number of visual columns as a row of singles. The
+// grid aligns by those visual columns: the merged pair sets its column's width and sibling cells span
+// it; items after a merge still line up though the merge shifted their raw item index (DEC-0032).
+const gridCfg = (separator: 'space' | 'none' | 'powerline'): typeof defaultConfig => {
   const cfg = JSON.parse(JSON.stringify(defaultConfig)) as typeof defaultConfig;
-  cfg.defaults = {
-    ...cfg.defaults,
-    separator: 'space',
-    padding: 0,
-    alignColumns: true,
-    align: 'left',
-  };
+  cfg.defaults = { ...cfg.defaults, separator, padding: 0, alignColumns: true, align: 'left' };
   cfg.surfaces.band.lines = [
+    // row 0: col 1 is a merged pair "bb"+"cc" -> visual cells [A][bbcc][Z]
     [
-      { id: 'a0', type: 'custom-text', text: 'aa' },
+      { id: 'a0', type: 'custom-text', text: 'A' },
       { id: 'a1', type: 'custom-text', text: 'bb' },
-      { id: 'a2', type: 'custom-text', text: 'ZZ' },
+      { id: 'a2', type: 'custom-text', text: 'cc', merge: true },
+      { id: 'a3', type: 'custom-text', text: 'Z' },
     ],
+    // row 1: col 1 is a single widget "b" -> visual cells [A][b][Z]
     [
-      { id: 'b0', type: 'custom-text', text: 'dd' },
-      { id: 'b1', type: 'custom-text', text: 'ee', merge: true }, // merges into b0 (no separator)
-      { id: 'b2', type: 'custom-text', text: 'YY' },
+      { id: 'b0', type: 'custom-text', text: 'A' },
+      { id: 'b1', type: 'custom-text', text: 'b' },
+      { id: 'b2', type: 'custom-text', text: 'Z' },
     ],
   ];
-  const model = render(cfg, snap, { surface: 'band', width: 120 });
-  const full = (li: number): string => model.lines[li]?.segments.map((s) => s.text).join('') ?? '';
-  // the last column must start at the same x on both lines, despite line 2's merged cell
-  const col2 = full(0).indexOf('ZZ');
-  expect(col2).toBeGreaterThanOrEqual(0); // guard against a -1 === -1 false pass
-  expect(full(1).indexOf('YY')).toBe(col2);
+  return cfg;
+};
+const fullLine = (model: ReturnType<typeof render>, li: number): string =>
+  model.lines[li]?.segments.map((s) => s.text).join('') ?? '';
+
+test('alignColumns sizes a visual column to a merged pair and spans sibling cells to it', () => {
+  const model = render(gridCfg('space'), snap, { surface: 'band', width: 120 });
+  // col 1 width = merged "bbcc" (4), so row 1's single "b" pads to 4 and the last column lines up.
+  const z0 = fullLine(model, 0).indexOf('Z');
+  const z1 = fullLine(model, 1).indexOf('Z');
+  expect(z0).toBeGreaterThanOrEqual(0); // guard against a -1 === -1 false pass
+  expect(z1).toBe(z0);
+  expect(fullLine(model, 0)).toBe('A bbcc Z'); // merged pair fills its column
+  expect(fullLine(model, 1)).toBe('A b    Z'); // sibling padded to the merged column width
 });
 
-test('alignColumns with separator none needs no merge compensation (sepWidth 0)', () => {
-  const cfg = JSON.parse(JSON.stringify(defaultConfig)) as typeof defaultConfig;
-  cfg.defaults = {
-    ...cfg.defaults,
-    separator: 'none',
-    padding: 0,
-    alignColumns: true,
-    align: 'left',
-  };
-  cfg.surfaces.band.lines = [
-    [
-      { id: 'a0', type: 'custom-text', text: 'aa' },
-      { id: 'a1', type: 'custom-text', text: 'bb' },
-      { id: 'a2', type: 'custom-text', text: 'ZZ' },
-    ],
-    [
-      { id: 'b0', type: 'custom-text', text: 'dd' },
-      { id: 'b1', type: 'custom-text', text: 'ee', merge: true }, // no separator exists to drop
-      { id: 'b2', type: 'custom-text', text: 'YY' },
-    ],
-  ];
-  const model = render(cfg, snap, { surface: 'band', width: 120 });
-  const full = (li: number): string => model.lines[li]?.segments.map((s) => s.text).join('') ?? '';
-  // sepWidth is 0 under 'none', so the merge cell must NOT gain a phantom leading space.
-  const col2 = full(0).indexOf('ZZ');
-  expect(col2).toBeGreaterThanOrEqual(0);
-  expect(full(1).indexOf('YY')).toBe(col2);
+test('alignColumns aligns by visual column under separator none', () => {
+  const model = render(gridCfg('none'), snap, { surface: 'band', width: 120 });
+  expect(fullLine(model, 0)).toBe('AbbccZ');
+  expect(fullLine(model, 1)).toBe('Ab   Z'); // "b" padded to the 4-wide merged column, no separators
 });
 
 test('positional palette colors every segment and alternates backgrounds', () => {

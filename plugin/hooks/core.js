@@ -28,20 +28,6 @@ function itemToCell(item, config, snapshot, commandOutputs) {
 function lineToCells(items, config, snapshot, commandOutputs) {
   return items.map((it) => itemToCell(it, config, snapshot, commandOutputs)).filter((c) => c !== null);
 }
-function justify(text, width, align2) {
-  const deficit = width - text.length;
-  if (deficit <= 0) {
-    return text;
-  }
-  if (align2 === "right") {
-    return " ".repeat(deficit) + text;
-  }
-  if (align2 === "center") {
-    const left = Math.floor(deficit / 2);
-    return " ".repeat(left) + text + " ".repeat(deficit - left);
-  }
-  return text + " ".repeat(deficit);
-}
 function willMerge(cells, index) {
   var _a;
   const cell = cells[index];
@@ -50,22 +36,46 @@ function willMerge(cells, index) {
   }
   return !(((_a = cells[index - 1]) == null ? void 0 : _a.flex) ?? true);
 }
-function alignColumns(lines, align2, sepWidth) {
+function groupRuns(cells) {
+  const runs = [];
+  cells.forEach((c, i) => {
+    const run = runs[runs.length - 1];
+    if (run && willMerge(cells, i)) {
+      run.push(c);
+    } else {
+      runs.push([c]);
+    }
+  });
+  return runs;
+}
+function alignColumns(lines, align2) {
+  const runWidth = (run) => run.reduce((n, c) => n + c.text.length, 0);
+  const isFlexRun = (run) => {
+    var _a;
+    return run.length === 1 && (((_a = run[0]) == null ? void 0 : _a.flex) ?? false);
+  };
+  const lineRuns = lines.map(groupRuns);
   const widths = [];
-  for (const cells of lines) {
-    cells.forEach((c, i) => {
-      if (!c.flex) {
-        widths[i] = Math.max(widths[i] ?? 0, c.text.length);
+  for (const runs of lineRuns) {
+    runs.forEach((run, j) => {
+      if (!isFlexRun(run)) {
+        widths[j] = Math.max(widths[j] ?? 0, runWidth(run));
       }
     });
   }
-  return lines.map(
-    (cells) => cells.map((c, i) => {
-      if (c.flex) {
-        return c;
+  return lineRuns.map(
+    (runs) => runs.flatMap((run, j) => {
+      if (isFlexRun(run)) {
+        return run.map((c) => ({ ...c }));
       }
-      const padded = justify(c.text, widths[i] ?? c.text.length, align2);
-      return { ...c, text: willMerge(cells, i) ? " ".repeat(sepWidth) + padded : padded };
+      const deficit = (widths[j] ?? runWidth(run)) - runWidth(run);
+      const leftPad = deficit <= 0 ? 0 : align2 === "right" ? deficit : align2 === "center" ? Math.floor(deficit / 2) : 0;
+      const rightPad = deficit <= 0 ? 0 : deficit - leftPad;
+      return run.map((c, k) => {
+        const lead = k === 0 ? " ".repeat(leftPad) : "";
+        const tail = k === run.length - 1 ? " ".repeat(rightPad) : "";
+        return { ...c, text: `${lead}${c.text}${tail}` };
+      });
     })
   );
 }
@@ -520,8 +530,7 @@ function render(config, snapshot, opts) {
   const theme = Object.hasOwn(config.themes, config.theme) ? config.themes[config.theme] ?? [] : [];
   let lineCells = surface.lines.map((items) => lineToCells(items, config, snapshot, outputs)).filter((cells) => cells.length > 0);
   if (config.defaults.alignColumns) {
-    const sepWidth = config.defaults.separator === "none" ? 0 : 1;
-    lineCells = alignColumns(lineCells, config.defaults.align, sepWidth);
+    lineCells = alignColumns(lineCells, config.defaults.align);
   }
   const lines = lineCells.map((cells) => assignPaletteColors(cells, theme)).map((cells) => ({
     segments: composeLine(cells, config.defaults.separator, opts.width, config.defaults.glyph)
