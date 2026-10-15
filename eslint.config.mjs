@@ -247,6 +247,8 @@ export default tseslint.config(
       // See DEC-0003, DEC-0010, DEC-0012.
       'plugin/hooks/core.js',
       'plugin/hooks/core.d.ts',
+      // Generated logo art (npm run gen:logo-art); data rows, not hand-edited. See DEC-0030.
+      'packages/tui/src/logo-art.ts',
     ],
   },
   ...[

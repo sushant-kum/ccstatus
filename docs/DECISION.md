@@ -78,6 +78,7 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0027 | 2026-10-15 | Capture reasoning effort from the streaming `turn.step` hook                             | Accepted               | plugin         |
 | DEC-0028 | 2026-10-15 | Built-in themes mirror ccstatusline's palettes and are always folded into the config     | Accepted               | core           |
 | DEC-0029 | 2026-10-15 | Column alignment (`defaults.alignColumns`) pads cells into shared columns                | Accepted               | core \| tui    |
+| DEC-0030 | 2026-10-15 | Configurator shows a half-block brand logo and the injected version                      | Accepted               | tui            |
 
 ---
 
@@ -1324,3 +1325,45 @@ pane, native status line, and TUI preview all align identically.
   unaffected. Padding widens content, so narrow terminals truncate as before.
 - `defaults.align` is now partially active (column justification only); DEC-0006's "not yet applied"
   note holds for every other use (per-item align, `invert`).
+
+---
+
+## DEC-0030 — Configurator shows a half-block brand logo and the injected version
+
+- **Date:** 2026-10-15
+- **Status:** Accepted
+- **Scope:** tui
+- **Related:** DEC-0010 (committed generated artifacts), DEC-0012 (toolchain)
+
+### Context
+
+The `npx @sushant-kum/ccstatus` configurator menu showed a plain `ccstatus · configurator`
+header — no brand mark and no version, so users couldn't tell which release they were editing with.
+A terminal (Ink renders text/ANSI) can't display the SVG/PNG brand assets, and inline-image
+protocols (iTerm2, Kitty, sixel) are non-portable and clash with Ink's cell model.
+
+### Decision
+
+Render the brand mark as **truecolor half-blocks** (`▀`, foreground = top pixel, background = bottom
+pixel) sampled from the real `brand/ccstatus-app-icon-512.png`, at 16 columns × 8 rows. The grid is
+**generated and committed** as `packages/tui/src/logo-art.ts` by `scripts/gen-logo-art.mjs`
+(`npm run gen:logo-art`), which decodes the PNG with built-in `zlib` and downsamples — no image
+dependency, no Chrome. The menu shows it beside `ccstatus v<VERSION>`, falling back to a `◀◀` glyph
+when `COLORTERM` is not truecolor. The version is injected at build time via a `define`
+(`CCSTATUS_VERSION`) in both `tsup.config.ts` and `vitest.config.ts`, read from the package version
+and exposed as `VERSION` from `src/version.ts` — no runtime file read.
+
+### Alternatives considered
+
+- **Inline terminal image** (iTerm2/Kitty/sixel) — rejected: non-portable and fights Ink's renderer.
+- **Hand-drawn ASCII `«`** — rejected as the primary: it approximates rather than using the asset;
+  kept only as the non-truecolor fallback.
+- **Runtime `require('../package.json')` for the version** — rejected: brittle across the bundled bin
+  vs. source/test layouts; a build-time define is deterministic.
+
+### Consequences
+
+- `logo-art.ts` is a generated artifact: excluded from Prettier/ESLint/cspell (like the plugin
+  bundle) but kept in `tsc`, and regenerated with `npm run gen:logo-art` when the brand icon changes.
+- The logo looks best on truecolor terminals; 256/16-colour terminals get chalk-degraded colours or
+  the `◀◀` fallback. It adds 8 rows of height to the menu header.

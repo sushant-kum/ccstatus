@@ -1,0 +1,162 @@
+#!/usr/bin/env node
+/* eslint-disable no-bitwise, no-console, @typescript-eslint/explicit-function-return-type --
+   Generator script: binary PNG decoding needs bit ops, it prints one CLI status line, and this
+   .mjs cannot carry TypeScript return-type annotations. */
+// Generates packages/tui/src/logo-art.ts: a 16-col x 8-row half-block ('▀') grid sampled from
+// brand/ccstatus-app-icon-512.png, for the configurator menu header. Dependency-free (built-in
+// zlib only). Re-run after changing the brand app icon:  node scripts/gen-logo-art.mjs
+import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import zlib from 'node:zlib';
+
+const root = fileURLToPath(new URL('..', import.meta.url));
+const SRC = `${root}brand/ccstatus-app-icon-512.png`;
+const OUT = `${root}packages/tui/src/logo-art.ts`;
+const COLS = 16; // terminal columns
+const PXH = 16; // sampled pixel rows (2 per text row -> 8 text rows)
+
+/**
+ * Decodes an 8-bit RGB/RGBA non-interlaced PNG into flat RGBA bytes.
+ * @param path - The PNG file path.
+ * @returns    The image dimensions (`w`, `h`) and RGBA pixel bytes (`px`).
+ */
+function decodePng(path) {
+  const buf = readFileSync(path);
+  let p = 8;
+  let w = 0;
+  let h = 0;
+  let bitDepth = 0;
+  let colorType = 0;
+  const idat = [];
+  while (p < buf.length) {
+    const len = buf.readUInt32BE(p);
+    const type = buf.toString('ascii', p + 4, p + 8);
+    const data = buf.subarray(p + 8, p + 8 + len);
+    if (type === 'IHDR') {
+      w = data.readUInt32BE(0);
+      h = data.readUInt32BE(4);
+      bitDepth = data[8];
+      colorType = data[9];
+    } else if (type === 'IDAT') {
+      idat.push(data);
+    } else if (type === 'IEND') {
+      break;
+    }
+    p += 12 + len;
+  }
+  if (bitDepth !== 8 || (colorType !== 6 && colorType !== 2)) {
+    throw new Error(`unsupported PNG bitDepth=${bitDepth} colorType=${colorType}`);
+  }
+  const ch = colorType === 6 ? 4 : 3;
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const stride = w * ch;
+  const out = new Uint8Array(w * h * 4);
+  const prev = new Uint8Array(stride);
+  const line = new Uint8Array(stride);
+  let rp = 0;
+  const paeth = (a, b, c) => {
+    const pp = a + b - c;
+    const pa = Math.abs(pp - a);
+    const pb = Math.abs(pp - b);
+    const pc = Math.abs(pp - c);
+    return pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+  };
+  for (let y = 0; y < h; y++) {
+    const f = raw[rp++];
+    for (let i = 0; i < stride; i++) {
+      const x = raw[rp++];
+      const a = i >= ch ? line[i - ch] : 0;
+      const b = prev[i];
+      const c = i >= ch ? prev[i - ch] : 0;
+      line[i] =
+        (f === 0
+          ? x
+          : f === 1
+            ? x + a
+            : f === 2
+              ? x + b
+              : f === 3
+                ? x + ((a + b) >> 1)
+                : x + paeth(a, b, c)) & 0xff;
+    }
+    for (let x = 0; x < w; x++) {
+      const si = x * ch;
+      const di = (y * w + x) * 4;
+      out[di] = line[si];
+      out[di + 1] = line[si + 1];
+      out[di + 2] = line[si + 2];
+      out[di + 3] = ch === 4 ? line[si + 3] : 255;
+    }
+    prev.set(line);
+  }
+  return { w, h, px: out };
+}
+
+/**
+ * Averages a source block (alpha-weighted) into one `#rrggbb` colour.
+ * @param img - The decoded image.
+ * @param x0  - The block's left pixel column.
+ * @param y0  - The block's top pixel row.
+ * @param bw  - The block width in pixels.
+ * @param bh  - The block height in pixels.
+ * @returns   The averaged colour as a hex string, or null when the block is mostly transparent.
+ */
+function sample(img, x0, y0, bw, bh) {
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  let a = 0;
+  let n = 0;
+  for (let y = y0; y < y0 + bh; y++) {
+    for (let x = x0; x < x0 + bw; x++) {
+      const i = (y * img.w + x) * 4;
+      const al = img.px[i + 3];
+      r += img.px[i] * al;
+      g += img.px[i + 1] * al;
+      b += img.px[i + 2] * al;
+      a += al;
+      n++;
+    }
+  }
+  if (a / n < 128) {
+    return null; // mostly transparent (the tile's rounded corners)
+  }
+  const h = (v) =>
+    Math.round(v / a)
+      .toString(16)
+      .padStart(2, '0');
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+
+const img = decodePng(SRC);
+const bw = Math.floor(img.w / COLS);
+const bh = Math.floor(img.h / PXH);
+// grid[pxRow][col] = color string | null
+const grid = [];
+for (let y = 0; y < PXH; y++) {
+  const row = [];
+  for (let x = 0; x < COLS; x++) {
+    row.push(sample(img, x * bw, y * bh, bw, bh));
+  }
+  grid.push(row);
+}
+// pair pixel rows into half-block text rows: [top, bottom]
+const textRows = [];
+for (let r = 0; r < PXH; r += 2) {
+  const cells = [];
+  for (let c = 0; c < COLS; c++) {
+    const top = grid[r][c];
+    const bottom = grid[r + 1]?.[c] ?? null;
+    cells.push(`[${top ? `'${top}'` : 'null'}, ${bottom ? `'${bottom}'` : 'null'}]`);
+  }
+  textRows.push(`  [${cells.join(', ')}],`);
+}
+
+const banner =
+  '// GENERATED by scripts/gen-logo-art.mjs from brand/ccstatus-app-icon-512.png — do not edit by hand.\n' +
+  "// Each cell is [topHex, bottomHex] for a '▀' half-block (null = transparent); 8 rows x 16 cols.\n";
+const body =
+  `${banner}export type LogoCell = readonly [top: string | null, bottom: string | null];\n` +
+  `export const LOGO_ART: readonly (readonly LogoCell[])[] = [\n${textRows.join('\n')}\n];\n`;
+writeFileSync(OUT, body);
+console.log(`wrote ${OUT} (${textRows.length} rows x ${COLS} cols)`);

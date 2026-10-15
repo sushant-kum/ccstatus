@@ -9,6 +9,10 @@ coverage/
 plugin/hooks/core.js
 plugin/hooks/core.d.ts
 
+# Generated logo art: half-block grid emitted by `npm run gen:logo-art` from the brand PNG;
+# long data rows that Prettier would reflow and the generator would then re-emit. See DEC-0030.
+packages/tui/src/logo-art.ts
+
 # Node
 node_modules/
 package-lock.json
