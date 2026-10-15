@@ -3,6 +3,7 @@ import { expect, mock, test } from 'claude-code/testing';
 
 import { shouldReload } from './config-io.js';
 import { defaultConfig } from './core.js';
+import { effortFromEvent } from './register.js';
 
 test('shouldReload on first stat and on mtime change', () => {
   expect(shouldReload(null, { mtimeMs: 10 })).toBe(true);
@@ -226,15 +227,15 @@ test('refresh persists the snapshot to snapshot.json', async ($, on) => {
   expect(JSON.parse(w.snapshots[0] ?? '{}').version).toBe('1.2.3');
 });
 
-test('the classic Stop hook captures the active reasoning effort into the snapshot', async ($, on) => {
-  const w = setup($, on);
-  on('classic.Stop', async () => ({}) as any); // stand in for the engine beneath the plugin
-  await $.session.start({ cwd: '', surface: 'terminal', isInteractive: true });
-  await w.clock.advance(2100); // settle: first snapshot has no effort yet
-  expect(JSON.parse(w.snapshots.at(-1) ?? '{}').effort).toBeNull();
-  // The active effort rides on the classic Stop input as { active }, not on the
-  // function-hook turn.complete/tool.call events.
-  await ($.classic as any).Stop({ effort: { active: 'xhigh' } });
-  await w.clock.advance(2100); // next refresh writes a snapshot reflecting the capture
-  expect(JSON.parse(w.snapshots.at(-1) ?? '{}').effort).toBe('xhigh');
+// The effort reaches the mod on the streaming turn.step event (confirmed live);
+// the engine test harness can't drive a streaming hook, so the turn.step wiring is
+// guarded by `claude plugin validate` and the shape-parsing is unit-tested here.
+test('effortFromEvent reads the bare turn.step value and the classic { active } shape', () => {
+  expect(effortFromEvent({ effort: 'xhigh' })).toBe('xhigh'); // turn.step bare value
+  expect(effortFromEvent({ effort: 2 })).toBe('2'); // numeric level
+  expect(effortFromEvent({ effort: { active: 'high' } })).toBe('high'); // classic { active }
+  expect(effortFromEvent({ effort: '' })).toBe(''); // empty => none
+  expect(effortFromEvent({ effort: null })).toBe('');
+  expect(effortFromEvent({})).toBe('');
+  expect(effortFromEvent(undefined)).toBe('');
 });

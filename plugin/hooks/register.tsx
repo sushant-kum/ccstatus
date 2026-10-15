@@ -363,23 +363,31 @@ async function togglePane($: EngineInterface): Promise<string> {
 }
 
 /**
- * Capture the active reasoning effort from an engine event into plugin state.
+ * Read the active reasoning effort out of an engine event.
  *
- * The classic Stop hook input carries the active effort as `{ active }`;
- * streaming/function-hook events expose it as a bare value
- * (`low`/`medium`/`high`/`xhigh`/`max`, or a number). Both shapes are read.
+ * The streaming turn.step event exposes it as a bare value
+ * (`low`/`medium`/`high`/`xhigh`/`max`, or a number); the classic-hook input shape
+ * is `{ active }`. Both are read so capture works whichever event carries it.
+ * @param e - The engine event, inspected for an `effort` field.
+ * @returns The effort level as a string, or `''` when the event carries none.
+ */
+export function effortFromEvent(e: unknown): string {
+  const raw = (e as { effort?: unknown })?.effort;
+  if (typeof raw === 'string' || typeof raw === 'number') {
+    return String(raw);
+  }
+  const active = (raw as { active?: unknown })?.active;
+  return typeof active === 'string' ? active : '';
+}
+
+/**
+ * Capture the active reasoning effort from an engine event into plugin state.
  * @param $ - The engine interface.
  * @param e - The engine event, inspected for an `effort` field.
  * @returns A promise that resolves once the effort has been recorded.
  */
 function captureEffort($: EngineInterface, e: unknown): Promise<void> {
-  const raw = (e as { effort?: unknown })?.effort;
-  const value =
-    typeof raw === 'string' || typeof raw === 'number'
-      ? String(raw)
-      : typeof (raw as { active?: unknown })?.active === 'string'
-        ? (raw as { active: string }).active
-        : '';
+  const value = effortFromEvent(e);
   if (value) {
     return update($, effort, () => value).then(
       () => undefined,
@@ -428,12 +436,14 @@ export const register: Register = (on) => {
     return next(e);
   });
 
-  // The active reasoning effort is exposed on the classic Stop hook input
-  // (BaseHookInput.effort.active), not on the function-hook turn.complete/tool.call
-  // events; capture it there each turn so the snapshot reflects it.
-  on('classic.Stop', async ($, e, next) => {
+  // The active reasoning effort rides on the streaming turn.step event
+  // (TurnStepInput.effort, a bare level), the one function-hook event that carries
+  // it; turn.complete/tool.call do not, and the classic Stop hook is not dispatched
+  // to the mod live. turn.step is a streaming hook (async generator): read the
+  // effort, then forward the stream unchanged with `yield* next(e)`.
+  on('turn.step', async function* ($, e, next) {
     await captureEffort($, e);
-    return next(e);
+    return yield* next(e);
   });
 
   on('prompt.compose', async ($, e, next) => {
