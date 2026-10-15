@@ -1,3 +1,4 @@
+// cspell:ignore bbcc
 import { expect, test } from 'vitest';
 
 import type { Config } from '../config/types.js';
@@ -53,6 +54,7 @@ test('lineToCells drops nulls', () => {
 });
 
 const cell = (text: string, flex = false): Cell => ({ text, merge: false, flex });
+const mergeCell = (text: string): Cell => ({ text, merge: true, flex: false });
 
 test('alignColumns pads each column to its widest cell and left-justifies', () => {
   const out = alignColumns(
@@ -60,20 +62,19 @@ test('alignColumns pads each column to its widest cell and left-justifies', () =
       [cell('a'), cell('bbbb')],
       [cell('ccc'), cell('d')],
     ],
-    'left',
-    1
+    'left'
   );
   expect(out[0]?.map((c) => c.text)).toEqual(['a  ', 'bbbb']);
   expect(out[1]?.map((c) => c.text)).toEqual(['ccc', 'd   ']);
 });
 
 test('alignColumns right- and center-justifies by align', () => {
-  expect(alignColumns([[cell('a')], [cell('ccc')]], 'right', 1)[0]?.[0]?.text).toBe('  a');
-  expect(alignColumns([[cell('a')], [cell('cccc')]], 'center', 1)[0]?.[0]?.text).toBe(' a  ');
+  expect(alignColumns([[cell('a')], [cell('ccc')]], 'right')[0]?.[0]?.text).toBe('  a');
+  expect(alignColumns([[cell('a')], [cell('cccc')]], 'center')[0]?.[0]?.text).toBe(' a  ');
 });
 
 test('alignColumns skips flex cells and tolerates ragged lines', () => {
-  const out = alignColumns([[cell('a'), cell('', true), cell('xx')], [cell('ccc')]], 'left', 1);
+  const out = alignColumns([[cell('a'), cell('', true), cell('xx')], [cell('ccc')]], 'left');
   expect(out[0]?.[1]).toEqual({ text: '', merge: false, flex: true }); // flex untouched
   expect(out[0]?.[0]?.text).toBe('a  '); // column 0 widened to width 3 ('ccc')
   expect(out[1]?.[0]?.text).toBe('ccc'); // the widest cell sets the column width
@@ -83,52 +84,82 @@ test('alignColumns skips flex cells and tolerates ragged lines', () => {
 
 test('alignColumns does not mutate the input cells', () => {
   const input = [[cell('a')], [cell('ccc')]];
-  alignColumns(input, 'left', 1);
+  alignColumns(input, 'left');
   expect(input[0]?.[0]?.text).toBe('a');
 });
 
-test('alignColumns pads a merge:true cell and prepends the lost separator width (DEC-0031)', () => {
-  const merged: Cell = { text: 'x', merge: true, flex: false };
+test('alignColumns sizes a visual column to a merged run and pads siblings to it (DEC-0032)', () => {
   const out = alignColumns(
     [
-      [cell('a'), merged],
-      [cell('ccc'), cell('yyyy')],
+      [cell('A'), cell('bb'), mergeCell('cc'), cell('Z')], // visual: [A][bbcc][Z]
+      [cell('A'), cell('b'), cell('Z')], // visual: [A][b][Z]
     ],
-    'left',
-    1
+    'left'
   );
-  // col1 width 4; merge drops the separator before it, so one leading space is prepended.
-  expect(out[0]?.[1]).toEqual({ text: ' x   ', merge: true, flex: false });
-  expect(out[0]?.[0]?.text).toBe('a  '); // col0 widened to 3
+  // visual col 1 width = merged "bb"+"cc" = 4; the merged run is already full, siblings pad up to it.
+  expect(out[0]?.map((c) => c.text)).toEqual(['A', 'bb', 'cc', 'Z']);
+  expect(out[1]?.map((c) => c.text)).toEqual(['A', 'b   ', 'Z']);
 });
 
-test('alignColumns does not prepend for a merge cell with no mergeable predecessor', () => {
-  const firstMerged: Cell = { text: 'x', merge: true, flex: false }; // merge at index 0: no predecessor
-  const afterFlex: Cell = { text: 'y', merge: true, flex: false }; // predecessor is flex -> no merge
+test('alignColumns pads a merged run that is not the widest on its last member (DEC-0032)', () => {
   const out = alignColumns(
     [
-      [firstMerged, cell('bb')],
-      [cell('', true), afterFlex],
+      [cell('A'), cell('bb'), mergeCell('cc')], // merged run width 4
+      [cell('A'), cell('wwwwww')], // single widget width 6 sets the column
     ],
-    'left',
-    1
+    'left'
   );
-  expect(out[0]?.[0]?.text).toBe('x'); // index 0: not merged, no prepend (col0 width 1)
-  expect(out[1]?.[1]?.text).toBe('y '); // predecessor flex: not merged, no prepend (col1 width 2)
+  // deficit of 2 lands on the run's last member so the merged block stays contiguous.
+  expect(out[0]?.map((c) => c.text)).toEqual(['A', 'bb', 'cc  ']);
+  expect(out[1]?.map((c) => c.text)).toEqual(['A', 'wwwwww']);
 });
 
-test('alignColumns prepends for each of consecutive merge cells (DEC-0031)', () => {
-  const m1: Cell = { text: 'b', merge: true, flex: false };
-  const m2: Cell = { text: 'c', merge: true, flex: false }; // predecessor m1 is non-flex -> also merges
+test('alignColumns splits a merged run deficit across its edge members by align (DEC-0032)', () => {
+  const grid = (): Cell[][] => [
+    [cell('A'), cell('bb'), mergeCell('cc')], // merged run width 4
+    [cell('A'), cell('wwwwww')], // width 6 sets col1; deficit on the merged run is 2
+  ];
+  // center: lead member gets floor(2/2)=1 left pad, last member gets the remaining 1 right pad.
+  expect(alignColumns(grid(), 'center')[0]?.map((c) => c.text)).toEqual(['A', ' bb', 'cc ']);
+  // right: the whole deficit prepends to the lead member; the last member is untouched.
+  expect(alignColumns(grid(), 'right')[0]?.map((c) => c.text)).toEqual(['A', '  bb', 'cc']);
+});
+
+test('alignColumns takes the widest run across 3+ lines', () => {
   const out = alignColumns(
     [
-      [cell('a'), m1, m2],
-      [cell('aaa'), cell('bbb'), cell('ccc')],
+      [cell('a'), cell('b')],
+      [cell('a'), cell('bbbbb')], // a middle line sets the column width
+      [cell('a'), cell('bb')],
     ],
-    'left',
-    1
+    'left'
   );
-  // willMerge reads the raw predecessor, so m2's check sees m1 (non-flex) regardless of folding.
-  expect(out[0]?.[1]?.text).toBe(' b  '); // col1 width 3, +1 prepend
-  expect(out[0]?.[2]?.text).toBe(' c  '); // col2 width 3, +1 prepend
+  expect(out[0]?.[1]?.text).toBe('b    '); // padded up to 5
+  expect(out[1]?.[1]?.text).toBe('bbbbb');
+  expect(out[2]?.[1]?.text).toBe('bb   ');
+});
+
+test('alignColumns groups consecutive merges into one run and pads it as a unit (DEC-0032)', () => {
+  const out = alignColumns(
+    [
+      [cell('a'), mergeCell('b'), mergeCell('c'), cell('Z')], // visual: [abc][Z]
+      [cell('aaaa'), cell('Z')], // [aaaa][Z]
+    ],
+    'left'
+  );
+  // col 0 width = max("a"+"b"+"c"=3, "aaaa"=4) = 4; the run's deficit of 1 lands on last member "c".
+  expect(out[0]?.map((c) => c.text)).toEqual(['a', 'b', 'c ', 'Z']);
+  expect(out[1]?.map((c) => c.text)).toEqual(['aaaa', 'Z']);
+});
+
+test('alignColumns does not group a merge cell with no mergeable predecessor', () => {
+  const out = alignColumns(
+    [
+      [mergeCell('x'), cell('bb')], // merge at index 0: no predecessor -> its own run
+      [cell('', true), mergeCell('y')], // predecessor is flex -> not merged, its own run
+    ],
+    'left'
+  );
+  expect(out[0]?.[0]?.text).toBe('x'); // col0 width 1 (x only; the flex row contributes nothing)
+  expect(out[1]?.[1]?.text).toBe('y '); // col1 width 2 (bb); "y" padded, not prepended
 });

@@ -79,7 +79,8 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0028 | 2026-10-15 | Built-in themes mirror ccstatusline's palettes and are always folded into the config     | Accepted               | core           |
 | DEC-0029 | 2026-10-15 | Column alignment (`defaults.alignColumns`) pads cells into shared columns                | Accepted               | core \| tui    |
 | DEC-0030 | 2026-10-15 | Configurator shows a half-block brand logo and the injected version                      | Accepted               | tui            |
-| DEC-0031 | 2026-10-15 | Column alignment compensates the separator a merged cell drops                           | Accepted               | core           |
+| DEC-0031 | 2026-10-15 | Column alignment compensates the separator a merged cell drops                           | Superseded by DEC-0032 | core           |
+| DEC-0032 | 2026-10-15 | Column alignment aligns by visual (post-merge) column                                    | Accepted               | core           |
 
 ---
 
@@ -1374,7 +1375,7 @@ and exposed as `VERSION` from `src/version.ts` — no runtime file read.
 ## DEC-0031 — Column alignment compensates the separator a merged cell drops
 
 - **Date:** 2026-10-15
-- **Status:** Accepted
+- **Status:** Superseded by [DEC-0032](#dec-0032--column-alignment-aligns-by-visual-post-merge-column)
 - **Scope:** core
 - **Related:** DEC-0029 (column alignment), DEC-0020 (merged cells share the preceding palette slot), DEC-0008 (item `merge` flag)
 
@@ -1409,3 +1410,56 @@ merge test is a single shared `willMerge` predicate called by both `mergeCells` 
   palette slot — DEC-0020), so in `powerline` mode the filled gap is a flat block rather than a chevron;
   widths align, the inner chevron is intentionally absent. Consecutive merges each compensate their own
   dropped separator.
+
+---
+
+## DEC-0032 — Column alignment aligns by visual (post-merge) column
+
+- **Date:** 2026-10-15
+- **Status:** Accepted
+- **Scope:** core
+- **Supersedes:** [DEC-0031](#dec-0031--column-alignment-compensates-the-separator-a-merged-cell-drops)
+- **Related:** DEC-0029 (column alignment), DEC-0020 (merged cells share the preceding palette slot)
+
+### Context
+
+DEC-0031 aligned by **raw item index** and tried to patch merges by re-adding the separator width a
+merged cell drops. That only holds when every row merges at the same index. A merged widget pair is two
+items that render as one cell, so a row with a merge has one fewer _visual_ cell than raw items: its
+later items shift left by one index relative to rows of singles. Raw-index alignment then lines up cells
+from different visual columns (e.g. a row's third widget against another row's fourth), and a column
+whose widest entry is a merged pair is sized from only the pair's first widget — sibling cells below it
+span the first widget, not the full merged cell. A real multi-line bar (model+effort merged on one row,
+weekly+reset merged on another, singles elsewhere) came out ragged.
+
+### Decision
+
+`alignColumns` aligns by **visual column**: it groups each line into runs (a lead cell plus the cells
+that `willMerge` into it — the same rendered cells `composeLine` produces), measures each run's combined
+width, and pads every run to the widest run at its visual-column index across all lines. A merged pair
+therefore sets its column's width and sibling cells span the full width; items after a merge line up
+because columns are counted after merging, not before. Padding lands on a run's edge members so a merged
+run stays contiguous and reads as one block. `render` no longer computes or passes a separator width.
+
+This adopts the **principle** DEC-0031 rejected — treating merged runs, not raw items, as the alignment
+unit — while applying it _before_ `composeLine` merges rather than after (aligning on the merged segment
+list is listed as its own rejected alternative below). DEC-0031 rejected that principle on the grounds
+that differing merge patterns make columns non-correspondent; that reasoning was wrong, because merged
+pairs keep the visual-column _count_ equal across rows even as raw indices diverge, which is exactly when
+raw-index alignment fails.
+
+### Alternatives considered
+
+- **Keep raw-index alignment + separator compensation (DEC-0031)** — rejected: cannot size a column from
+  a merged pair's full width, and misaligns every item after a merge when merge positions differ per row.
+- **Align after `composeLine` merges, on the segment list** — rejected: padding would have to be split
+  back across the original cells for per-cell palette colouring, which `composeLine` has already folded;
+  grouping runs up front keeps colouring and width logic in one pass before compose.
+
+### Consequences
+
+- Column width is driven by rendered (merged) cells, matching what the eye groups. The flat-block note
+  from DEC-0031 still holds: pad added to a merged run's trailing member takes the shared slot colour, so
+  in `powerline` mode a widened merged column fills as one block.
+- Lines with unequal visual-column counts (a merge on one row with no matching column on another) still
+  align best-effort per visual index, as before — a strict grid needs matching visual-column counts.

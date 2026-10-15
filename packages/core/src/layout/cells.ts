@@ -63,34 +63,12 @@ export function lineToCells(
 }
 
 /**
- * Pads `text` to `width` columns, justifying by `align` (falls back to left).
- * @param text  - The cell text.
- * @param width - The target column width.
- * @param align - Where the content sits within the column.
- * @returns     The padded text (unchanged when already at/over width).
- */
-function justify(text: string, width: number, align: Align): string {
-  const deficit = width - text.length;
-  if (deficit <= 0) {
-    return text;
-  }
-  if (align === 'right') {
-    return ' '.repeat(deficit) + text;
-  }
-  if (align === 'center') {
-    const left = Math.floor(deficit / 2);
-    return ' '.repeat(left) + text + ' '.repeat(deficit - left);
-  }
-  return text + ' '.repeat(deficit);
-}
-
-/**
  * Decides whether the cell at `index` folds into its predecessor when a line is composed. A cell
  * merges when it is flagged `merge`, is not the first cell, is not itself a flex separator, and its
  * immediate predecessor is a non-flex cell (flex separators absorb slack and never receive a merge).
  *
- * This is the single definition of the merge rule: `composeLine`'s `mergeCells` concatenates on it,
- * and `alignColumns` compensates for the separator it drops, so the two cannot drift apart.
+ * This is the single definition of the merge rule: `composeLine`'s `mergeCells` concatenates on it
+ * and `alignColumns` groups cells into visual columns by it, so the two cannot drift apart.
  * @param cells - The cells of one line, in order.
  * @param index - The position of the cell to test.
  * @returns     `true` when the cell concatenates into the preceding cell.
@@ -104,38 +82,76 @@ export function willMerge(cells: Cell[], index: number): boolean {
 }
 
 /**
- * Aligns cells into columns across lines: each positional (non-flex) cell is padded to the widest
- * cell at that index across every line, with content justified by `align`. Flex separators are left
- * untouched (they absorb slack in `composeLine`).
- *
- * A cell that will merge into its predecessor (`willMerge`) loses the separator other rows have at
- * that boundary (`composeLine` concatenates merged text directly), which would shift that column and
- * everything after it left by `sepWidth`. Such a cell prepends `sepWidth` spaces to fill the gap, so
- * columns stay aligned across rows whether or not a row merges there. Returns new cell arrays;
- * inputs are not mutated.
- * @param lines    - The per-line cells of one surface.
- * @param align    - How to justify each cell's content within its column.
- * @param sepWidth - The width of one inter-cell separator (0 for `none`, else 1).
- * @returns        The lines with their cells padded to shared column widths.
+ * Groups a line's cells into visual columns: a lead cell plus the cells that `willMerge` into it.
+ * `composeLine` later concatenates each such run into a single rendered cell, so a merged pair is one
+ * visual column, not two. A flex separator is always its own singleton run.
+ * @param cells - The cells of one line, in order.
+ * @returns     The runs, each an ordered slice of the input cells.
  */
-export function alignColumns(lines: Cell[][], align: Align, sepWidth: number): Cell[][] {
+function groupRuns(cells: Cell[]): Cell[][] {
+  const runs: Cell[][] = [];
+  cells.forEach((c, i) => {
+    const run = runs[runs.length - 1];
+    if (run && willMerge(cells, i)) {
+      run.push(c);
+    } else {
+      runs.push([c]);
+    }
+  });
+  return runs;
+}
+
+/**
+ * Aligns cells into columns across lines by **visual** column — the rendered cells left after merging,
+ * not the raw item positions. Each line is grouped into runs (`groupRuns`); a run's width is the sum
+ * of its members (merged members concatenate with no separator). Every run is padded to the widest run
+ * at its visual-column index across all lines, justified by `align`, so a merged pair sets its column's
+ * width and sibling cells span the full width — and items after a merge still line up though the merge
+ * shifted their raw index.
+ *
+ * Padding lands on a run's edge members (lead takes the left pad, last takes the right pad), so members
+ * stay contiguous and a merged run reads as one block; each pad takes its member's own palette slot (a
+ * merged member shares the preceding slot — DEC-0020). Flex runs are returned unpadded (they absorb
+ * slack in `composeLine`). The result is a flat cell list per line in the original order, so palette
+ * assignment and `composeLine` see an unchanged cell sequence. Inputs are not mutated.
+ * @param lines - The per-line cells of one surface.
+ * @param align - How to justify each run's content within its column.
+ * @returns     The lines with their cells padded to shared visual-column widths.
+ */
+export function alignColumns(lines: Cell[][], align: Align): Cell[][] {
+  const runWidth = (run: Cell[]): number => run.reduce((n, c) => n + c.text.length, 0);
+  const isFlexRun = (run: Cell[]): boolean => run.length === 1 && (run[0]?.flex ?? false);
+  const lineRuns = lines.map(groupRuns);
+
   const widths: number[] = [];
-  for (const cells of lines) {
-    cells.forEach((c, i) => {
-      if (!c.flex) {
-        widths[i] = Math.max(widths[i] ?? 0, c.text.length);
+  for (const runs of lineRuns) {
+    runs.forEach((run, j) => {
+      if (!isFlexRun(run)) {
+        widths[j] = Math.max(widths[j] ?? 0, runWidth(run));
       }
     });
   }
-  return lines.map((cells) =>
-    cells.map((c, i) => {
-      if (c.flex) {
-        return c;
+
+  return lineRuns.map((runs) =>
+    runs.flatMap((run, j) => {
+      if (isFlexRun(run)) {
+        return run.map((c) => ({ ...c }));
       }
-      const padded = justify(c.text, widths[i] ?? c.text.length, align);
-      // A merge cell folds into its predecessor (willMerge), dropping the separator between them —
-      // prepend that width so the column still lines up with non-merged rows above and below.
-      return { ...c, text: willMerge(cells, i) ? ' '.repeat(sepWidth) + padded : padded };
+      const deficit = (widths[j] ?? runWidth(run)) - runWidth(run);
+      const leftPad =
+        deficit <= 0
+          ? 0
+          : align === 'right'
+            ? deficit
+            : align === 'center'
+              ? Math.floor(deficit / 2)
+              : 0;
+      const rightPad = deficit <= 0 ? 0 : deficit - leftPad;
+      return run.map((c, k) => {
+        const lead = k === 0 ? ' '.repeat(leftPad) : '';
+        const tail = k === run.length - 1 ? ' '.repeat(rightPad) : '';
+        return { ...c, text: `${lead}${c.text}${tail}` };
+      });
     })
   );
 }
