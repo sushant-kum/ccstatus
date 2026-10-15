@@ -83,6 +83,50 @@ test('the palette counter resets per line', () => {
   expect(firstBg(1)).toBe(firstBg(0)); // line 2 did not continue line 1's counter
 });
 
+// Two-line band of fixed-width custom-text cells, laid out with the `space` separator so each
+// rendered 'cell' segment's text is exactly the (possibly padded) cell text — no caps/powerline.
+const twoLineCfg = (
+  alignColumns: boolean,
+  align: 'left' | 'center' | 'right'
+): typeof defaultConfig => {
+  const cfg = JSON.parse(JSON.stringify(defaultConfig)) as typeof defaultConfig;
+  cfg.defaults = { ...cfg.defaults, separator: 'space', alignColumns, align };
+  cfg.surfaces.band.lines = [
+    [
+      { id: 'a0', type: 'custom-text', text: 'a' },
+      { id: 'a1', type: 'custom-text', text: 'bbbb' },
+    ],
+    [
+      { id: 'b0', type: 'custom-text', text: 'ccc' },
+      { id: 'b1', type: 'custom-text', text: 'd' },
+    ],
+  ];
+  return cfg;
+};
+const cellTexts = (model: ReturnType<typeof render>, li: number): string[] =>
+  model.lines[li]?.segments.filter((s) => s.kind === 'cell').map((s) => s.text) ?? [];
+
+test('alignColumns on: cells pad to shared column widths across lines', () => {
+  const model = render(twoLineCfg(true, 'left'), snap, { surface: 'band', width: 120 });
+  const l0 = cellTexts(model, 0);
+  const l1 = cellTexts(model, 1);
+  expect(l0.map((t) => t.length)).toEqual(l1.map((t) => t.length)); // columns line up
+  expect(l0).toEqual([' a   ', ' bbbb ']); // col0 padded 3->5, left-justified
+  expect(l1).toEqual([' ccc ', ' d    ']); // col1 padded 3->6
+});
+
+test('alignColumns threads defaults.align through render (right-justifies)', () => {
+  const model = render(twoLineCfg(true, 'right'), snap, { surface: 'band', width: 120 });
+  expect(cellTexts(model, 0)[0]).toBe('   a '); // padding on the left, not a hard-coded "left"
+  expect(cellTexts(model, 1)[1]).toBe('    d ');
+});
+
+test('alignColumns off: columns stay ragged (the default no-op path)', () => {
+  const model = render(twoLineCfg(false, 'left'), snap, { surface: 'band', width: 120 });
+  expect(cellTexts(model, 0)[0]).toBe(' a '); // unpadded
+  expect(cellTexts(model, 1)[0]).toBe(' ccc ');
+});
+
 test('positional palette colors every segment and alternates backgrounds', () => {
   const model = render(defaultConfig, snap, { surface: 'band', width: 120 });
   const [line] = model.lines;

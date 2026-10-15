@@ -77,6 +77,7 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0026 | 2026-10-14 | Conditional widgets stay visible with a placeholder (ccstatusline parity)                | Accepted               | core           |
 | DEC-0027 | 2026-10-15 | Capture reasoning effort from the streaming `turn.step` hook                             | Accepted               | plugin         |
 | DEC-0028 | 2026-10-15 | Built-in themes mirror ccstatusline's palettes and are always folded into the config     | Accepted               | core           |
+| DEC-0029 | 2026-10-15 | Column alignment (`defaults.alignColumns`) pads cells into shared columns                | Accepted               | core \| tui    |
 
 ---
 
@@ -1280,3 +1281,46 @@ built-in is added. A saved active-theme name that was renamed resolves via a sma
   built-in set (deleting one re-appears on load), but may still add and edit their own themes.
 - Every saved config now carries all 11 built-ins. Existing configs upgrade on next load; a config
   that had hand-edited a built-in keeps its edit under that name.
+
+---
+
+## DEC-0029 — Column alignment (`defaults.alignColumns`) pads cells into shared columns
+
+- **Date:** 2026-10-15
+- **Status:** Accepted
+- **Scope:** core | tui
+- **Related:** DEC-0006 (deferred `align`/`invert`), DEC-0002 (shared core)
+
+### Context
+
+Each line of a surface was laid out independently, so a multi-line band/pane never lined its cells up
+into columns — cell 2 of row 1 rarely started at the same x as cell 2 of row 2. The `defaults.align`
+field existed but had no effect (the TUI showed it as "stored, not yet applied"), so there was no way
+to justify content either.
+
+### Decision
+
+Add a boolean `defaults.alignColumns` (default `false`). When on, `render` runs a new
+`alignColumns(lines, align)` pass over all of a surface's cell rows before coloring/composing: for
+each positional cell index it finds the widest cell across every line and pads the rest to that width,
+justifying content with `defaults.align` (`left`→pad right, `right`→pad left, `center`→split). This
+also finally gives `defaults.align` an effect (within aligned columns); it stays inert otherwise.
+The TUI Defaults screen gains an `align columns` toggle and makes `align` editable, noting it only
+applies while alignment is on. Because both painters go through core's `render` (DEC-0002), the band,
+pane, native status line, and TUI preview all align identically.
+
+### Alternatives considered
+
+- **Per-item `align` justification** — deferred: v1 uses the single `defaults.align`; per-item
+  alignment remains unimplemented (still per DEC-0006).
+- **A per-surface flag** — rejected for v1: a global default is simpler and matches the other
+  `defaults` fields; revisit if surfaces need to differ.
+
+### Consequences
+
+- Flex separators are excluded from column widths and never padded (they still absorb slack in
+  `composeLine`); a row mixing flex with column alignment may not form a perfect grid.
+- Columns are positional by cell index; merged cells fold after padding. Single-line surfaces are
+  unaffected. Padding widens content, so narrow terminals truncate as before.
+- `defaults.align` is now partially active (column justification only); DEC-0006's "not yet applied"
+  note holds for every other use (per-item align, `invert`).

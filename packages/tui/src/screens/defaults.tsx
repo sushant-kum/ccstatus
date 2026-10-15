@@ -1,4 +1,4 @@
-import type { SeparatorMode } from '@ccstatus/core';
+import type { Align, SeparatorMode } from '@ccstatus/core';
 import { Box, Text, useInput } from 'ink';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
@@ -6,10 +6,11 @@ import type { ReactElement } from 'react';
 import type { ScreenProps } from '../app.js';
 
 const SEPARATORS: SeparatorMode[] = ['powerline', 'space', 'none'];
-const FIELDS = ['separator', 'padding'] as const;
+const ALIGNS: Align[] = ['left', 'center', 'right'];
+const FIELDS = ['separator', 'padding', 'alignColumns', 'align'] as const;
 
 /**
- * Renders the global defaults screen for editing separator and padding.
+ * Renders the global defaults screen for editing separator, padding, and column alignment.
  * @param root0           - The screen props.
  * @param root0.config    - The current config.
  * @param root0.setConfig - Callback to replace the config immutably.
@@ -25,11 +26,17 @@ export function Defaults({ config, setConfig, goHome }: ScreenProps): ReactEleme
       const i = SEPARATORS.indexOf(d.separator);
       const next = SEPARATORS[(i + dir + SEPARATORS.length) % SEPARATORS.length] ?? d.separator;
       setConfig({ ...config, defaults: { ...d, separator: next } });
-    } else {
+    } else if (field === 'padding') {
       const next = Math.min(4, Math.max(0, d.padding + dir));
       if (next !== d.padding) {
         setConfig({ ...config, defaults: { ...d, padding: next } });
       }
+    } else if (field === 'alignColumns') {
+      setConfig({ ...config, defaults: { ...d, alignColumns: !d.alignColumns } });
+    } else {
+      const i = ALIGNS.indexOf(d.align);
+      const next = ALIGNS[(i + dir + ALIGNS.length) % ALIGNS.length] ?? d.align;
+      setConfig({ ...config, defaults: { ...d, align: next } });
     }
   };
   useInput((_i, key) => {
@@ -45,10 +52,11 @@ export function Defaults({ config, setConfig, goHome }: ScreenProps): ReactEleme
       cycle(1);
     }
   });
-  const row = (idx: number, name: string, value: string): ReactElement => (
+  const row = (idx: number, name: string, value: string, note?: string): ReactElement => (
     <Text color={focus === idx ? 'cyan' : undefined}>
       {focus === idx ? '▸ ' : '  '}
       {name}: {value}
+      {note ? <Text color="gray"> {note}</Text> : null}
     </Text>
   );
   return (
@@ -56,7 +64,9 @@ export function Defaults({ config, setConfig, goHome }: ScreenProps): ReactEleme
       <Text bold>Global defaults</Text>
       {row(0, 'separator', d.separator)}
       {row(1, 'padding', String(d.padding))}
-      <Text color="gray"> align: {d.align} (stored, not yet applied)</Text>
+      {row(2, 'align columns', d.alignColumns ? 'on' : 'off')}
+      {/* align only takes effect while align-columns is on (it justifies content within each column) */}
+      {row(3, 'align', d.align, d.alignColumns ? undefined : '(applies when align columns is on)')}
       <Text dimColor>↑/↓ field · ←/→ change · esc back</Text>
     </Box>
   );

@@ -1,5 +1,5 @@
 import type { ColorIndex } from '../colors.js';
-import type { Config, Item } from '../config/types.js';
+import type { Align, Config, Item } from '../config/types.js';
 import type { Snapshot } from '../snapshot.js';
 import { registry } from '../widgets/registry.js';
 
@@ -60,4 +60,50 @@ export function lineToCells(
   return items
     .map((it) => itemToCell(it, config, snapshot, commandOutputs))
     .filter((c): c is Cell => c !== null);
+}
+
+/**
+ * Pads `text` to `width` columns, justifying by `align` (falls back to left).
+ * @param text  - The cell text.
+ * @param width - The target column width.
+ * @param align - Where the content sits within the column.
+ * @returns     The padded text (unchanged when already at/over width).
+ */
+function justify(text: string, width: number, align: Align): string {
+  const deficit = width - text.length;
+  if (deficit <= 0) {
+    return text;
+  }
+  if (align === 'right') {
+    return ' '.repeat(deficit) + text;
+  }
+  if (align === 'center') {
+    const left = Math.floor(deficit / 2);
+    return ' '.repeat(left) + text + ' '.repeat(deficit - left);
+  }
+  return text + ' '.repeat(deficit);
+}
+
+/**
+ * Aligns cells into columns across lines: each positional (non-flex) cell is padded to the widest
+ * cell at that index across every line, with content justified by `align`. Flex separators are left
+ * untouched (they absorb slack in `composeLine`). Returns new cell arrays; inputs are not mutated.
+ * @param lines - The per-line cells of one surface.
+ * @param align - How to justify each cell's content within its column.
+ * @returns     The lines with their cells padded to shared column widths.
+ */
+export function alignColumns(lines: Cell[][], align: Align): Cell[][] {
+  const widths: number[] = [];
+  for (const cells of lines) {
+    cells.forEach((c, i) => {
+      if (!c.flex) {
+        widths[i] = Math.max(widths[i] ?? 0, c.text.length);
+      }
+    });
+  }
+  return lines.map((cells) =>
+    cells.map((c, i) =>
+      c.flex ? c : { ...c, text: justify(c.text, widths[i] ?? c.text.length, align) }
+    )
+  );
 }

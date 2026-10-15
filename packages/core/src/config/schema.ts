@@ -45,6 +45,7 @@ export const configSchema = z.object({
       align,
       glyph: z.string().min(1),
       invert: z.boolean(),
+      alignColumns: z.boolean(),
     })
     .partial()
     .default({}),
