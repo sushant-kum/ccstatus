@@ -26,6 +26,7 @@ test('menu shows the wordmark, version, and the half-block logo', () => {
   expect(f).toContain(`v${VERSION}`);
   expect(VERSION).toMatch(/^\d+\.\d+\.\d+/); // injected real version, not "undefined"
   expect(f).toContain('▀'); // the truecolor half-block logo rendered
+  expect(f).toContain('▄'); // bottom-only cells use the lower half-block glyph
   expect(f).toContain('Edit items'); // menu items still present
   unmount();
 });
@@ -47,5 +48,29 @@ test('enter selects the focused item', async () => {
   stdin.write('\r');
   await tick();
   expect(onSelect).toHaveBeenCalledWith('items'); // first item focused by default
+  unmount();
+});
+
+test('down-arrow moves focus before enter selects', async () => {
+  const onSelect = vi.fn();
+  const { stdin, unmount } = render(<Menu onSelect={onSelect} />);
+  await tick();
+  stdin.write('\u001B[B'); // down -> second item
+  await tick();
+  stdin.write('\r');
+  await tick();
+  expect(onSelect).toHaveBeenCalledWith('themes');
+  unmount();
+});
+
+test('up-arrow at the top clamps focus to the first item', async () => {
+  const onSelect = vi.fn();
+  const { stdin, unmount } = render(<Menu onSelect={onSelect} />);
+  await tick();
+  stdin.write('\u001B[A'); // up at the top -> stays on the first item
+  await tick();
+  stdin.write('\r');
+  await tick();
+  expect(onSelect).toHaveBeenCalledWith('items');
   unmount();
 });

@@ -27,6 +27,7 @@ function decodePng(path) {
   let h = 0;
   let bitDepth = 0;
   let colorType = 0;
+  let interlace = 0;
   const idat = [];
   while (p < buf.length) {
     const len = buf.readUInt32BE(p);
@@ -37,6 +38,7 @@ function decodePng(path) {
       h = data.readUInt32BE(4);
       bitDepth = data[8];
       colorType = data[9];
+      interlace = data[12];
     } else if (type === 'IDAT') {
       idat.push(data);
     } else if (type === 'IEND') {
@@ -44,8 +46,10 @@ function decodePng(path) {
     }
     p += 12 + len;
   }
-  if (bitDepth !== 8 || (colorType !== 6 && colorType !== 2)) {
-    throw new Error(`unsupported PNG bitDepth=${bitDepth} colorType=${colorType}`);
+  if (bitDepth !== 8 || (colorType !== 6 && colorType !== 2) || interlace !== 0) {
+    throw new Error(
+      `unsupported PNG bitDepth=${bitDepth} colorType=${colorType} interlace=${interlace}`
+    );
   }
   const ch = colorType === 6 ? 4 : 3;
   const raw = zlib.inflateSync(Buffer.concat(idat));

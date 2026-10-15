@@ -1356,7 +1356,7 @@ and exposed as `VERSION` from `src/version.ts` — no runtime file read.
 ### Alternatives considered
 
 - **Inline terminal image** (iTerm2/Kitty/sixel) — rejected: non-portable and fights Ink's renderer.
-- **Hand-drawn ASCII `«`** — rejected as the primary: it approximates rather than using the asset;
+- **Hand-drawn `◀◀` glyph** — rejected as the primary: it approximates rather than using the asset;
   kept only as the non-truecolor fallback.
 - **Runtime `require('../package.json')` for the version** — rejected: brittle across the bundled bin
   vs. source/test layouts; a build-time define is deterministic.

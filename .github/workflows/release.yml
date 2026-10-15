@@ -78,6 +78,11 @@ jobs:
           npm run build:plugin-core
           git diff --exit-code plugin/hooks/core.js plugin/hooks/core.d.ts \
             || { echo "::error::plugin/hooks/core.{js,d.ts} is stale — run 'npm run build:plugin-core' and commit"; exit 1; }
+      - name: Logo art is fresh
+        run: |
+          npm run gen:logo-art
+          git diff --exit-code packages/tui/src/logo-art.ts \
+            || { echo "::error::packages/tui/src/logo-art.ts is stale — run 'npm run gen:logo-art' and commit"; exit 1; }
 
       # A prerelease tag (`X.Y.Z-<label>.<n>`, e.g. `0.2.0-rc.1`) must not become the
       # npm `latest` dist-tag or the "Latest" GitHub Release. Derive the channel
