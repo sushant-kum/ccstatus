@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.4.0](https://github.com/sushant-kum/ccstatus/compare/0.3.5...0.4.0) (2026-10-15)
+
+### ⚠ BREAKING CHANGES
+
+- **core:** adopt ccstatusline's theme palettes; always fold built-ins ([#15](https://github.com/sushant-kum/ccstatus/issues/15))
+
+### Features
+
+- **core:** adopt ccstatusline's theme palettes; always fold built-ins ([#15](https://github.com/sushant-kum/ccstatus/issues/15)) ([cd38126](https://github.com/sushant-kum/ccstatus/commit/cd3812643cdad17047c8f41fafd64aa62d0d0bf9))
+
 ## [0.3.5](https://github.com/sushant-kum/ccstatus/compare/0.3.4...0.3.5) (2026-10-15)
 
 ### Bug Fixes
