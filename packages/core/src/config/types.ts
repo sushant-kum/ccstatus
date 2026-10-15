@@ -102,8 +102,9 @@ export interface Defaults {
   align: Align;
   glyph: string;
   invert: boolean;
-  // When true, each positional cell is padded to the widest cell at that index across all lines of
-  // a surface, so cells line up into columns; content is justified within its column by `align`.
+  // When true, each positional cell (flex separators excepted) is padded to the widest cell at that
+  // index across all lines of a surface, so cells line up into columns; content is justified within
+  // its column by `align`.
   alignColumns: boolean;
 }
 

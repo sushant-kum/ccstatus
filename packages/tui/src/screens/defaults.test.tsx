@@ -48,6 +48,29 @@ test('→ on align columns toggles it on via setConfig', async () => {
   expect(defaultConfig.defaults.alignColumns).toBe(false); // prop not mutated
   unmount();
 });
+
+test('→ on align cycles the justification (left → center)', async () => {
+  const setConfig = vi.fn();
+  const { stdin, unmount } = render(
+    <Defaults
+      config={defaultConfig}
+      setConfig={setConfig}
+      goHome={() => {
+        /* no-op */
+      }}
+    />
+  );
+  await tick();
+  stdin.write('\u001B[B'); // -> padding
+  stdin.write('\u001B[B'); // -> align columns
+  stdin.write('\u001B[B'); // -> align
+  await tick();
+  stdin.write('\u001B[C'); // cycle left -> center
+  await tick();
+  expect(setConfig.mock.calls.at(-1)?.[0].defaults.align).toBe('center');
+  expect(defaultConfig.defaults.align).toBe('left'); // prop not mutated
+  unmount();
+});
 test('← / → changes focused padding via setConfig without mutating', async () => {
   const setConfig = vi.fn();
   const before = defaultConfig.defaults.padding;

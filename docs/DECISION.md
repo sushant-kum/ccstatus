@@ -1295,7 +1295,8 @@ built-in is added. A saved active-theme name that was renamed resolves via a sma
 
 Each line of a surface was laid out independently, so a multi-line band/pane never lined its cells up
 into columns — cell 2 of row 1 rarely started at the same x as cell 2 of row 2. The `defaults.align`
-field existed but was deferred/unapplied (DEC-0006), so there was no way to justify content either.
+field existed but had no effect (the TUI showed it as "stored, not yet applied"), so there was no way
+to justify content either.
 
 ### Decision
 

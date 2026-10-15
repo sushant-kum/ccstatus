@@ -85,3 +85,17 @@ test('alignColumns does not mutate the input cells', () => {
   alignColumns(input, 'left');
   expect(input[0]?.[0]?.text).toBe('a');
 });
+
+test('alignColumns pads a merge:true cell by its column and preserves the flag', () => {
+  // merge cells are padded like any non-flex cell; composeLine folds them later (DEC-0029).
+  const merged: Cell = { text: 'x', merge: true, flex: false };
+  const out = alignColumns(
+    [
+      [cell('a'), merged],
+      [cell('ccc'), cell('yyyy')],
+    ],
+    'left'
+  );
+  expect(out[0]?.[1]).toEqual({ text: 'x   ', merge: true, flex: false }); // col1 width 4, flag kept
+  expect(out[0]?.[0]?.text).toBe('a  '); // col0 widened to 3
+});

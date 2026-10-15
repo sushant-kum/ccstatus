@@ -63,7 +63,7 @@ export function lineToCells(
 }
 
 /**
- * Pads `text` to `width` columns, justifying by `align` (default left).
+ * Pads `text` to `width` columns, justifying by `align` (falls back to left).
  * @param text  - The cell text.
  * @param width - The target column width.
  * @param align - Where the content sits within the column.
