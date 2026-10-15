@@ -504,7 +504,27 @@ function toAnsi(model) {
 
 // packages/core/src/theme/themes.ts
 var mk = (rows) => rows.map(([fg, bg]) => ({ fg: asIndex(fg), bg: asIndex(bg) }));
+var zip = (fg, bg) => fg.map((f, i) => ({ fg: asIndex(f), bg: asIndex(bg[i] ?? f) }));
 var builtinThemes = {
+  default: mk([
+    [16, 44],
+    [231, 20],
+    [16, 226],
+    [231, 240],
+    [16, 40]
+  ]),
+  nord: zip([16, 254, 231, 231, 16], [73, 239, 25, 96, 152]),
+  "nord-aurora": zip([231, 16, 231, 16, 16], [131, 220, 68, 108, 176]),
+  monokai: zip([235, 255, 235, 16, 235], [148, 238, 186, 141, 81]),
+  solarized: zip([231, 234, 254, 16, 234], [33, 136, 240, 37, 254]),
+  minimal: zip([255, 232, 255, 232, 252], [240, 251, 233, 248, 236]),
+  dracula: zip([235, 235, 235, 235, 231], [141, 253, 204, 117, 236]),
+  catppuccin: zip([235, 255, 235, 235, 235], [176, 238, 150, 210, 111]),
+  gruvbox: zip([16, 235, 235, 16, 235], [167, 214, 246, 109, 142]),
+  onedark: zip([235, 251, 235, 16, 235], [75, 237, 114, 204, 180]),
+  tokyonight: zip([16, 234, 16, 234, 234], [111, 248, 176, 221, 80])
+};
+var legacyBuiltinThemes = {
   default: mk([
     [16, 44],
     [231, 20],
@@ -593,6 +613,33 @@ var builtinThemes = {
     [231, 16]
   ])
 };
+var legacyThemeAliases = {
+  "one-dark": "onedark",
+  "tokyo-night": "tokyonight",
+  classic: "default"
+};
+function sameTheme(a, b) {
+  return a.length === b.length && a.every((s, i) => {
+    var _a, _b;
+    return s.fg === ((_a = b[i]) == null ? void 0 : _a.fg) && s.bg === ((_b = b[i]) == null ? void 0 : _b.bg);
+  });
+}
+function withBuiltinThemes(saved) {
+  const out = {};
+  for (const [name, theme] of Object.entries(saved)) {
+    const legacy2 = legacyBuiltinThemes[name];
+    if (legacy2 && sameTheme(theme, legacy2)) {
+      continue;
+    }
+    out[name] = theme;
+  }
+  for (const [name, theme] of Object.entries(builtinThemes)) {
+    if (!Object.hasOwn(out, name)) {
+      out[name] = theme.map((s) => ({ ...s }));
+    }
+  }
+  return out;
+}
 
 // packages/core/src/toast.ts
 var TOAST_FIELDS = {
@@ -5009,15 +5056,17 @@ function loadConfig(raw) {
     }
     return layout;
   };
-  const cleaned = cleanThemes(p.themes, warn);
-  const themes = Object.keys(cleaned).length ? cleaned : clone2(builtinThemes);
-  if (!Object.hasOwn(themes, "default")) {
-    themes["default"] = clone2(builtinThemes["default"] ?? []);
-  }
+  const themes = withBuiltinThemes(cleanThemes(p.themes, warn));
   let theme = p.theme;
   if (!Object.hasOwn(themes, theme)) {
-    warn(`theme "${theme}" not found; using "default"`);
-    theme = "default";
+    const alias = legacyThemeAliases[theme];
+    if (alias && Object.hasOwn(themes, alias)) {
+      warn(`theme "${theme}" was renamed; using "${alias}"`);
+      theme = alias;
+    } else {
+      warn(`theme "${theme}" not found; using "default"`);
+      theme = "default";
+    }
   }
   const config = {
     version: 1,
