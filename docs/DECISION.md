@@ -75,6 +75,7 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0024 | 2026-10-13 | Breaking migration to 256-color indices                                                  | Accepted               | core           |
 | DEC-0025 | 2026-10-13 | Branded `ColorIndex` type minted only by `isColorIndex` / `asIndex`                      | Accepted               | core \| tui    |
 | DEC-0026 | 2026-10-14 | Conditional widgets stay visible with a placeholder (ccstatusline parity)                | Accepted               | core           |
+| DEC-0027 | 2026-10-15 | Capture reasoning effort from the streaming `turn.step` hook                             | Accepted               | plugin         |
 
 ---
 
@@ -1188,3 +1189,47 @@ in-repo placeholder pattern already used by `git-branch` and `git-root-dir` (`||
 - `thinking-effort` and `git-worktree` deliberately deviate from the "`null` = omit" convention (DEC-0008 note /
   CLAUDE.md); the deviation is documented inline on each `format`.
 - The ccstatusline-parity label `default` is now part of the ported-widget behavior tracked by DEC-0015.
+
+---
+
+## DEC-0027 — Capture reasoning effort from the streaming `turn.step` hook
+
+- **Date:** 2026-10-15
+- **Status:** Accepted
+- **Scope:** plugin
+- **Related:** DEC-0026, FLOW-0001, PR #14 (supersedes the `classic.Stop` capture from PR #13)
+
+### Context
+
+The `thinking-effort` widget needs the session's active reasoning effort, but the mod never captured
+it: it read `e.effort?.active` on the `turn.complete` and `tool.call` function-hook events, neither of
+which carries `effort`. PR #13 moved the capture to a `classic.Stop` hook (the classic Stop input does
+carry `effort.active`), which passed the engine test — but the test only _manufactures_ that event. A
+live hot-reload probe showed `classic.Stop` is **never dispatched to the mod at runtime**, so
+`snapshot.effort` stayed `null` even with `CLAUDE_EFFORT=xhigh`.
+
+### Decision
+
+Capture the effort on the streaming **`turn.step`** event — the one function-hook event the engine
+puts the active effort on (`TurnStepInput.effort`, a bare `low|medium|high|xhigh|max` value). It is an
+async-generator hook: read the effort, then forward the stream unchanged with `yield* next(e)`. A pure
+`effortFromEvent` helper handles both the bare value and the classic `{ active }` shape and is
+unit-tested; the streaming wiring is guarded by `claude plugin validate` (the harness cannot drive a
+streaming hook) and was confirmed by the live probe.
+
+### Alternatives considered
+
+- **`classic.Stop` hook (PR #13)** — rejected: not dispatched to the mod live; the engine test gave a
+  false positive because it raises the event directly.
+- **Read `CLAUDE_EFFORT` from the environment** — rejected: the var is injected only into spawned tool
+  shells; it is absent from the engine process env (so `$.env.get` can't see it) and from
+  `$.process.run` children (the probe showed `<unset>`).
+
+### Consequences
+
+- Effort now populates once a model turn runs (turn.step fires mid-turn); it is not available from
+  slash-commands alone.
+- The `{ active }` branch of `effortFromEvent` is now defensive only — no live mod path produces it —
+  but is kept and tested as a documented fallback.
+- The streaming `yield* next(e)` forwarding cannot be exercised by `claude plugin test`; that is an
+  accepted, named coverage gap (see FLOW-0001).

@@ -43,7 +43,7 @@ already explains, or a sequence that exists only inside one file.
 
 | ID        | Title                                  | Scope         | Last verified |
 | --------- | -------------------------------------- | ------------- | ------------- |
-| FLOW-0001 | Mod renders the above-prompt band      | plugin        | 2026-10-04    |
+| FLOW-0001 | Mod renders the above-prompt band      | plugin        | 2026-10-15    |
 | FLOW-0002 | Config edit → shared file → mod reload | tui \| plugin | 2026-10-12    |
 | FLOW-0003 | Bundle core into the plugin            | repo-wide     | 2026-10-04    |
 | FLOW-0004 | Release & distribution                 | repo-wide     | 2026-10-12    |
@@ -92,11 +92,11 @@ cross-service assumptions.
 ## FLOW-0001 — Mod renders the above-prompt band
 
 - **Scope:** plugin
-- **Trigger:** session start, then every 2s tick, and every `turn.complete`; `tool.call` captures the
-  thinking-effort only (it does not refresh). The engine also calls the `ui.render` hook whenever it
-  paints the `AbovePrompt` site.
+- **Trigger:** session start, then every 2s tick, and every `turn.complete`; the streaming `turn.step`
+  hook captures the thinking-effort only (it does not refresh). The engine also calls the `ui.render`
+  hook whenever it paints the `AbovePrompt` site.
 - **Outcome:** the configured band is painted above the prompt from a fresh snapshot.
-- **Last verified:** 2026-10-04
+- **Last verified:** 2026-10-15
 - **Related:** DEC-0001, [FLOW-0002](#flow-0002--config-edit--shared-file--mod-reload)
 
 ### Participants
@@ -118,12 +118,14 @@ cross-service assumptions.
 2. Each tick (and each `turn.complete`) runs `refresh($)`: a re-entrancy-guarded
    function that gathers `version`/`model`/`cwd`/`usage` via `$.session.*` and git fields via
    `$.process.run(<git script>)` → `parseGit`, assembles them with `buildSnapshot`, and writes the
-   `snapshot` atom. `tool.call` and `turn.complete` both first capture the thinking-effort into the
-   `effort` atom; only `turn.complete` then calls `refresh`.
-3. `refresh` also persists the snapshot JSON to `snapshotPath` (for the TUI preview — see FLOW-0002)
-   and applies the status-line surface (`$.ui.status(toAnsi(render(...)))`, rendered at
-   `snap.terminalWidth || 200`; `terminalWidth` is currently always `0`, so the status line uses the
-   fixed 200-column fallback — deferred) and toast rules.
+   `snapshot` atom. The thinking-effort is captured separately on the streaming `turn.step` hook (the
+   only function-hook event that carries the active effort — `turn.complete`/`tool.call` do not, and
+   the classic `Stop` hook is not dispatched to the mod at runtime); it writes the `effort` atom and
+   does not itself refresh.
+3. `refresh` also persists the snapshot JSON to `snapshotPath` — read by the TUI preview (FLOW-0002)
+   and by the native `ccstatus statusline` command (FLOW-0007). The mod no longer draws the status
+   line itself (it moved to the native settings.json command — see DEC-0013); `refresh` evaluates the
+   toast rules.
 4. When the engine paints the prompt it calls the `ui.render` hook for `{ component: 'AbovePrompt' }`.
    The hook reads the `visible`, `config`, and `snapshot` atoms, calls
    `render(config, snapshot, { surface: 'band', width: e.props.bodyColumns })`, and returns
