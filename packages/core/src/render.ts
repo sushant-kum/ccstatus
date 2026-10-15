@@ -44,9 +44,11 @@ export function render(config: Config, snapshot: Snapshot, opts: RenderOptions):
   let lineCells = surface.lines
     .map((items) => lineToCells(items, config, snapshot, outputs))
     .filter((cells) => cells.length > 0);
-  // Pad cells into shared columns across lines before coloring/composing, when enabled.
+  // Pad cells into shared columns across lines before coloring/composing, when enabled. Merged cells
+  // lose their inter-cell separator, so pass its width to keep columns aligned (see alignColumns).
   if (config.defaults.alignColumns) {
-    lineCells = alignColumns(lineCells, config.defaults.align);
+    const sepWidth = config.defaults.separator === 'none' ? 0 : 1;
+    lineCells = alignColumns(lineCells, config.defaults.align, sepWidth);
   }
   const lines = lineCells
     .map((cells) => assignPaletteColors(cells, theme))

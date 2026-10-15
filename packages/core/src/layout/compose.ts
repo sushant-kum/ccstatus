@@ -1,7 +1,7 @@
 import type { SeparatorMode } from '../config/types.js';
 import type { Segment } from '../render-model.js';
 
-import type { Cell } from './cells.js';
+import { willMerge, type Cell } from './cells.js';
 
 /**
  * Concatenates adjacent cells flagged to merge into their predecessor.
@@ -10,14 +10,14 @@ import type { Cell } from './cells.js';
  */
 function mergeCells(cells: Cell[]): Cell[] {
   const out: Cell[] = [];
-  for (const c of cells) {
+  cells.forEach((c, i) => {
     const prev = out[out.length - 1];
-    if (c.merge && prev && !prev.flex && !c.flex) {
+    if (willMerge(cells, i) && prev) {
       prev.text = `${prev.text}${c.text}`;
     } else {
       out.push({ ...c });
     }
-  }
+  });
   return out;
 }
 

@@ -85,14 +85,40 @@ function justify(text: string, width: number, align: Align): string {
 }
 
 /**
+ * Decides whether the cell at `index` folds into its predecessor when a line is composed. A cell
+ * merges when it is flagged `merge`, is not the first cell, is not itself a flex separator, and its
+ * immediate predecessor is a non-flex cell (flex separators absorb slack and never receive a merge).
+ *
+ * This is the single definition of the merge rule: `composeLine`'s `mergeCells` concatenates on it,
+ * and `alignColumns` compensates for the separator it drops, so the two cannot drift apart.
+ * @param cells - The cells of one line, in order.
+ * @param index - The position of the cell to test.
+ * @returns     `true` when the cell concatenates into the preceding cell.
+ */
+export function willMerge(cells: Cell[], index: number): boolean {
+  const cell = cells[index];
+  if (!cell || !cell.merge || cell.flex || index === 0) {
+    return false;
+  }
+  return !(cells[index - 1]?.flex ?? true);
+}
+
+/**
  * Aligns cells into columns across lines: each positional (non-flex) cell is padded to the widest
  * cell at that index across every line, with content justified by `align`. Flex separators are left
- * untouched (they absorb slack in `composeLine`). Returns new cell arrays; inputs are not mutated.
- * @param lines - The per-line cells of one surface.
- * @param align - How to justify each cell's content within its column.
- * @returns     The lines with their cells padded to shared column widths.
+ * untouched (they absorb slack in `composeLine`).
+ *
+ * A cell that will merge into its predecessor (`willMerge`) loses the separator other rows have at
+ * that boundary (`composeLine` concatenates merged text directly), which would shift that column and
+ * everything after it left by `sepWidth`. Such a cell prepends `sepWidth` spaces to fill the gap, so
+ * columns stay aligned across rows whether or not a row merges there. Returns new cell arrays;
+ * inputs are not mutated.
+ * @param lines    - The per-line cells of one surface.
+ * @param align    - How to justify each cell's content within its column.
+ * @param sepWidth - The width of one inter-cell separator (0 for `none`, else 1).
+ * @returns        The lines with their cells padded to shared column widths.
  */
-export function alignColumns(lines: Cell[][], align: Align): Cell[][] {
+export function alignColumns(lines: Cell[][], align: Align, sepWidth: number): Cell[][] {
   const widths: number[] = [];
   for (const cells of lines) {
     cells.forEach((c, i) => {
@@ -102,8 +128,14 @@ export function alignColumns(lines: Cell[][], align: Align): Cell[][] {
     });
   }
   return lines.map((cells) =>
-    cells.map((c, i) =>
-      c.flex ? c : { ...c, text: justify(c.text, widths[i] ?? c.text.length, align) }
-    )
+    cells.map((c, i) => {
+      if (c.flex) {
+        return c;
+      }
+      const padded = justify(c.text, widths[i] ?? c.text.length, align);
+      // A merge cell folds into its predecessor (willMerge), dropping the separator between them —
+      // prepend that width so the column still lines up with non-merged rows above and below.
+      return { ...c, text: willMerge(cells, i) ? ' '.repeat(sepWidth) + padded : padded };
+    })
   );
 }
