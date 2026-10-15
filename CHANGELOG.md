@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.4.2](https://github.com/sushant-kum/ccstatus/compare/0.4.1...0.4.2) (2026-10-15)
+
+### Features
+
+- **tui:** show the brand logo and version in the configurator menu ([#17](https://github.com/sushant-kum/ccstatus/issues/17)) ([749632e](https://github.com/sushant-kum/ccstatus/commit/749632efb7ed036c94068c53214350e47ae81d65))
+
 ## [0.4.1](https://github.com/sushant-kum/ccstatus/compare/0.4.0...0.4.1) (2026-10-15)
 
 ### Features
