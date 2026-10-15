@@ -42,6 +42,14 @@ function justify(text, width, align2) {
   }
   return text + " ".repeat(deficit);
 }
+function willMerge(cells, index) {
+  var _a;
+  const cell = cells[index];
+  if (!cell || !cell.merge || cell.flex || index === 0) {
+    return false;
+  }
+  return !(((_a = cells[index - 1]) == null ? void 0 : _a.flex) ?? true);
+}
 function alignColumns(lines, align2, sepWidth) {
   const widths = [];
   for (const cells of lines) {
@@ -53,13 +61,11 @@ function alignColumns(lines, align2, sepWidth) {
   }
   return lines.map(
     (cells) => cells.map((c, i) => {
-      var _a;
       if (c.flex) {
         return c;
       }
       const padded = justify(c.text, widths[i] ?? c.text.length, align2);
-      const merges = c.merge && i > 0 && !(((_a = cells[i - 1]) == null ? void 0 : _a.flex) ?? true);
-      return { ...c, text: merges ? " ".repeat(sepWidth) + padded : padded };
+      return { ...c, text: willMerge(cells, i) ? " ".repeat(sepWidth) + padded : padded };
     })
   );
 }
@@ -67,14 +73,14 @@ function alignColumns(lines, align2, sepWidth) {
 // packages/core/src/layout/compose.ts
 function mergeCells(cells) {
   const out = [];
-  for (const c of cells) {
+  cells.forEach((c, i) => {
     const prev = out[out.length - 1];
-    if (c.merge && prev && !prev.flex && !c.flex) {
+    if (willMerge(cells, i) && prev) {
       prev.text = `${prev.text}${c.text}`;
     } else {
       out.push({ ...c });
     }
-  }
+  });
   return out;
 }
 function truncate(segs, width) {

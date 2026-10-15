@@ -151,7 +151,38 @@ test('alignColumns keeps columns aligned across a row with a merged cell', () =>
   const model = render(cfg, snap, { surface: 'band', width: 120 });
   const full = (li: number): string => model.lines[li]?.segments.map((s) => s.text).join('') ?? '';
   // the last column must start at the same x on both lines, despite line 2's merged cell
-  expect(full(0).indexOf('ZZ')).toBe(full(1).indexOf('YY'));
+  const col2 = full(0).indexOf('ZZ');
+  expect(col2).toBeGreaterThanOrEqual(0); // guard against a -1 === -1 false pass
+  expect(full(1).indexOf('YY')).toBe(col2);
+});
+
+test('alignColumns with separator none needs no merge compensation (sepWidth 0)', () => {
+  const cfg = JSON.parse(JSON.stringify(defaultConfig)) as typeof defaultConfig;
+  cfg.defaults = {
+    ...cfg.defaults,
+    separator: 'none',
+    padding: 0,
+    alignColumns: true,
+    align: 'left',
+  };
+  cfg.surfaces.band.lines = [
+    [
+      { id: 'a0', type: 'custom-text', text: 'aa' },
+      { id: 'a1', type: 'custom-text', text: 'bb' },
+      { id: 'a2', type: 'custom-text', text: 'ZZ' },
+    ],
+    [
+      { id: 'b0', type: 'custom-text', text: 'dd' },
+      { id: 'b1', type: 'custom-text', text: 'ee', merge: true }, // no separator exists to drop
+      { id: 'b2', type: 'custom-text', text: 'YY' },
+    ],
+  ];
+  const model = render(cfg, snap, { surface: 'band', width: 120 });
+  const full = (li: number): string => model.lines[li]?.segments.map((s) => s.text).join('') ?? '';
+  // sepWidth is 0 under 'none', so the merge cell must NOT gain a phantom leading space.
+  const col2 = full(0).indexOf('ZZ');
+  expect(col2).toBeGreaterThanOrEqual(0);
+  expect(full(1).indexOf('YY')).toBe(col2);
 });
 
 test('positional palette colors every segment and alternates backgrounds', () => {

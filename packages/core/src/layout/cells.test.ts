@@ -116,3 +116,19 @@ test('alignColumns does not prepend for a merge cell with no mergeable predecess
   expect(out[0]?.[0]?.text).toBe('x'); // index 0: not merged, no prepend (col0 width 1)
   expect(out[1]?.[1]?.text).toBe('y '); // predecessor flex: not merged, no prepend (col1 width 2)
 });
+
+test('alignColumns prepends for each of consecutive merge cells (DEC-0031)', () => {
+  const m1: Cell = { text: 'b', merge: true, flex: false };
+  const m2: Cell = { text: 'c', merge: true, flex: false }; // predecessor m1 is non-flex -> also merges
+  const out = alignColumns(
+    [
+      [cell('a'), m1, m2],
+      [cell('aaa'), cell('bbb'), cell('ccc')],
+    ],
+    'left',
+    1
+  );
+  // willMerge reads the raw predecessor, so m2's check sees m1 (non-flex) regardless of folding.
+  expect(out[0]?.[1]?.text).toBe(' b  '); // col1 width 3, +1 prepend
+  expect(out[0]?.[2]?.text).toBe(' c  '); // col2 width 3, +1 prepend
+});

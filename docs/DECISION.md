@@ -1376,7 +1376,7 @@ and exposed as `VERSION` from `src/version.ts` — no runtime file read.
 - **Date:** 2026-10-15
 - **Status:** Accepted
 - **Scope:** core
-- **Related:** DEC-0029 (column alignment), DEC-0008 (merge flag)
+- **Related:** DEC-0029 (column alignment), DEC-0020 (merged cells share the preceding palette slot), DEC-0008 (item `merge` flag)
 
 ### Context
 
@@ -1390,10 +1390,11 @@ other rows — e.g. a merged `Reset`+`Weekly` pair left `Weekly` and the cell af
 ### Decision
 
 `alignColumns` now takes the separator width (`render` passes 0 for `separator: 'none'`, else 1). A
-cell that will actually merge — `merge: true`, not the first cell, and with a non-flex predecessor
-(the same condition `mergeCells` uses) — prepends that many spaces to its padded text, filling the gap
-the dropped separator would have occupied. Columns then line up across rows whether or not a given
-row merges at that position.
+cell that will actually merge — `merge: true`, not the first cell, and with a non-flex predecessor —
+prepends that many spaces to its padded text, filling the gap the dropped separator would have
+occupied. Columns then line up across rows whether or not a given row merges at that position. The
+merge test is a single shared `willMerge` predicate called by both `mergeCells` (to concatenate) and
+`alignColumns` (to compensate), so the two cannot drift out of agreement.
 
 ### Alternatives considered
 
@@ -1404,6 +1405,7 @@ row merges at that position.
 
 ### Consequences
 
-- The compensating spaces render in the predecessor's colour (merged cells already share it — DEC-0008),
-  so in `powerline` mode the filled gap is a flat block rather than a chevron; widths align, the inner
-  chevron is intentionally absent. Consecutive merges each compensate their own dropped separator.
+- The compensating spaces render in the predecessor's colour (merged cells already share the preceding
+  palette slot — DEC-0020), so in `powerline` mode the filled gap is a flat block rather than a chevron;
+  widths align, the inner chevron is intentionally absent. Consecutive merges each compensate their own
+  dropped separator.
