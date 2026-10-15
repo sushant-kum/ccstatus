@@ -76,6 +76,7 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0025 | 2026-10-13 | Branded `ColorIndex` type minted only by `isColorIndex` / `asIndex`                      | Accepted               | core \| tui    |
 | DEC-0026 | 2026-10-14 | Conditional widgets stay visible with a placeholder (ccstatusline parity)                | Accepted               | core           |
 | DEC-0027 | 2026-10-15 | Capture reasoning effort from the streaming `turn.step` hook                             | Accepted               | plugin         |
+| DEC-0028 | 2026-10-15 | Built-in themes mirror ccstatusline's palettes and are always folded into the config     | Accepted               | core           |
 
 ---
 
@@ -1233,3 +1234,49 @@ streaming hook) and was confirmed by the live probe.
   but is kept and tested as a documented fallback.
 - The streaming `yield* next(e)` forwarding cannot be exercised by `claude plugin test`; that is an
   accepted, named coverage gap (see FLOW-0001).
+
+---
+
+## DEC-0028 — Built-in themes mirror ccstatusline's palettes and are always folded into the config
+
+- **Date:** 2026-10-15
+- **Status:** Accepted
+- **Scope:** core
+- **Related:** DEC-0020 (positional palettes), DEC-0023 (xterm-256), DEC-0015 (ccstatusline parity)
+
+### Context
+
+The built-in themes carried ccstatusline's names but only approximate colours (translated from the
+old basic-hue palettes), and `one-dark`/`tokyo-night`/`classic` diverged from ccstatusline's keys.
+Separately, `loadConfig` folded the built-ins in only when a config defined _no_ themes, so once a
+config persisted its themes (which every TUI save does), later built-in palette updates never reached
+it — a user was stuck with whatever colours shipped when their config was first written.
+
+### Decision
+
+Replace the built-in set with ccstatusline's `POWERLINE_THEMES`, using its **ansi256 (Level-2) tier**
+verbatim as the positional palette (the status line has no truecolor — DEC-0023 — so the hex tier is
+unusable). The set is `default` (ccstatus's own, unchanged) plus ccstatusline's ten: `nord`,
+`nord-aurora`, `monokai`, `solarized`, `minimal`, `dracula`, `catppuccin`, `gruvbox`, `onedark`,
+`tokyonight`. `classic` is dropped; `one-dark`/`tokyo-night` are renamed to ccstatusline's spelling.
+
+`loadConfig` now **always** folds the current built-ins into the themes map (`withBuiltinThemes`): a
+saved theme whose name and palette match an unmodified legacy built-in is refreshed to the current
+one (or dropped if removed/renamed), a theme the user edited or authored is kept, and any missing
+built-in is added. A saved active-theme name that was renamed resolves via a small alias map
+(`one-dark→onedark`, `tokyo-night→tokyonight`, `classic→default`) instead of silently falling back.
+
+### Alternatives considered
+
+- **Keep the old "don't fold built-ins when custom themes exist" behavior** — rejected: it strands
+  existing configs on stale palettes, so the ccstatusline update would never reach current users.
+- **Overwrite every built-in-named theme on load** — rejected: the TUI lets users edit palettes, so
+  this would clobber their customizations; the unmodified-fingerprint check preserves edits.
+- **Use ccstatusline's hex (Level-3) tier** — rejected: the status line is xterm-256 only (DEC-0023).
+
+### Consequences
+
+- Built-in themes are always present and track the canonical palettes; a user can no longer trim the
+  built-in set (deleting one re-appears on load), but may still add and edit their own themes.
+- Every saved config now carries all 11 built-ins. Existing configs upgrade on next load; a config
+  that had hand-edited a built-in keeps its edit under that name.

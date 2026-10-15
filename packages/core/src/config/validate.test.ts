@@ -1,5 +1,7 @@
 import { expect, test } from 'vitest';
 
+import { builtinThemes } from '../theme/themes.js';
+
 import { defaultConfig } from './defaults.js';
 import { WIDGET_TYPES } from './types.js';
 import { loadConfig } from './validate.js';
@@ -211,11 +213,19 @@ test('a non-array, non-object theme value is dropped with a "not a palette array
   expect(warnings.some((w) => w.includes('old per-widget format'))).toBe(false);
 });
 
-test('defining one custom theme keeps default but does not fold in the other builtins', () => {
+test('a custom theme is kept and the current built-ins are folded in (DEC-0028)', () => {
   const raw = { version: 1, theme: 'mine', themes: { mine: [{ fg: 231, bg: 160 }] } };
   const { config } = loadConfig(raw);
-  expect(Object.keys(config.themes).sort()).toEqual(['default', 'mine']);
-  expect(config.themes.nord).toBeUndefined();
+  expect(config.themes.mine).toEqual([{ fg: 231, bg: 160 }]); // custom preserved
+  expect(config.themes.nord).toEqual(builtinThemes.nord); // built-ins now always present
+  expect(Object.keys(config.themes)).toContain('catppuccin'); // incl. the new ccstatusline themes
+  expect(config.theme).toBe('mine');
+});
+
+test('a renamed active theme name is aliased to its new built-in with a warning', () => {
+  const { config, warnings } = loadConfig({ version: 1, theme: 'one-dark', themes: {} });
+  expect(config.theme).toBe('onedark');
+  expect(warnings.some((w) => w.includes('one-dark') && w.includes('renamed'))).toBe(true);
 });
 
 test('a non-object slot is replaced with an empty slot, preserving later positions', () => {

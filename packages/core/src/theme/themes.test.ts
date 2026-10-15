@@ -2,20 +2,23 @@ import { expect, test } from 'vitest';
 
 import { isColorIndex } from '../colors.js';
 import { defaultConfig } from '../config/defaults.js';
+import type { Theme } from '../config/types.js';
 
-import { builtinThemes } from './themes.js';
+import { builtinThemes, withBuiltinThemes } from './themes.js';
 
-test('builtinThemes has the 9 ccstatusline themes with valid colors', () => {
+test('builtinThemes is `default` plus ccstatusline’s 10 themes, with valid colors', () => {
   expect(Object.keys(builtinThemes).sort()).toEqual([
-    'classic',
+    'catppuccin',
     'default',
     'dracula',
     'gruvbox',
+    'minimal',
     'monokai',
     'nord',
-    'one-dark',
+    'nord-aurora',
+    'onedark',
     'solarized',
-    'tokyo-night',
+    'tokyonight',
   ]);
   for (const theme of Object.values(builtinThemes)) {
     expect(Array.isArray(theme)).toBe(true);
@@ -31,11 +34,11 @@ test('builtinThemes has the 9 ccstatusline themes with valid colors', () => {
 });
 
 test('defaultConfig folds in all builtin themes, default active', () => {
-  expect(Object.keys(defaultConfig.themes)).toHaveLength(9);
+  expect(Object.keys(defaultConfig.themes)).toHaveLength(11);
   expect(defaultConfig.theme).toBe('default');
 });
 
-test('the default theme keeps its exact translated values', () => {
+test('the default theme keeps its exact values (ccstatus’s own, not a ccstatusline theme)', () => {
   expect(builtinThemes['default']).toEqual([
     { fg: 16, bg: 44 },
     { fg: 231, bg: 20 },
@@ -43,4 +46,41 @@ test('the default theme keeps its exact translated values', () => {
     { fg: 231, bg: 240 },
     { fg: 16, bg: 40 },
   ]);
+});
+
+test('nord matches ccstatusline’s ansi256 palette', () => {
+  expect(builtinThemes['nord']).toEqual([
+    { fg: 16, bg: 73 },
+    { fg: 254, bg: 239 },
+    { fg: 231, bg: 25 },
+    { fg: 231, bg: 96 },
+    { fg: 16, bg: 152 },
+  ]);
+});
+
+test('withBuiltinThemes refreshes an unmodified legacy built-in to the new palette', () => {
+  // the pre-adoption `nord` palette, verbatim as an old config would hold it
+  const legacyNord: Theme = [
+    { fg: 16, bg: 51 },
+    { fg: 16, bg: 44 },
+    { fg: 16, bg: 20 },
+    { fg: 231, bg: 240 },
+    { fg: 16, bg: 21 },
+    { fg: 16, bg: 40 },
+    { fg: 16, bg: 184 },
+    { fg: 231, bg: 16 },
+  ];
+  const out = withBuiltinThemes({ nord: legacyNord });
+  expect(out['nord']).toEqual(builtinThemes['nord']); // refreshed, not the legacy 8-slot palette
+  expect(out['catppuccin']).toEqual(builtinThemes['catppuccin']); // new built-ins added
+  expect(out['classic']).toBeUndefined(); // dropped legacy built-in
+});
+
+test('withBuiltinThemes keeps a user-edited built-in and custom themes untouched', () => {
+  const editedNord: Theme = [{ fg: 231, bg: 160 }]; // not the legacy palette
+  const mine: Theme = [{ fg: 200, bg: 100 }];
+  const out = withBuiltinThemes({ nord: editedNord, mine });
+  expect(out['nord']).toEqual(editedNord); // preserved — not refreshed
+  expect(out['mine']).toEqual(mine); // custom theme preserved
+  expect(out['default']).toEqual(builtinThemes['default']); // built-ins still present
 });

@@ -1,6 +1,6 @@
 import { asIndex, isColorIndex } from '../colors.js';
 import type { ColorIndex } from '../colors.js';
-import { builtinThemes } from '../theme/themes.js';
+import { legacyThemeAliases, withBuiltinThemes } from '../theme/themes.js';
 import { NAMED_INDEX } from '../theme/xterm256.js';
 import { isValidWhen } from '../toast.js';
 
@@ -262,15 +262,20 @@ export function loadConfig(raw: unknown): { config: Config; warnings: string[] }
     return layout;
   };
 
-  const cleaned = cleanThemes(p.themes, warn);
-  const themes = Object.keys(cleaned).length ? cleaned : clone(builtinThemes);
-  if (!Object.hasOwn(themes, 'default')) {
-    themes['default'] = clone(builtinThemes['default'] ?? []);
-  }
+  // Fold the current built-ins into the saved themes: refresh unmodified built-ins (so palette
+  // updates like the ccstatusline adoption reach existing configs), keep user-edited/custom themes,
+  // and always provide `default`. See DEC-0028.
+  const themes = withBuiltinThemes(cleanThemes(p.themes, warn));
   let theme = p.theme;
   if (!Object.hasOwn(themes, theme)) {
-    warn(`theme "${theme}" not found; using "default"`);
-    theme = 'default';
+    const alias = legacyThemeAliases[theme];
+    if (alias && Object.hasOwn(themes, alias)) {
+      warn(`theme "${theme}" was renamed; using "${alias}"`);
+      theme = alias;
+    } else {
+      warn(`theme "${theme}" not found; using "default"`);
+      theme = 'default';
+    }
   }
 
   const config: Config = {
