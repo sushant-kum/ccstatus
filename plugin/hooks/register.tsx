@@ -364,14 +364,24 @@ async function togglePane($: EngineInterface): Promise<string> {
 
 /**
  * Capture the active reasoning effort from an engine event into plugin state.
+ *
+ * The classic Stop hook input carries the active effort as `{ active }`;
+ * streaming/function-hook events expose it as a bare value
+ * (`low`/`medium`/`high`/`xhigh`/`max`, or a number). Both shapes are read.
  * @param $ - The engine interface.
- * @param e - The engine event, inspected for an `effort.active` field.
+ * @param e - The engine event, inspected for an `effort` field.
  * @returns A promise that resolves once the effort has been recorded.
  */
 function captureEffort($: EngineInterface, e: unknown): Promise<void> {
-  const active = (e as { effort?: { active?: unknown } })?.effort?.active;
-  if (typeof active === 'string' && active) {
-    return update($, effort, () => active).then(
+  const raw = (e as { effort?: unknown })?.effort;
+  const value =
+    typeof raw === 'string' || typeof raw === 'number'
+      ? String(raw)
+      : typeof (raw as { active?: unknown })?.active === 'string'
+        ? (raw as { active: string }).active
+        : '';
+  if (value) {
+    return update($, effort, () => value).then(
       () => undefined,
       () => undefined
     );
@@ -414,12 +424,14 @@ export const register: Register = (on) => {
   });
 
   on('turn.complete', async ($, e, next) => {
-    await captureEffort($, e);
     await refresh($);
     return next(e);
   });
 
-  on('tool.call', async ($, e, next) => {
+  // The active reasoning effort is exposed on the classic Stop hook input
+  // (BaseHookInput.effort.active), not on the function-hook turn.complete/tool.call
+  // events; capture it there each turn so the snapshot reflects it.
+  on('classic.Stop', async ($, e, next) => {
     await captureEffort($, e);
     return next(e);
   });
