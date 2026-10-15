@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.4](https://github.com/sushant-kum/ccstatus/compare/0.3.3...0.3.4) (2026-10-15)
+
+### Features
+
+- **core:** keep thinking-effort and git-worktree widgets visible when empty ([#12](https://github.com/sushant-kum/ccstatus/issues/12)) ([77eb1fd](https://github.com/sushant-kum/ccstatus/commit/77eb1fdcf068b031ba2d7426f56b8723c1cf704d))
+
+### Bug Fixes
+
+- **plugin:** capture reasoning effort from the classic Stop hook ([#13](https://github.com/sushant-kum/ccstatus/issues/13)) ([0aebb0f](https://github.com/sushant-kum/ccstatus/commit/0aebb0ff365e453a22a91d0545545b73e9fa962c))
+
 ## [0.3.3](https://github.com/sushant-kum/ccstatus/compare/0.3.2...0.3.3) (2026-10-14)
 
 ### Features
