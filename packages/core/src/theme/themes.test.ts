@@ -1,10 +1,14 @@
 import { expect, test } from 'vitest';
 
-import { isColorIndex } from '../colors.js';
+import { asIndex, isColorIndex } from '../colors.js';
 import { defaultConfig } from '../config/defaults.js';
 import type { Theme } from '../config/types.js';
 
 import { builtinThemes, withBuiltinThemes } from './themes.js';
+
+// Build a palette from raw index pairs (slots need the branded ColorIndex — DEC-0025).
+const pal = (rows: [number, number][]): Theme =>
+  rows.map(([fg, bg]) => ({ fg: asIndex(fg), bg: asIndex(bg) }));
 
 test('builtinThemes is `default` plus ccstatusline’s 10 themes, with valid colors', () => {
   expect(Object.keys(builtinThemes).sort()).toEqual([
@@ -60,16 +64,16 @@ test('nord matches ccstatusline’s ansi256 palette', () => {
 
 test('withBuiltinThemes refreshes an unmodified legacy built-in to the new palette', () => {
   // the pre-adoption `nord` palette, verbatim as an old config would hold it
-  const legacyNord: Theme = [
-    { fg: 16, bg: 51 },
-    { fg: 16, bg: 44 },
-    { fg: 16, bg: 20 },
-    { fg: 231, bg: 240 },
-    { fg: 16, bg: 21 },
-    { fg: 16, bg: 40 },
-    { fg: 16, bg: 184 },
-    { fg: 231, bg: 16 },
-  ];
+  const legacyNord = pal([
+    [16, 51],
+    [16, 44],
+    [16, 20],
+    [231, 240],
+    [16, 21],
+    [16, 40],
+    [16, 184],
+    [231, 16],
+  ]);
   const out = withBuiltinThemes({ nord: legacyNord });
   expect(out['nord']).toEqual(builtinThemes['nord']); // refreshed, not the legacy 8-slot palette
   expect(out['catppuccin']).toEqual(builtinThemes['catppuccin']); // new built-ins added
@@ -77,8 +81,8 @@ test('withBuiltinThemes refreshes an unmodified legacy built-in to the new palet
 });
 
 test('withBuiltinThemes keeps a user-edited built-in and custom themes untouched', () => {
-  const editedNord: Theme = [{ fg: 231, bg: 160 }]; // not the legacy palette
-  const mine: Theme = [{ fg: 200, bg: 100 }];
+  const editedNord = pal([[231, 160]]); // not the legacy palette
+  const mine = pal([[200, 100]]);
   const out = withBuiltinThemes({ nord: editedNord, mine });
   expect(out['nord']).toEqual(editedNord); // preserved — not refreshed
   expect(out['mine']).toEqual(mine); // custom theme preserved
