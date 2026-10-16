@@ -60,8 +60,14 @@ test('cost', () => {
 test('rate-limit-5h with reset', () => {
   expect(fmt('rate-limit-5h', base)).toBe('Session: █░░░░ 30%  1h 2m');
 });
-test('rate-limit-5h missing', () => {
-  expect(fmt('rate-limit-5h', { ...base, fivePct: null })).toBe('Session: —');
+test('rate-limit-5h shows 0% when the percentage is unavailable (DEC-0033)', () => {
+  // no reading yet: percentage and reset both null -> empty bar, 0%, no reset suffix
+  expect(fmt('rate-limit-5h', { ...base, fivePct: null, fiveReset: null })).toBe(
+    'Session: ░░░░░ 0%'
+  );
+});
+test('rate-limit-5h renders a genuine 0% with its bar and reset', () => {
+  expect(fmt('rate-limit-5h', { ...base, fivePct: 0 })).toBe('Session: ░░░░░ 0%  1h 2m');
 });
 test('rate-limit-week without reset', () => {
   expect(fmt('rate-limit-week', base)).toBe('Weekly: 10%');
@@ -77,8 +83,8 @@ test('rate-limit-5h with past reset', () => {
 test('rate-limit-5h with invalid reset', () => {
   expect(fmt('rate-limit-5h', { ...base, fiveReset: 'garbage' })).toBe('Session: █░░░░ 30%');
 });
-test('rate-limit-week null pct', () => {
-  expect(fmt('rate-limit-week', { ...base, weekPct: null })).toBe('Weekly: —');
+test('rate-limit-week shows 0% when the percentage is unavailable (DEC-0033)', () => {
+  expect(fmt('rate-limit-week', { ...base, weekPct: null })).toBe('Weekly: 0%');
 });
 test('block-timer positive', () => {
   expect(fmt('block-timer', { ...base, blockReset: new Date(now + 3_720_000).toISOString() })).toBe(
@@ -90,13 +96,15 @@ test('block-timer past', () => {
     fmt('block-timer', { ...base, blockReset: new Date(now - 1000).toISOString() })
   ).toBeNull();
 });
-test('session-usage shows the 5h percentage, or null when unknown', () => {
+test('session-usage shows the 5h percentage, or 0% when unknown (DEC-0033)', () => {
   expect(fmt('session-usage', { ...base, fivePct: 42 })).toBe('Session: 42%');
-  expect(fmt('session-usage', { ...base, fivePct: null })).toBeNull();
+  expect(fmt('session-usage', { ...base, fivePct: 0 })).toBe('Session: 0%');
+  expect(fmt('session-usage', { ...base, fivePct: null })).toBe('Session: 0%');
 });
-test('weekly-usage shows the weekly percentage, or null when unknown', () => {
+test('weekly-usage shows the weekly percentage, or 0% when unknown (DEC-0033)', () => {
   expect(fmt('weekly-usage', { ...base, weekPct: 10 })).toBe('Weekly: 10%');
-  expect(fmt('weekly-usage', { ...base, weekPct: null })).toBeNull();
+  expect(fmt('weekly-usage', { ...base, weekPct: 0 })).toBe('Weekly: 0%');
+  expect(fmt('weekly-usage', { ...base, weekPct: null })).toBe('Weekly: 0%');
 });
 test('reset-timer shows the 5h countdown, null when absent or past', () => {
   expect(fmt('reset-timer', base)).toBe('Reset: 1h 2m');

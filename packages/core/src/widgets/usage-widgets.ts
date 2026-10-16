@@ -30,11 +30,11 @@ register({
   type: 'rate-limit-5h',
   label: 'Session limit',
   format: ({ snapshot }) => {
-    if (snapshot.fivePct === null) {
-      return 'Session: —';
-    }
+    // An unknown percentage (no reading yet) shows 0%, mirroring Ctx Used, rather than a "—"
+    // placeholder (see DEC-0033). The reset suffix still only appears when its time is known.
+    const p = snapshot.fivePct ?? 0;
     const reset = until(snapshot.fiveReset, snapshot.now);
-    return `Session: ${bar(snapshot.fivePct)} ${pct(snapshot.fivePct)}${reset !== null ? `  ${fmtDur(reset)}` : ''}`;
+    return `Session: ${bar(p)} ${pct(p)}${reset !== null ? `  ${fmtDur(reset)}` : ''}`;
   },
 });
 
@@ -42,11 +42,9 @@ register({
   type: 'rate-limit-week',
   label: 'Weekly limit',
   format: ({ snapshot }) => {
-    if (snapshot.weekPct === null) {
-      return 'Weekly: —';
-    }
+    const p = snapshot.weekPct ?? 0; // unknown shows 0% (DEC-0033)
     const reset = until(snapshot.weekReset, snapshot.now);
-    return `Weekly: ${pct(snapshot.weekPct)}${reset !== null ? `  ${fmtDur(reset)}` : ''}`;
+    return `Weekly: ${pct(p)}${reset !== null ? `  ${fmtDur(reset)}` : ''}`;
   },
 });
 
@@ -62,14 +60,13 @@ register({
 register({
   type: 'session-usage',
   label: 'Session %',
-  format: ({ snapshot }) =>
-    snapshot.fivePct === null ? null : `Session: ${pct(snapshot.fivePct)}`,
+  format: ({ snapshot }) => `Session: ${pct(snapshot.fivePct ?? 0)}`, // unknown shows 0% (DEC-0033)
 });
 
 register({
   type: 'weekly-usage',
   label: 'Weekly %',
-  format: ({ snapshot }) => (snapshot.weekPct === null ? null : `Weekly: ${pct(snapshot.weekPct)}`),
+  format: ({ snapshot }) => `Weekly: ${pct(snapshot.weekPct ?? 0)}`, // unknown shows 0% (DEC-0033)
 });
 
 register({

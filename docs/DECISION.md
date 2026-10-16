@@ -81,6 +81,7 @@ open — no entry stays `Proposed` on `main`).
 | DEC-0030 | 2026-10-15 | Configurator shows a half-block brand logo and the injected version                      | Accepted               | tui            |
 | DEC-0031 | 2026-10-15 | Column alignment compensates the separator a merged cell drops                           | Superseded by DEC-0032 | core           |
 | DEC-0032 | 2026-10-15 | Column alignment aligns by visual (post-merge) column                                    | Accepted               | core           |
+| DEC-0033 | 2026-10-16 | Rate-limit percentage widgets show 0% when the percentage is unavailable                 | Accepted               | core           |
 
 ---
 
@@ -1463,3 +1464,48 @@ raw-index alignment fails.
   in `powerline` mode a widened merged column fills as one block.
 - Lines with unequal visual-column counts (a merge on one row with no matching column on another) still
   align best-effort per visual index, as before — a strict grid needs matching visual-column counts.
+
+---
+
+## DEC-0033 — Rate-limit percentage widgets show 0% when the percentage is unavailable
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+- **Scope:** core
+- **Related:** DEC-0013 (status line render path)
+
+### Context
+
+The session (`rate-limit-5h`, `session-usage`) and weekly (`rate-limit-week`, `weekly-usage`) widgets
+read `snapshot.fivePct`/`weekPct`, which are `number | null` — null while the engine has no rate-limit
+reading yet (`rateLimits` is empty "before the first reading"). The widgets rendered that null state as
+a `—` placeholder (the "limit" variants) or by omitting themselves entirely (the "%" variants). The
+`Ctx Used` widget, by contrast, reads the non-null `ctxPct` (default 0) and always shows `0%`. The
+inconsistency read as a bug: a 0 or not-yet-known percentage showed nothing instead of `0%`.
+
+A genuine numeric 0 already rendered `0%` — `pct(0)` is `"0%"` and the widgets guarded on `=== null`,
+not on a falsy check — so only the unavailable (null) case was affected.
+
+### Decision
+
+The four rate-limit percentage widgets coerce an unavailable percentage to 0 for display
+(`snapshot.fivePct ?? 0`), so they always show `0%` like `Ctx Used`, never `—` or nothing. This matches
+the existing house rule that a zero value renders (e.g. `session-cost-rate` shows `$0.00/hr`, not null).
+The reset-time suffix is unaffected — it still appears only when its timestamp is known, since a missing
+reset time cannot be shown as 0.
+
+The snapshot type stays `number | null`: the null (unknown) state is preserved in the data model so
+toast rules (`TOAST_FIELDS.fivePct`/`weekPct`) can still distinguish "no reading" from a real 0. The
+coercion lives only in the display widgets.
+
+### Alternatives considered
+
+- **Default `fivePct`/`weekPct` to 0 in the snapshot** — rejected: would erase the unknown state for
+  toast evaluation, which legitimately needs to tell "no reading" from an actual 0%.
+- **Keep the `—` placeholder** — rejected: the reporter wants parity with `Ctx Used`; the "before first
+  reading" window is transient (filled within one ~2s measure cycle), so `0%` is an acceptable interim.
+
+### Consequences
+
+- The `—` "no data yet" indicator is gone for these widgets; an unavailable percentage reads `0%`. In
+  the rare case rate-limit data is never provided, these widgets show a steady `0%`.
