@@ -1502,8 +1502,11 @@ coercion lives only in the display widgets.
 
 - **Default `fivePct`/`weekPct` to 0 in the snapshot** — rejected: would erase the unknown state for
   toast evaluation, which legitimately needs to tell "no reading" from an actual 0%.
-- **Keep the `—` placeholder** — rejected: the reporter wants parity with `Ctx Used`; the "before first
-  reading" window is transient (filled within one ~2s measure cycle), so `0%` is an acceptable interim.
+- **Keep the `—` placeholder** — rejected: the reporter wants parity with `Ctx Used`. The engine's
+  `rateLimits` is empty both "before the first reading" (transient — filled within one ~2s measure cycle)
+  and "off a subscription" (permanent — such users never receive rate-limit data). `0%` is an acceptable
+  interim in the first case and a steady, truthful "nothing measured" in the second (see Consequences);
+  neither warrants a distinct placeholder.
 
 ### Consequences
 
