@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.4.5](https://github.com/sushant-kum/ccstatus/compare/0.4.4...0.4.5) (2026-10-16)
+
+### Bug Fixes
+
+- **core:** show 0% for unavailable rate-limit percentages ([#20](https://github.com/sushant-kum/ccstatus/issues/20)) ([78dd78d](https://github.com/sushant-kum/ccstatus/commit/78dd78dcd21cab1d96040a4d5ee294b43bd024d9))
+
 ## [0.4.4](https://github.com/sushant-kum/ccstatus/compare/0.4.3...0.4.4) (2026-10-15)
 
 ### Bug Fixes

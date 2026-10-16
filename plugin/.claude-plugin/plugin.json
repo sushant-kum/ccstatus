@@ -1,6 +1,6 @@
 {
   "name": "ccstatus",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "A configurable status bar for Claude Code — band, status line, pane, and toasts driven by one config; configured with npx @sushant-kum/ccstatus or /ccstatus.",
   "author": {
     "name": "Sushant Kumar",
