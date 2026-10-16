@@ -1472,7 +1472,7 @@ raw-index alignment fails.
 - **Date:** 2026-10-16
 - **Status:** Accepted
 - **Scope:** core
-- **Related:** DEC-0013 (status line render path)
+- **Related:** [DEC-0002](#dec-0002--shared-pure-core-mod-and-tui-are-thin-painters) (shared pure core — these widgets render identically across all surfaces)
 
 ### Context
 

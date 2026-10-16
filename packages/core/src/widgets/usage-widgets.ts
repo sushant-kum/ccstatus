@@ -30,8 +30,9 @@ register({
   type: 'rate-limit-5h',
   label: 'Session limit',
   format: ({ snapshot }) => {
-    // An unknown percentage (no reading yet) shows 0%, mirroring Ctx Used, rather than a "—"
-    // placeholder (see DEC-0033). The reset suffix still only appears when its time is known.
+    // An unknown percentage (no reading — not yet measured, or off a subscription) shows 0%,
+    // mirroring Ctx Used, rather than a "—" placeholder (see DEC-0033). The reset suffix still
+    // only appears when its time is known.
     const p = snapshot.fivePct ?? 0;
     const reset = until(snapshot.fiveReset, snapshot.now);
     return `Session: ${bar(p)} ${pct(p)}${reset !== null ? `  ${fmtDur(reset)}` : ''}`;

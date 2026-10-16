@@ -69,6 +69,11 @@ test('rate-limit-5h shows 0% when the percentage is unavailable (DEC-0033)', () 
 test('rate-limit-5h renders a genuine 0% with its bar and reset', () => {
   expect(fmt('rate-limit-5h', { ...base, fivePct: 0 })).toBe('Session: ░░░░░ 0%  1h 2m');
 });
+test('rate-limit-5h shows 0% with the reset suffix when pct is unavailable but reset is known', () => {
+  // the new code computes the reset independently of the (coerced) percentage — on main the
+  // `fivePct === null` early return skipped the suffix entirely (DEC-0033).
+  expect(fmt('rate-limit-5h', { ...base, fivePct: null })).toBe('Session: ░░░░░ 0%  1h 2m');
+});
 test('rate-limit-week without reset', () => {
   expect(fmt('rate-limit-week', base)).toBe('Weekly: 10%');
 });
@@ -84,7 +89,15 @@ test('rate-limit-5h with invalid reset', () => {
   expect(fmt('rate-limit-5h', { ...base, fiveReset: 'garbage' })).toBe('Session: █░░░░ 30%');
 });
 test('rate-limit-week shows 0% when the percentage is unavailable (DEC-0033)', () => {
-  expect(fmt('rate-limit-week', { ...base, weekPct: null })).toBe('Weekly: 0%');
+  const reset = new Date(now + 3_720_000).toISOString();
+  expect(fmt('rate-limit-week', { ...base, weekPct: null })).toBe('Weekly: 0%'); // base weekReset null
+  // a genuine 0 and an unavailable pct both read 0%; the reset suffix shows whenever its time is known
+  expect(fmt('rate-limit-week', { ...base, weekPct: 0, weekReset: reset })).toBe(
+    'Weekly: 0%  1h 2m'
+  );
+  expect(fmt('rate-limit-week', { ...base, weekPct: null, weekReset: reset })).toBe(
+    'Weekly: 0%  1h 2m'
+  );
 });
 test('block-timer positive', () => {
   expect(fmt('block-timer', { ...base, blockReset: new Date(now + 3_720_000).toISOString() })).toBe(
